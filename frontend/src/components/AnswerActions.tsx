@@ -143,9 +143,10 @@ export default function AnswerActions({
     try {
       await api.submitShare({ channel, message_id: messageId, session_id: sessionId });
     } catch (e: any) {
-      const msg = String(e?.message || e);
-      if (msg.includes("공유 횟수")) {
-        alert(msg);
+      // 공유 한도 초과(403 share_quota_exceeded) → 로케일 메시지 안내 후 공유 중단.
+      // 한국어 문자열 매칭 대신 서버 코드로 판별(vi 로케일에서도 정확히 동작).
+      if (e?.code === "share_quota_exceeded") {
+        alert(e?.message || String(e));
         return false;
       }
       /* 로그인 필요 등 → 무시하고 공유 진행 */
