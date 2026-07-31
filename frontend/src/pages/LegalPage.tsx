@@ -43,18 +43,30 @@ const OTHER: { kind: LegalKind; to: string }[] = [
 
 type Versions = { terms: string; privacy: string; refund: string; min_age: number };
 
-// ───────────────────────── 사업자 정보 표 (전자상거래법 §13) ─────────────────────────
+// ───────────────────────── 사업자 정보 표 (전자상거래법 §13 / VN thông tin nhà cung cấp) ─────────────────────────
 function BizTable({ co }: { co: Co }) {
-  const rows: [string, string][] = [
-    ["상호(서비스명)", `${show(co.bizName)} (${co.serviceName})`],
-    ["대표자", show(co.ceo)],
-    ["사업자등록번호", show(co.regNo)],
-    ["통신판매업 신고번호", show(co.mailOrderNo)],
-    ["사업장 소재지", show(co.address)],
-    ["고객센터", show(co.tel)],
-    ["전자우편", co.email],
-    ["호스팅 제공자", show(co.hosting)],
-  ];
+  const { i18n } = useTranslation();
+  const isVi = i18n.language.startsWith("vi");
+  const rows: [string, string][] = isVi
+    ? [
+        ["Tên dịch vụ", `${show(co.bizName)} (${co.serviceName})`],
+        ["Người đại diện", show(co.ceo)],
+        ["Mã số doanh nghiệp", show(co.regNo)],
+        ["Địa chỉ", show(co.address)],
+        ["Hỗ trợ khách hàng", show(co.tel)],
+        ["Email", co.email],
+        ["Nhà cung cấp hosting", show(co.hosting)],
+      ]
+    : [
+        ["상호(서비스명)", `${show(co.bizName)} (${co.serviceName})`],
+        ["대표자", show(co.ceo)],
+        ["사업자등록번호", show(co.regNo)],
+        ["통신판매업 신고번호", show(co.mailOrderNo)],
+        ["사업장 소재지", show(co.address)],
+        ["고객센터", show(co.tel)],
+        ["전자우편", co.email],
+        ["호스팅 제공자", show(co.hosting)],
+      ];
   return (
     <table className="legal-biz">
       <tbody>
@@ -69,8 +81,110 @@ function BizTable({ co }: { co: Co }) {
   );
 }
 
-// ───────────────────────── 이용약관 ─────────────────────────
+// VN 법무 검수 전 초안 표기 — 베트남어 본문 상단에만 노출한다.
+function DraftNote() {
+  return (
+    <p className="legal-note" style={{ fontStyle: "italic" }}>
+      ※ Bản thảo — cần luật sư rà soát trước khi phát hành.
+    </p>
+  );
+}
+
+// ───────────────────────── 이용약관 / Điều khoản sử dụng ─────────────────────────
 function Terms({ v, co }: { v: Versions; co: Co }) {
+  const { i18n } = useTranslation();
+  if (i18n.language.startsWith("vi")) {
+    return (
+      <>
+        <DraftNote />
+        <p className="legal-lead">
+          Điều khoản này quy định điều kiện, quy trình sử dụng dịch vụ {co.serviceName}{" "}
+          (sau đây gọi là “Dịch vụ”) cùng quyền, nghĩa vụ và trách nhiệm giữa đơn vị vận hành
+          (sau đây gọi là “Công ty”) và thành viên.
+        </p>
+
+        <h2>Điều 1 (Thông tin nhà cung cấp)</h2>
+        <BizTable co={co} />
+        <p className="legal-note">
+          ※ Đây là thông tin nhà cung cấp theo quy định pháp luật Việt Nam về thương mại điện tử.
+          Trước khi vận hành thương mại, Công ty phải hoàn tất đăng ký doanh nghiệp và điền đầy đủ
+          các mục trên.
+        </p>
+
+        <h2>Điều 2 (Tính chất của Dịch vụ)</h2>
+        <ol>
+          <li>Dịch vụ sử dụng AI để tra cứu, tổng hợp tư liệu mệnh lý (Tứ Trụ) cổ điển, lập lá số
+            và đưa ra lời luận giải nhằm mục đích <b>cung cấp thông tin và giải trí</b>.</li>
+          <li>Kết quả của Dịch vụ chỉ mang tính <b>tham khảo</b>, không phải tư vấn chuyên môn về y tế,
+            pháp lý, thuế, đầu tư hay tâm lý trị liệu.
+            (Chi tiết xem <Link to="/legal/disclaimer">Tuyên bố miễn trừ</Link>)</li>
+          <li>Công ty không áp đặt bất kỳ tôn giáo hay tín ngưỡng nào.</li>
+        </ol>
+
+        <h2>Điều 3 (Đăng ký và điều kiện sử dụng)</h2>
+        <ol>
+          <li>Chỉ người đã đủ 18 tuổi (thành niên) mới được đăng ký thành viên; khi đăng ký phải đồng ý
+            với Điều khoản sử dụng, Chính sách quyền riêng tư và Chính sách hoàn tiền.</li>
+          <li>Việc mạo danh, sử dụng thông tin của người khác hoặc khai báo thông tin sai lệch có thể
+            dẫn đến việc hạn chế sử dụng.</li>
+          <li>Ngoài đăng ký bằng email, thành viên có thể đăng ký và đăng nhập qua tài khoản mạng xã hội
+            được hỗ trợ.</li>
+        </ol>
+
+        <h2>Điều 4 (Điểm, phí và thanh toán)</h2>
+        <ol>
+          <li><b>1 điểm = 1 VND</b>. Điểm được nạp qua cổng thanh toán được hỗ trợ. Các gói nạp điểm và
+            gói hội viên năm được hiển thị trên màn hình thanh toán.</li>
+          <li>Điểm thưởng khi đăng ký cùng điểm được tặng hoặc khuyến mãi <b>không thuộc diện hoàn tiền</b>.</li>
+          <li>Đơn giá mỗi lượt hỏi (tư vấn), phí xem đầy đủ bản xem trước và phí vào các menu cao cấp có thể
+            thay đổi theo chính sách vận hành; <b>số tiền thực tế luôn được hiển thị trên màn hình trước khi
+            thanh toán hoặc trừ điểm</b>.</li>
+          <li>Người dùng chưa đăng nhập chỉ được xem trước một phần câu trả lời; muốn xem đầy đủ cần đăng nhập
+            rồi dùng lượt hỏi miễn phí hoặc trừ điểm.</li>
+          <li><b>Hội viên năm</b> được sử dụng trong khoảng một năm kể từ ngày thanh toán, trong phạm vi hạn mức
+            quy định mà không bị trừ điểm; khi hết hạn mức hoặc hết thời hạn sẽ chuyển sang tính phí thông thường.</li>
+          <li>Chi tiết về thanh toán và hoàn tiền tuân theo{" "}
+            <Link to="/legal/refund">Chính sách hoàn tiền·hủy giao dịch</Link>.</li>
+        </ol>
+
+        <h2>Điều 5 (Nghĩa vụ của thành viên)</h2>
+        <ol>
+          <li>Thành viên có trách nhiệm bảo quản an toàn thông tin tài khoản và không được chia sẻ, chuyển nhượng
+            hoặc mua bán tài khoản.</li>
+          <li>Không được thực hiện hành vi cản trở vận hành bình thường của Dịch vụ (thu thập tự động, gửi yêu cầu
+            bất thường với số lượng lớn, dịch ngược, v.v.).</li>
+          <li>Không được sử dụng câu trả lời do Dịch vụ tạo ra theo cách khiến người khác hiểu nhầm đó là lời tiên
+            đoán chắc chắn hoặc tư vấn chuyên môn.</li>
+        </ol>
+
+        <h2>Điều 6 (Thay đổi, tạm ngừng Dịch vụ)</h2>
+        <p>Vì nhu cầu vận hành hoặc kỹ thuật, Công ty có thể thay đổi hoặc tạm ngừng toàn bộ hay một phần Dịch vụ,
+          và sẽ thông báo trước đối với những thay đổi quan trọng. Các tính năng đang miễn phí có thể chuyển sang
+          tính phí hoặc kết thúc sau khi thông báo trước.</p>
+
+        <h2>Điều 7 (Quyền sở hữu trí tuệ)</h2>
+        <p>Quyền đối với Dịch vụ và các thành phần của Dịch vụ (phần mềm, thiết kế, cơ sở dữ liệu) thuộc về Công ty.
+          Quyền đối với nội dung do thành viên nhập vào thuộc về thành viên, và Công ty sử dụng nội dung đó trong phạm
+          vi cung cấp Dịch vụ và cải thiện chất lượng.</p>
+
+        <h2>Điều 8 (Giới hạn trách nhiệm)</h2>
+        <ol>
+          <li>Câu trả lời của Dịch vụ là thông tin tham khảo dựa trên tư liệu học tập và có thể khác với thực tế.
+            Công ty không chịu trách nhiệm về kết quả của những quyết định mà thành viên đưa ra dựa trên câu trả lời.</li>
+          <li>Công ty không chịu trách nhiệm về thiệt hại phát sinh từ các nguyên nhân nằm ngoài tầm kiểm soát hợp lý
+            của Công ty như thiên tai, sự cố của bên cung cấp AI, thanh toán hoặc viễn thông bên ngoài.</li>
+        </ol>
+
+        <h2>Điều 9 (Giải quyết tranh chấp và luật áp dụng)</h2>
+        <p>Điều khoản này được điều chỉnh theo pháp luật Việt Nam. Tranh chấp trước hết được giải quyết thông qua
+          thương lượng giữa Công ty và thành viên; nếu không đạt được thỏa thuận thì giải quyết theo quy định pháp luật
+          Việt Nam về bảo vệ người tiêu dùng và cơ quan có thẩm quyền.</p>
+
+        <p className="legal-eff">Ngày hiệu lực: {v.terms} · Khi thay đổi Điều khoản, Công ty sẽ thông báo trước
+          khi áp dụng.</p>
+      </>
+    );
+  }
   return (
     <>
       <p className="legal-lead">
@@ -151,8 +265,94 @@ function Terms({ v, co }: { v: Versions; co: Co }) {
   );
 }
 
-// ───────────────────────── 개인정보처리방침 ─────────────────────────
+// ───────────────────────── 개인정보처리방침 / Chính sách quyền riêng tư ─────────────────────────
 function Privacy({ v, co }: { v: Versions; co: Co }) {
+  const { i18n } = useTranslation();
+  if (i18n.language.startsWith("vi")) {
+    return (
+      <>
+        <DraftNote />
+        <p className="legal-lead">
+          Công ty tuân thủ quy định pháp luật Việt Nam về bảo vệ dữ liệu cá nhân và xử lý dữ liệu cá nhân
+          như sau. (Chính sách này luôn có thể xem tại màn hình đăng ký·đăng nhập và tại trang này.)
+        </p>
+
+        <h2>1. Các mục dữ liệu cá nhân thu thập</h2>
+        <table className="legal-grid">
+          <thead><tr><th>Phân loại</th><th>Mục</th></tr></thead>
+          <tbody>
+            <tr><td>Đăng ký (bắt buộc)</td><td>Email, mật khẩu (lưu ở dạng mã hóa), ngày sinh (để xác nhận đủ 18 tuổi, lưu mã hóa)</td></tr>
+            <tr><td>Đăng ký (tùy chọn)</td><td>Biệt danh, việc đồng ý nhận thông tin tiếp thị, thiết lập giọng điệu trả lời</td></tr>
+            <tr><td>Đăng nhập mạng xã hội</td><td>Mã định danh và email do nhà cung cấp mạng xã hội cung cấp (nếu người dùng chọn)</td></tr>
+            <tr><td>Phát sinh khi dùng Dịch vụ</td><td>Dữ liệu lập lá số (ngày·giờ·tháng·năm sinh, giới tính, âm/dương lịch, nơi sinh…), nội dung tư vấn (hội thoại), hồ sơ lá số, lịch sử điểm·thanh toán</td></tr>
+            <tr><td>Thanh toán</td><td>Thông tin phương thức·phê duyệt thanh toán (do cổng thanh toán xử lý; Công ty không lưu số thẻ gốc)</td></tr>
+            <tr><td>Thu thập tự động</td><td>Địa chỉ IP, thông tin thiết bị·trình duyệt, cookie, nhật ký truy cập·sử dụng Dịch vụ</td></tr>
+          </tbody>
+        </table>
+
+        <h2>2. Mục đích thu thập·sử dụng</h2>
+        <ul>
+          <li>Nhận diện·xác thực thành viên, xác nhận đủ điều kiện đăng ký (đủ 18 tuổi)</li>
+          <li>Lập lá số và cung cấp lời luận giải (dựa trên ngày·giờ·tháng·năm sinh…)</li>
+          <li>Nạp·trừ điểm, xử lý thanh toán·hoàn tiền và phòng chống giao dịch gian lận</li>
+          <li>Tiếp nhận yêu cầu của khách hàng, cải thiện chất lượng·độ chính xác của Dịch vụ</li>
+          <li>Thực hiện nghĩa vụ theo quy định pháp luật và ứng phó tranh chấp</li>
+          <li>(Nếu đồng ý tùy chọn) Gửi thông tin quảng cáo về sự kiện·ưu đãi</li>
+        </ul>
+
+        <h2>3. Thời gian lưu trữ và sử dụng</h2>
+        <p>Về nguyên tắc, thông tin thành viên, nội dung tư vấn và hồ sơ lá số được hủy ngay khi thành viên đóng
+          tài khoản. Đối với các mục mà pháp luật Việt Nam yêu cầu lưu giữ (ví dụ hồ sơ giao dịch·thanh toán, hồ sơ
+          xử lý khiếu nại của người tiêu dùng), Công ty lưu giữ trong thời hạn theo quy định pháp luật rồi hủy.</p>
+
+        <h2>4. Ủy thác xử lý và cung cấp cho bên thứ ba</h2>
+        <ul>
+          <li><b>Xử lý thanh toán</b> — cổng thanh toán được hỗ trợ: phê duyệt, quyết toán thanh toán·hoàn tiền</li>
+          <li><b>Đăng nhập mạng xã hội</b> — nhà cung cấp mạng xã hội: xác thực khi người dùng chọn</li>
+          <li><b>Hạ tầng/hosting</b> — {show(co.hosting)}: vận hành máy chủ Dịch vụ</li>
+          <li>Ngoài ra chỉ cung cấp khi có căn cứ pháp luật hoặc khi người dùng đồng ý; nếu nội dung ủy thác thay đổi,
+            Công ty sẽ thông báo qua Chính sách này.</li>
+        </ul>
+
+        <h2>5. Xử lý dữ liệu ở nước ngoài (AI bên ngoài)</h2>
+        <p>Ở một số tính năng luận giải chuyên sâu, để nâng cao chất lượng câu trả lời, <b>giá trị lập lá số và nội
+          dung câu hỏi</b> có thể được gửi và xử lý bởi dịch vụ AI bên ngoài (máy chủ có thể đặt ở nước ngoài).
+          Khi đó, các thông tin định danh trực tiếp như tên, số liên lạc không được gửi đi. Công ty khuyến nghị người
+          dùng không nhập thông tin nhạy cảm (sức khỏe, chính trị, tôn giáo…) hoặc thông tin định danh của người khác
+          vào hội thoại.</p>
+
+        <h2>6. Người chưa thành niên</h2>
+        <p>Dịch vụ chỉ cho phép người đủ 18 tuổi trở lên đăng ký nên không thu thập dữ liệu cá nhân của người chưa
+          thành niên. Nếu phát hiện tài khoản đăng ký dưới danh nghĩa người chưa thành niên, Công ty sẽ hủy ngay
+          tài khoản và dữ liệu liên quan.</p>
+
+        <h2>7. Quyền của chủ thể dữ liệu</h2>
+        <p>Người dùng có thể yêu cầu xem, chỉnh sửa, xóa, tạm ngừng xử lý dữ liệu cá nhân và rút lại sự đồng ý bất kỳ
+          lúc nào. Người dùng có thể sửa thông tin hoặc đóng tài khoản tại màn hình cài đặt; khi đóng tài khoản, toàn
+          bộ dữ liệu cá nhân được xóa ngay, trừ các mục phải lưu giữ theo quy định pháp luật.</p>
+
+        <h2>8. Biện pháp bảo đảm an toàn</h2>
+        <ul>
+          <li>Lưu mật khẩu bằng hàm băm một chiều (bcrypt) — không lưu bản rõ</li>
+          <li>Mã hóa lưu trữ (AES-256-GCM) đối với thông tin định danh nhạy cảm như ngày sinh</li>
+          <li>Truyền toàn tuyến qua HTTPS, phân tách·tối thiểu hóa quyền truy cập cơ sở dữ liệu, lưu nhật ký truy cập</li>
+        </ul>
+
+        <h2>9. Người phụ trách bảo vệ dữ liệu cá nhân</h2>
+        <table className="legal-biz">
+          <tbody>
+            <tr><th>Người phụ trách</th><td>{show(co.privacyOfficer)}</td></tr>
+            <tr><th>Liên hệ</th><td>{co.email}</td></tr>
+          </tbody>
+        </table>
+        <p className="legal-note">Mọi khiếu nại về quyền riêng tư có thể gửi tới Người phụ trách nêu trên hoặc cơ quan
+          có thẩm quyền theo quy định pháp luật Việt Nam về bảo vệ dữ liệu cá nhân.</p>
+
+        <p className="legal-eff">Ngày hiệu lực: {v.privacy} · Khi có thay đổi nội dung, Công ty sẽ thông báo trước
+          khi áp dụng.</p>
+      </>
+    );
+  }
   return (
     <>
       <p className="legal-lead">
@@ -241,8 +441,62 @@ function Privacy({ v, co }: { v: Versions; co: Co }) {
   );
 }
 
-// ───────────────────────── 환불·청약철회 정책 ─────────────────────────
+// ───────────────────────── 환불·청약철회 정책 / Chính sách hoàn tiền ─────────────────────────
 function Refund({ v, co }: { v: Versions; co: Co }) {
+  const { i18n } = useTranslation();
+  if (i18n.language.startsWith("vi")) {
+    return (
+      <>
+        <DraftNote />
+        <p className="legal-lead">
+          Chính sách này quy định căn cứ hủy giao dịch và hoàn tiền theo quy định pháp luật Việt Nam về bảo vệ
+          người tiêu dùng. Điểm đã nạp là nội dung số có thể sử dụng theo từng phần.
+        </p>
+
+        <h2>1. Căn cứ hủy giao dịch (hoàn tiền)</h2>
+        <ul>
+          <li><b>Điểm chưa sử dụng</b>: nếu trong vòng <b>7 ngày</b> kể từ ngày nạp (thanh toán) và chưa sử dụng
+            lần nào thì được <b>hoàn tiền toàn bộ</b>.</li>
+          <li><b>Trường hợp đã sử dụng một phần</b>: phần điểm đã sử dụng (đã cung cấp lượt hỏi·luận giải) được xem là
+            nội dung đã bắt đầu cung cấp nên bị hạn chế hủy giao dịch; <b>phần điểm chưa sử dụng còn lại</b> vẫn được
+            hoàn tiền.</li>
+          <li><b>Điểm thưởng khi đăng ký, điểm tặng·khuyến mãi</b> không thuộc diện hoàn tiền.</li>
+          <li>Nếu Dịch vụ được cung cấp khác với nội dung quảng cáo hoặc khác với thỏa thuận, người dùng có thể yêu cầu
+            hoàn tiền hoặc thực hiện đúng thỏa thuận bất kể đã sử dụng hay chưa.</li>
+        </ul>
+
+        <h2>2. Hoàn tiền gói hội viên năm</h2>
+        <ul>
+          <li>Được hoàn tiền toàn bộ nếu chưa bắt đầu sử dụng hoặc chưa sử dụng trong vòng 7 ngày kể từ khi thanh toán.</li>
+          <li>Nếu đã bắt đầu sử dụng, Công ty hoàn lại phần còn lại sau khi trừ phần đã sử dụng (tính theo số lượt·thời
+            gian đã trôi qua trên cơ sở hợp lý) và phí xử lý hoàn tiền.</li>
+        </ul>
+
+        <h2>3. Yêu cầu·xử lý hoàn tiền</h2>
+        <ul>
+          <li>Yêu cầu: gửi qua màn hình lịch sử nạp/thanh toán hoặc bộ phận hỗ trợ ({co.email}).</li>
+          <li>Xử lý: hoàn lại bằng cùng phương thức thanh toán trong vòng <b>3 ngày làm việc</b> kể từ khi tiếp nhận
+            yêu cầu hủy giao dịch. (Nếu phương thức thanh toán không cho phép hủy ngay, Công ty sẽ hoàn tiền bằng quy
+            trình riêng.)</li>
+        </ul>
+
+        <h2>4. Giới hạn hoàn tiền</h2>
+        <ul>
+          <li>Điểm·lượt hỏi đã sử dụng (đã cung cấp xong)</li>
+          <li>Điểm chưa sử dụng nhưng đổi ý đơn thuần sau khi đã quá 7 ngày kể từ ngày nạp (điểm vẫn có thể dùng trong
+            thời hạn hiệu lực theo chính sách của Công ty)</li>
+          <li>Trường hợp bị hạn chế sử dụng do vi phạm Điều khoản·pháp luật (tuy nhiên phần chưa sử dụng ngay sau khi
+            thanh toán vẫn được hoàn tiền)</li>
+        </ul>
+
+        <h2>5. Giải quyết tranh chấp</h2>
+        <p>Tranh chấp về hoàn tiền có thể được giải quyết thông qua cơ quan có thẩm quyền theo quy định pháp luật
+          Việt Nam về bảo vệ người tiêu dùng.</p>
+
+        <p className="legal-eff">Ngày hiệu lực: {v.refund}</p>
+      </>
+    );
+  }
   return (
     <>
       <p className="legal-lead">
@@ -290,8 +544,33 @@ function Refund({ v, co }: { v: Versions; co: Co }) {
   );
 }
 
-// ───────────────────────── 면책고지 ─────────────────────────
+// ───────────────────────── 면책고지 / Tuyên bố miễn trừ ─────────────────────────
 function Disclaimer({ co }: { co: Co }) {
+  const { i18n } = useTranslation();
+  if (i18n.language.startsWith("vi")) {
+    return (
+      <>
+        <DraftNote />
+        <p className="legal-lead">
+          {co.serviceName} là công cụ AI tra cứu, tổng hợp tư liệu mệnh lý (Tứ Trụ) cổ điển để hỗ trợ cung cấp
+          thông tin và trò chuyện. Vui lòng đọc kỹ các nội dung dưới đây trước khi sử dụng.
+        </p>
+        <ul className="legal-disc">
+          <li>Câu trả lời của Dịch vụ chỉ là <b>thông tin tham khảo</b> dựa trên tư liệu học tập, không phải là dự
+            đoán chắc chắn về tương lai hay sự khẳng định về số phận.</li>
+          <li>Dịch vụ <b>không thay thế tư vấn chuyên môn về y tế, pháp lý, thuế, đầu tư hay tâm lý trị liệu.</b> Với
+            những quyết định quan trọng về sức khỏe, tài sản, pháp lý…, vui lòng tham khảo ý kiến của chuyên gia trong
+            lĩnh vực tương ứng.</li>
+          <li>Do giới hạn của dữ liệu học tập, câu trả lời của AI <b>có thể khác với thực tế hoặc không chính xác.</b></li>
+          <li>Không sử dụng Dịch vụ để áp đặt tín ngưỡng hoặc ép buộc người khác.</li>
+          <li>Công ty không chịu trách nhiệm về kết quả của các quyết định mà người dùng đưa ra khi dựa vào câu trả lời
+            của Dịch vụ.</li>
+        </ul>
+        <p className="legal-note">Câu trả lời của Dịch vụ chỉ mang tính tham khảo dựa trên tư liệu học tập, không phải
+          tư vấn y tế, pháp lý hay đầu tư.</p>
+      </>
+    );
+  }
   return (
     <>
       <p className="legal-lead">
