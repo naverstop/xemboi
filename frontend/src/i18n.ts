@@ -38,6 +38,14 @@ const resources = {
         band_sub: "비로그인 미리보기로 먼저 확인하고, 로그인하면 무료 질문을 받을 수 있어요.",
         band_btn: "사주 상담 시작",
         fee_enter: "💎 입장", fee_extra: "· 추가 질문 별도", fee_free: "🆓 무료로 시작",
+        note_in: "✨ 로그인 완료 — 진태양시 정밀 보정·전체 해설·이어지는 질문까지 <b>모든 기능을 100% 이용</b> 중이에요.",
+        note_guest: "비로그인은 <b>50% 미리보기</b>만 제공해요. <b>로그인</b>하시면 진태양시 정밀 보정·전체 해설·무료 질문 등 <b>본 사이트만의 차별화 기능을 100%</b> 이용할 수 있어요.",
+        faq_title: "자주 묻는 질문",
+        faq: [
+          { q: "정확한가요?", a: "합·충·오행·십성·신살을 규칙으로 계산한 근거에 AI 해설을 더합니다. 관법은 정답이 없어 여러 관점을 함께 보여드립니다." },
+          { q: "무료인가요?", a: "비로그인은 답변의 50% 미리보기를 제공하고, 로그인하면 무료 질문과 전체 보기를 이용할 수 있어요." },
+          { q: "태어난 시를 몰라요.", a: "‘시 모름’으로도 분석할 수 있어요(시주 제외)." },
+        ],
         card: {
           sang: { badge: "사주 상담", title: "내 사주, AI에게 묻다",
             desc: "생년월일만 넣으면 성격·운세·올해의 흐름까지 1:1로 풀어드려요.",
@@ -75,6 +83,14 @@ const resources = {
         band_sub: "Xem trước không cần đăng nhập; đăng nhập để nhận câu hỏi miễn phí.",
         band_btn: "Bắt đầu xem Tứ Trụ",
         fee_enter: "💎 Vào cửa", fee_extra: "· Hỏi thêm tính riêng", fee_free: "🆓 Bắt đầu miễn phí",
+        note_in: "✨ Đã đăng nhập — bạn đang <b>dùng 100% mọi tính năng</b>: hiệu chỉnh giờ mặt trời thật, luận giải đầy đủ và hỏi nối tiếp.",
+        note_guest: "Chưa đăng nhập chỉ có <b>bản xem trước 50%</b>. <b>Đăng nhập</b> để dùng <b>100% tính năng riêng</b>: hiệu chỉnh giờ mặt trời thật, luận giải đầy đủ, câu hỏi miễn phí.",
+        faq_title: "Câu hỏi thường gặp",
+        faq: [
+          { q: "Có chính xác không?", a: "Chúng tôi tính hợp·xung·ngũ hành·thập thần·thần sát theo quy tắc rồi thêm luận giải của AI. Mệnh lý không có đáp án tuyệt đối nên trình bày nhiều góc nhìn." },
+          { q: "Có miễn phí không?", a: "Chưa đăng nhập được xem trước 50% câu trả lời; đăng nhập để dùng câu hỏi miễn phí và xem đầy đủ." },
+          { q: "Tôi không biết giờ sinh.", a: "Vẫn phân tích được với ‘không rõ giờ’ (bỏ trụ giờ)." },
+        ],
         card: {
           sang: { badge: "Xem Tứ Trụ", title: "Hỏi AI về lá số của bạn",
             desc: "Chỉ cần ngày sinh, AI luận giải tính cách, vận trình và dòng chảy năm nay theo kiểu 1:1.",
