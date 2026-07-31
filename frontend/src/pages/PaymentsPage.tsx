@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { api, useMe, setCachedMe } from "../api";
 import { fmtKSTDateTime } from "../lib/datetime";
+import { fmtMoney, fmtNum } from "../lib/money";
 
 declare global {
   interface Window {
@@ -14,6 +16,7 @@ type Pkg = { amount: number; credits: number; label: string };
 export default function PaymentsPage() {
   const nav = useNavigate();
   const me = useMe();
+  const { t } = useTranslation();
   const [pkgs, setPkgs] = useState<Pkg[]>([]);
   const [history, setHistory] = useState<any[]>([]);
   const [busy, setBusy] = useState<number | null>(null);
@@ -54,9 +57,11 @@ export default function PaymentsPage() {
       // 더미 키 → 즉시 mock 승인 (개발용)
       const fakeKey = `mock_pk_${Date.now()}`;
       const c = await api.paymentConfirm(fakeKey, order.order_id, order.amount);
-      alert(
-        `[테스트모드] ${p.label} 충전 완료\n+${c.credits_granted.toLocaleString()} P → 잔액 ${c.balance.toLocaleString()} P`
-      );
+      alert(t("pay.test_done", {
+        label: p.label,
+        credits: fmtNum(c.credits_granted),
+        balance: fmtNum(c.balance),
+      }));
       // me 캐시 갱신
       const newMe = await api.me();
       setCachedMe(newMe);
@@ -71,16 +76,16 @@ export default function PaymentsPage() {
   if (!me) {
     return (
       <div style={{ padding: 20 }}>
-        결제는 로그인 후 이용하세요. <Link to="/login">로그인</Link>
+        {t("pay.login_required")} <Link to="/login">{t("pay.login_link")}</Link>
       </div>
     );
   }
 
   return (
     <div>
-      <h2>크레딧 충전</h2>
+      <h2>{t("pay.charge_title")}</h2>
       <div style={{ color: "#666", marginBottom: 12 }}>
-        1 P = 1원 · 질문 1건 = 1,000 P · 더보기 = 500 P · 충전 시 광고 숨김 적용
+        {t("pay.rate_note")}
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 12 }}>
         {pkgs.map((p) => (
@@ -97,7 +102,7 @@ export default function PaymentsPage() {
           >
             <div style={{ fontSize: 20, fontWeight: 800, color: "var(--ink-900)" }}>{p.label}</div>
             <div style={{ color: "var(--brand-600)", margin: "8px 0 12px", fontWeight: 700 }}>
-              {p.credits.toLocaleString()} P
+              {fmtNum(p.credits)} {t("pay.pt")}
             </div>
             <button
               onClick={() => buy(p)}
@@ -113,30 +118,30 @@ export default function PaymentsPage() {
                 cursor: "pointer",
               }}
             >
-              {busy === p.amount ? "처리중..." : "충전"}
+              {busy === p.amount ? t("pay.processing") : t("pay.charge_btn")}
             </button>
           </div>
         ))}
       </div>
       {err && <div style={{ color: "crimson", marginTop: 12 }}>{err}</div>}
 
-      <h3 style={{ marginTop: 24 }}>결제 내역</h3>
+      <h3 style={{ marginTop: 24 }}>{t("pay.history_title")}</h3>
       <table style={{ width: "100%", fontSize: 13, borderCollapse: "collapse" }}>
         <thead>
           <tr style={{ background: "#f7f7f7" }}>
-            <th style={th}>주문번호</th>
-            <th style={{ ...th, textAlign: "right" }}>금액</th>
-            <th style={{ ...th, textAlign: "right" }}>크레딧</th>
-            <th style={th}>상태</th>
-            <th style={th}>시각</th>
+            <th style={th}>{t("pay.th_order")}</th>
+            <th style={{ ...th, textAlign: "right" }}>{t("pay.th_amount")}</th>
+            <th style={{ ...th, textAlign: "right" }}>{t("pay.th_credit")}</th>
+            <th style={th}>{t("pay.th_status")}</th>
+            <th style={th}>{t("pay.th_time")}</th>
           </tr>
         </thead>
         <tbody>
           {history.map((h) => (
             <tr key={h.id}>
               <td style={{ ...td, fontFamily: "monospace", fontSize: 11 }}>{h.order_id}</td>
-              <td style={{ ...td, textAlign: "right" }}>{h.amount.toLocaleString()}원</td>
-              <td style={{ ...td, textAlign: "right" }}>+{h.credit_granted.toLocaleString()} P</td>
+              <td style={{ ...td, textAlign: "right" }}>{fmtMoney(h.amount)}</td>
+              <td style={{ ...td, textAlign: "right" }}>+{fmtNum(h.credit_granted)} {t("pay.pt")}</td>
               <td style={td}>
                 <span
                   style={{
