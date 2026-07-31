@@ -14,6 +14,12 @@ import { tarotKo, tarotVi } from "./locales/tarot";
 import { advKo, advVi } from "./locales/adv";
 import { consultKo, consultVi } from "./locales/consult";
 import { errKo, errVi } from "./locales/err";
+import { chartKo, chartVi } from "./locales/chart";
+import { birthKo, birthVi } from "./locales/birth";
+import { answerKo, answerVi } from "./locales/answer";
+import { shellKo, shellVi } from "./locales/shell";
+import { explainKo, explainVi } from "./locales/explain";
+import { miscKo, miscVi } from "./locales/misc";
 
 export const SUPPORTED = ["ko", "vi"] as const;
 export type Locale = (typeof SUPPORTED)[number];
@@ -141,6 +147,12 @@ const resources = {
       adv: advKo,
       consult: consultKo,
       err: errKo,
+      chart: chartKo,
+      birth: birthKo,
+      answer: answerKo,
+      shell: shellKo,
+      explain: explainKo,
+      misc: miscKo,
     },
   },
   vi: {
@@ -256,6 +268,12 @@ const resources = {
       adv: advVi,
       consult: consultVi,
       err: errVi,
+      chart: chartVi,
+      birth: birthVi,
+      answer: answerVi,
+      shell: shellVi,
+      explain: explainVi,
+      misc: miscVi,
     },
   },
 };

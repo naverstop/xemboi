@@ -8,6 +8,7 @@
  *     완료 시 '열기' 버튼(탭=사용자 제스처 → 모바일 팝업 차단 없이 열람, 재생성 없음).
  */
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import { api, type VideoJobResp } from "../api";
 
@@ -27,12 +28,13 @@ type GenTask = {
   message?: string;
 };
 
-const GEN_LABEL: Record<GenKind, { title: string; open: string }> = {
-  pdf: { title: "📄 상담서 PDF", open: "PDF" },
-  report: { title: "📋 종합 감정서", open: "감정서" },
+const GEN_LABEL: Record<GenKind, { titleKey: string; openKey: string }> = {
+  pdf: { titleKey: "misc.gen_pdf_title", openKey: "misc.gen_pdf_open" },
+  report: { titleKey: "misc.gen_report_title", openKey: "misc.gen_report_open" },
 };
 
 export default function ProgressDock() {
+  const { t: tr } = useTranslation();
   // ── 영상 레인 ──
   const [job, setJob] = useState<VideoJobResp | null>(null);
   const [hidden, setHidden] = useState(false);
@@ -157,19 +159,19 @@ export default function ProgressDock() {
       {/* 영상 카드 */}
       {videoVisible && job && (
         <div className="video-dock" role="status" aria-live="polite">
-          <button className="vd-close" onClick={close} aria-label="닫기">✕</button>
-          <div className="vd-title">🎬 사주 영상 만들기</div>
+          <button className="vd-close" onClick={close} aria-label={tr("pay.close")}>✕</button>
+          <div className="vd-title">{tr("misc.vid_title")}</div>
 
           {!done && !failed && (
             <>
               <div className="vd-bar"><div className="vd-bar-fill" style={{ width: `${pct}%` }} /></div>
-              <div className="vd-detail">{job.detail || "준비 중…"} · {pct}%</div>
+              <div className="vd-detail">{job.detail || tr("misc.vid_preparing")} · {pct}%</div>
               {crossSell && (
                 <div className="vd-crosssell">
-                  <span>기다리는 동안 다른 운세도 보실래요?</span>
+                  <span>{tr("misc.vid_crosssell")}</span>
                   <span className="vd-cs-links">
-                    <Link to="/naming/jakmyeong" onClick={() => setCrossSell(false)}>작명</Link>
-                    <Link to="/compatibility" onClick={() => setCrossSell(false)}>궁합</Link>
+                    <Link to="/naming/jakmyeong" onClick={() => setCrossSell(false)}>{tr("nav.jakmyeong")}</Link>
+                    <Link to="/compatibility" onClick={() => setCrossSell(false)}>{tr("nav.compat")}</Link>
                   </span>
                 </div>
               )}
@@ -178,13 +180,13 @@ export default function ProgressDock() {
 
           {done && (
             <>
-              <div className="vd-done">영상이 완성됐어요! 🎉</div>
+              <div className="vd-done">{tr("misc.vid_done")}</div>
               {downloading && (
                 // 다운로드 진행 표시 — 14MB 전송에 수 초 걸림. 진척바를 보여줘야
                 // 사용자가 "멈춘 줄 알고" 다시 눌러 브라우저 재다운로드 팝업이 뜨는 걸 막는다.
                 <>
                   <div className="vd-bar"><div className="vd-bar-fill" style={{ width: `${dlPct}%` }} /></div>
-                  <div className="vd-detail">⏳ 다운로드 중… {dlPct}% · 완료될 때까지 잠시만요(다시 누르지 마세요)</div>
+                  <div className="vd-detail">{tr("misc.vid_dl_progress", { pct: dlPct })}</div>
                 </>
               )}
               <button
@@ -195,28 +197,28 @@ export default function ProgressDock() {
                   setDownloading(true);
                   setDlPct(0);
                   try {
-                    await api.downloadVideo(job.job_token, `${job.title || "사주영상"}.mp4`, setDlPct);
+                    await api.downloadVideo(job.job_token, `${job.title || tr("misc.vid_filename")}.mp4`, setDlPct);
                   } catch (e: any) {
                     if (e?.status === 410 || e?.status === 404) {
-                      alert("보관 기간이 지나 영상이 삭제되었어요.");
+                      alert(tr("misc.vid_expired"));
                       localStorage.removeItem(LS_KEY);
                       setHidden(true);
                     } else {
-                      alert(e?.message || "다운로드에 실패했어요. 잠시 후 다시 시도해 주세요.");
+                      alert(e?.message || tr("misc.vid_dl_fail"));
                     }
                   } finally {
                     setDownloading(false);
                   }
                 }}
               >
-                {downloading ? `⏳ 다운로드 중… ${dlPct}%` : "⤓ 영상 다운로드"}
+                {downloading ? tr("misc.vid_dl_btn_busy", { pct: dlPct }) : tr("misc.vid_dl_btn")}
               </button>
-              <div className="vd-note">※ 48시간 동안만 보관되며 이후 서버에서 삭제됩니다.</div>
+              <div className="vd-note">{tr("misc.vid_note_48h")}</div>
             </>
           )}
 
           {failed && (
-            <div className="vd-fail">{job.detail || "영상 생성에 실패했어요. 차감된 포인트는 자동 환불됩니다."}</div>
+            <div className="vd-fail">{job.detail || tr("misc.vid_gen_fail")}</div>
           )}
         </div>
       )}
@@ -224,27 +226,27 @@ export default function ProgressDock() {
       {/* 생성 작업 카드(PDF·감정서) */}
       {tasks.map((t) => (
         <div className="video-dock" role="status" aria-live="polite" key={t.id}>
-          <button className="vd-close" onClick={() => dismissTask(t.id)} aria-label="닫기">✕</button>
-          <div className="vd-title">{GEN_LABEL[t.kind].title}</div>
+          <button className="vd-close" onClick={() => dismissTask(t.id)} aria-label={tr("pay.close")}>✕</button>
+          <div className="vd-title">{tr(GEN_LABEL[t.kind].titleKey)}</div>
 
           {t.status === "running" && (
             <>
               <div className="vd-bar vd-bar-indet"><span /></div>
-              <div className="vd-detail">⏳ 만드는 중… {t.elapsed}초 경과 · 잠시만요(다시 누르지 마세요)</div>
+              <div className="vd-detail">{tr("misc.gen_running", { sec: t.elapsed })}</div>
             </>
           )}
 
           {t.status === "done" && (
             <>
               <button className="vd-download" onClick={() => t.url && window.open(t.url, "_blank")}>
-                ⤓ {GEN_LABEL[t.kind].open} 열기
+                {tr("misc.gen_open", { what: tr(GEN_LABEL[t.kind].openKey) })}
               </button>
-              <div className="vd-note">완성됐어요 · 재생성 없이 바로 열람됩니다.</div>
+              <div className="vd-note">{tr("misc.gen_done_note")}</div>
             </>
           )}
 
           {t.status === "error" && (
-            <div className="vd-fail">{t.message || "생성에 실패했어요. 잠시 후 다시 시도해 주세요."}</div>
+            <div className="vd-fail">{t.message || tr("misc.gen_fail")}</div>
           )}
         </div>
       ))}

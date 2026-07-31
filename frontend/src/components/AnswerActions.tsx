@@ -10,8 +10,10 @@
  *          백엔드가 만든 토큰 PDF URL 을 그대로 전달한다.
  */
 import { useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { api, setCachedMe, getCachedMe } from "../api";
 import { useCharge } from "./ChargeModal";
+import { fmtNum } from "../lib/money";
 
 export type PdfMeta = {
   docTitle: string;     // 메뉴별 제목 (예: "홍길동 님의 사주")
@@ -31,12 +33,13 @@ type Props = {
   isLast?: boolean;          // 마지막 답변 → 평가 유도(nudge)
 };
 
-const FB_REASONS = [
-  "근거가 부족해요",
-  "질문과 다른 답변이에요",
-  "내용이 어려워요",
-  "너무 짧거나 길어요",
-  "표현이 어색해요",
+// 반대 사유 키(라벨은 answer.fb_reason_* 로 로케일 렌더; 선택 라벨이 백엔드 comment 로 전송).
+const FB_REASON_KEYS = [
+  "fb_reason_weak",
+  "fb_reason_offtopic",
+  "fb_reason_hard",
+  "fb_reason_length",
+  "fb_reason_awkward",
 ];
 
 function fallbackCopy(s: string): boolean {
@@ -71,6 +74,7 @@ async function copyText(s: string): Promise<boolean> {
 export default function AnswerActions({
   text, pdf, messageId, sessionId, source = "chat", showFeedback, initialFeedback, isLast,
 }: Props) {
+  const { t: tr } = useTranslation();
   const [rating, setRating] = useState<1 | -1 | undefined>(initialFeedback);
   const [copied, setCopied] = useState(false);
   const [shared, setShared] = useState(false);  // 공유(다운로드) 완료 안내 토스트
@@ -111,7 +115,7 @@ export default function AnswerActions({
       setCopied(true);
       window.setTimeout(() => setCopied(false), 1500);
     } else {
-      alert("복사에 실패했어요. 본문을 길게 눌러 직접 복사해 주세요.");
+      alert(tr("answer.copy_fail"));
     }
   }
 
@@ -127,7 +131,7 @@ export default function AnswerActions({
       window.dispatchEvent(new CustomEvent("saju:gen-done", { detail: { id, url: r.url, filename: r.filename } }));
     } catch {
       window.dispatchEvent(new CustomEvent("saju:gen-error", {
-        detail: { id, message: "PDF 생성 중 오류가 발생했어요. 잠시 후 다시 시도해 주세요." },
+        detail: { id, message: tr("answer.pdf_gen_error") },
       }));
     } finally {
       setBusy(false);
@@ -184,7 +188,7 @@ export default function AnswerActions({
       setShared(true);
       window.setTimeout(() => setShared(false), 4000);
     } catch {
-      alert("공유용 PDF 준비 중 오류가 발생했어요. 잠시 후 다시 시도해 주세요.");
+      alert(tr("answer.share_fail"));
     } finally {
       setBusy(false);
     }
@@ -234,13 +238,8 @@ export default function AnswerActions({
   async function onMakeVideo() {
     if (vidBusy || !messageId) return;
     // 차감 P는 관리자 설정값(me.video_gen_cost)을 따른다 — 하드코딩 금지(관리자 변경 즉시 반영).
-    const costP = (getCachedMe()?.video_gen_cost ?? 10000).toLocaleString();
-    const ok = window.confirm(
-      "내 사주 이야기를 1분 영상으로 만들어 드릴까요?\n\n" +
-      `· ${costP}P가 차감됩니다(생성 실패 시 자동 환불)\n` +
-      "· 완성되면 하단에서 다운로드할 수 있어요\n" +
-      "· 영상은 48시간 동안만 보관됩니다",
-    );
+    const costP = fmtNum(getCachedMe()?.video_gen_cost ?? 10000);
+    const ok = window.confirm(tr("answer.video_confirm", { cost: costP }));
     if (!ok) return;
     setVidBusy(true);
     try {
@@ -248,11 +247,11 @@ export default function AnswerActions({
       window.dispatchEvent(new CustomEvent("saju:video-start", { detail: { token: job.job_token } }));
     } catch (e: any) {
       if (e?.status === 402) {
-        openCharge(`영상 생성에는 ${costP}P가 필요해요. 충전하면 바로 만들어 드려요.`);
+        openCharge(tr("answer.video_need_charge", { cost: costP }));
       } else if (e?.status === 401) {
-        alert("로그인이 필요해요. 먼저 로그인해 주세요.");
+        alert(tr("err.login_required"));
       } else {
-        alert(e?.message || "영상 생성을 시작하지 못했어요. 잠시 후 다시 시도해 주세요.");
+        alert(e?.message || tr("answer.video_fail"));
       }
     } finally {
       setVidBusy(false);
@@ -265,16 +264,16 @@ export default function AnswerActions({
         <div className={`aa-fb${rating === undefined && isLast ? " nudge" : ""}`}>
           {rating === undefined && (
             <span className="aa-fb-label">
-              {isLast && "이 풀이가 도움이 되었나요? "}
-              <em className="aa-fb-reward">🎁 평점(👍/👎) 주시면 포인트 적립</em>
+              {isLast && tr("answer.nudge_q")}
+              <em className="aa-fb-reward">{tr("answer.nudge_reward")}</em>
             </span>
           )}
           <button
             className={`aa-fb-btn${rating === 1 ? " on" : ""}`}
             onClick={() => onFeedback(1)}
             disabled={fbBusy}
-            title="추천 — 도움이 됐어요"
-            aria-label="추천"
+            title={tr("answer.fb_up_title")}
+            aria-label={tr("answer.fb_up_aria")}
           >
             👍
           </button>
@@ -282,50 +281,53 @@ export default function AnswerActions({
             className={`aa-fb-btn${rating === -1 ? " on" : ""}`}
             onClick={() => onFeedback(-1)}
             disabled={fbBusy}
-            title="반대 — 아쉬워요"
-            aria-label="반대"
+            title={tr("answer.fb_down_title")}
+            aria-label={tr("answer.fb_down_aria")}
           >
             👎
           </button>
           {fbThanks && (
             <span className="fb-thanks">
-              소중한 의견 감사합니다 🙏{fbReward > 0 && <b className="fb-reward-toast"> · 🎁 {fbReward.toLocaleString()}P 적립!</b>}
+              {tr("answer.fb_thanks")}{fbReward > 0 && <b className="fb-reward-toast">{tr("answer.fb_reward_toast", { amount: fmtNum(fbReward) })}</b>}
             </span>
           )}
           {fbPopup && (
-            <div className="fb-popup" role="dialog" aria-label="답변 평가">
-              <div className="fb-popup-title">어떤 점이 아쉬웠나요?</div>
+            <div className="fb-popup" role="dialog" aria-label={tr("answer.fb_dialog_aria")}>
+              <div className="fb-popup-title">{tr("answer.fb_popup_title")}</div>
               <div className="fb-popup-chips">
-                {FB_REASONS.map((rsn) => (
-                  <button
-                    key={rsn}
-                    className={`fb-chip${fbReasons.includes(rsn) ? " on" : ""}`}
-                    onClick={() =>
-                      setFbReasons((cur) =>
-                        cur.includes(rsn) ? cur.filter((x) => x !== rsn) : [...cur, rsn]
-                      )
-                    }
-                  >
-                    {rsn}
-                  </button>
-                ))}
+                {FB_REASON_KEYS.map((k) => {
+                  const rsn = tr(`answer.${k}`);
+                  return (
+                    <button
+                      key={k}
+                      className={`fb-chip${fbReasons.includes(rsn) ? " on" : ""}`}
+                      onClick={() =>
+                        setFbReasons((cur) =>
+                          cur.includes(rsn) ? cur.filter((x) => x !== rsn) : [...cur, rsn]
+                        )
+                      }
+                    >
+                      {rsn}
+                    </button>
+                  );
+                })}
               </div>
               <textarea
                 className="fb-popup-text"
-                placeholder="자세히 알려주시면 풀이 개선에 큰 도움이 됩니다 (선택)"
+                placeholder={tr("answer.fb_popup_ph")}
                 value={fbComment}
                 onChange={(e) => setFbComment(e.target.value)}
                 rows={2}
                 maxLength={500}
               />
               <div className="fb-popup-actions">
-                <button className="fb-popup-skip" onClick={() => setFbPopup(false)}>건너뛰기</button>
+                <button className="fb-popup-skip" onClick={() => setFbPopup(false)}>{tr("answer.fb_skip")}</button>
                 <button
                   className="fb-popup-submit"
                   onClick={submitFbDetail}
                   disabled={fbReasons.length === 0 && !fbComment.trim()}
                 >
-                  의견 보내기
+                  {tr("answer.fb_submit")}
                 </button>
               </div>
             </div>
@@ -334,32 +336,32 @@ export default function AnswerActions({
       )}
 
       <div className="aa-right">
-        <button className="copy-btn" onClick={onCopy} title="텍스트 복사">
-          {copied ? "✓ 복사됨" : "⧉ 텍스트 복사"}
+        <button className="copy-btn" onClick={onCopy} title={tr("answer.copy_title")}>
+          {copied ? tr("answer.copy_done") : tr("answer.copy_btn")}
         </button>
         <span className="share-wrap">
-          <button className="copy-btn" onClick={onShare} disabled={busy} title="상담서 PDF를 저장해 카카오톡·메시지 등에 첨부해 전달하세요">
-            {shared ? "✓ 저장됨 — 첨부해 전달" : "↗ 공유"}
+          <button className="copy-btn" onClick={onShare} disabled={busy} title={tr("answer.share_title")}>
+            {shared ? tr("answer.share_done") : tr("answer.share_btn")}
           </button>
           {shared && (
             <span className="share-hint" role="status">
-              상담서 PDF가 저장되었어요. 카카오톡·메시지 등에 첨부해 전달하세요.
+              {tr("answer.share_hint")}
             </span>
           )}
         </span>
         {pdfUrl ? (
           // 생성 완료: 실제 링크로 전환 → 새 탭 열람/저장(사용자 제스처라 팝업차단 없음, API 재호출 없음)
-          <a className="copy-btn" href={pdfUrl} target="_blank" rel="noopener noreferrer" title="생성된 상담서 PDF 열기·저장">
-            ⤓ PDF 열기
+          <a className="copy-btn" href={pdfUrl} target="_blank" rel="noopener noreferrer" title={tr("answer.pdf_open_title")}>
+            {tr("answer.pdf_open")}
           </a>
         ) : (
-          <button className="copy-btn" onClick={onPdf} disabled={busy} title="상담서 PDF">
-            {busy ? "⏳ 생성 중…" : "⤓ PDF"}
+          <button className="copy-btn" onClick={onPdf} disabled={busy} title={tr("answer.pdf_title")}>
+            {busy ? tr("answer.pdf_busy") : tr("answer.pdf_btn")}
           </button>
         )}
         {source === "chat" && messageId && (
-          <button className="copy-btn aa-video" onClick={onMakeVideo} disabled={vidBusy} title="내 사주를 1분 영상으로">
-            {vidBusy ? "⏳ 시작 중…" : "🎬 영상으로 보기"}
+          <button className="copy-btn aa-video" onClick={onMakeVideo} disabled={vidBusy} title={tr("answer.video_title")}>
+            {vidBusy ? tr("answer.video_busy") : tr("answer.video_btn")}
           </button>
         )}
       </div>

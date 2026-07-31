@@ -1,9 +1,11 @@
 /** OAuth callback이 fragment(#token=...&role=...)로 보내는 토큰을 캡처해 저장 후 /chat 로 이동. */
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { api, setCachedMe, setRefreshToken, setToken } from "../api";
 
 export default function OAuthSuccessPage() {
+  const { t: tr } = useTranslation();
   const nav = useNavigate();
   const [err, setErr] = useState<string | null>(null);
 
@@ -15,7 +17,7 @@ export default function OAuthSuccessPage() {
       const params = new URLSearchParams(hash);
       const token = params.get("token");
       if (!token) {
-        setErr("토큰을 찾을 수 없습니다.");
+        setErr(tr("misc.oauth_no_token"));
         return;
       }
       setToken(token);
@@ -25,7 +27,7 @@ export default function OAuthSuccessPage() {
         setCachedMe(me);
         nav("/chat");
       } catch (e: any) {
-        setErr(e?.message || "프로필 조회 실패");
+        setErr(e?.message || tr("misc.oauth_profile_fail"));
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -36,7 +38,7 @@ export default function OAuthSuccessPage() {
       {err ? (
         <div style={{ color: "crimson" }}>{err}</div>
       ) : (
-        <div>로그인 처리 중...</div>
+        <div>{tr("misc.oauth_processing")}</div>
       )}
     </div>
   );

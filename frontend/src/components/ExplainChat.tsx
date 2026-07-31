@@ -1,7 +1,9 @@
 /** 공유 해설(스트리밍) + 추가질문 채팅 + 추천질문 칩. streamPath만 주면 동작(궁합/도구 공용). */
 import { useEffect, useRef, useState } from "react";
+import { useTranslation, Trans } from "react-i18next";
 import { streamSSE } from "../lib/sse";
 import { renderRich, stripMarkdown } from "../lib/format";
+import { fmtNum } from "../lib/money";
 import { useMe } from "../api";
 import { useCharge } from "./ChargeModal";
 import AnswerActions, { type PdfMeta } from "./AnswerActions";
@@ -38,6 +40,7 @@ export default function ExplainChat({
   const [msgId, setMsgId] = useState<number | undefined>(undefined);  // 해설 메시지 id(피드백용)
   const [suggests, setSuggests] = useState<string[]>([]);            // 추천질문 칩
   const me = useMe();
+  const { t: tr } = useTranslation();
   const { openCharge } = useCharge();
   const [qDepth, setQDepth] = useState<"basic" | "deep">("basic");   // 추가질문 등급(기본=1000P)
   const startedRef = useRef(false);                       // 중복 시작 방지 가드
@@ -96,8 +99,8 @@ export default function ExplainChat({
       }, ac.signal);
     } catch (e: any) {
       if (e?.name === "AbortError") { /* 이탈 취소 — 조용히 무시 */ }
-      else if (e?.message === "PAYWALL") { upd({ content: "" }); openCharge("추가 질문 포인트가 부족해요. 충전하면 작성 내용 그대로 이어집니다."); }
-      else upd({ content: "답변 생성에 실패했어요." });
+      else if (e?.message === "PAYWALL") { upd({ content: "" }); openCharge(tr("compat.need_points")); }
+      else upd({ content: tr("compat.answer_fail") });
     } finally {
       setQStreaming(false); setStage(null);
       loadSuggests();
@@ -107,24 +110,24 @@ export default function ExplainChat({
   return (
     <div className="cr-explain">
       <div className="cr-sub">
-        해설 {stage === "refining" && <span className="cr-refine-tag">보강 중…</span>}
+        {tr("compat.explain_label")} {stage === "refining" && <span className="cr-refine-tag">{tr("compat.refining")}</span>}
       </div>
       <div className="explain-body">
         {!explainOn ? (
           <button className="explain-cta" onClick={startExplain}>
-            🔮 자세히 설명해 드릴까요?
+            {tr("compat.explain_cta")}
           </button>
         ) : (
           <>
-            {explain ? renderRich(explain) : (explaining ? "" : "해설을 불러오는 중…")}
+            {explain ? renderRich(explain) : (explaining ? "" : tr("compat.explain_loading"))}
             {explaining && !explain && <span className="thinking-dots" />}
           </>
         )}
       </div>
       {isPreview && (
         <div className="reveal-cta reveal-cta-note">
-          🔒 여기까지는 <b>미리보기</b>예요 —{" "}
-          {me ? "전체 해설은 충전 후 이용할 수 있어요." : "로그인하면 전체 해설과 추가 질문을 볼 수 있어요."}
+          <Trans i18nKey="explain.preview_lock" components={{ b: <b /> }} />{" "}
+          {me ? tr("explain.preview_member") : tr("explain.preview_guest")}
         </div>
       )}
       {pdf && explain && !explaining && (
@@ -138,21 +141,21 @@ export default function ExplainChat({
         />
       )}
       <div className="compat-qa">
-        <div className="cr-sub">추가 질문</div>
+        <div className="cr-sub">{tr("compat.qa_title")}</div>
         {turns.map((t, i) => (
           <div key={i} className={`qa-turn qa-${t.role}`}>
             <div className="qa-bubble">
               {t.content ? renderRich(t.content) : <span className="thinking-dots" />}
-              {t.refined && <span className="qa-refined">✨ 보강됨</span>}
+              {t.refined && <span className="qa-refined">{tr("compat.qa_refined")}</span>}
               {t.role === "assistant" && typeof t.charged === "number" && t.charged > 0 && (
-                <span className="qa-charged">✓ {t.charged.toLocaleString()}P 차감됨</span>
+                <span className="qa-charged">{tr("compat.qa_charged", { n: fmtNum(t.charged) })}</span>
               )}
             </div>
           </div>
         ))}
         {suggests.length > 0 && !qStreaming && (
           <div className="suggest-chips followup">
-            <div className="suggest-label">💡 이어서 물어보세요</div>
+            <div className="suggest-label">{tr("compat.followup_label")}</div>
             {suggests.map((sg) => (
               <button key={sg} className="chip" disabled={qStreaming} onClick={() => ask(sg)}>
                 {sg}
@@ -164,14 +167,14 @@ export default function ExplainChat({
         <div className="qa-input-row">
           <input
             className="qa-input"
-            placeholder="결과에 대해 더 물어보세요"
+            placeholder={tr("explain.qa_ph")}
             value={q}
             disabled={qStreaming}
             onChange={(e) => setQ(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter") ask(); }}
           />
           <button className="qa-send" disabled={qStreaming || !q.trim()} onClick={() => ask()}>
-            {qStreaming ? "…" : explaining ? "대기" : "질문"}
+            {qStreaming ? "…" : explaining ? tr("compat.qa_wait") : tr("compat.qa_ask")}
           </button>
         </div>
         {pdf && explain && turns.some((t) => t.role === "assistant" && t.content) && !qStreaming && (
@@ -183,15 +186,15 @@ export default function ExplainChat({
                   ...turns.filter((t) => t.content).map((t) => ({ role: t.role, content: stripMarkdown(t.content) })),
                 ];
                 return {
-                  doc_title: `${pdf.docTitle} 종합 감정서`,
+                  doc_title: tr("compat.report_doc_suffix", { title: pdf.docTitle }),
                   person_line: pdf.personLine,
-                  item: pdf.item || "종합 감정",
+                  item: pdf.item || tr("compat.report_item"),
                   conversation,
-                  topic: pdf.item ? `${pdf.item} 상담` : "상담",
+                  topic: pdf.item ? tr("explain.report_topic_item", { item: pdf.item }) : tr("explain.report_topic"),
                 };
               }}
             />
-            <span className="report-hint">여러 질문·답변을 하나의 감정서로 정리해 PDF로 만듭니다.</span>
+            <span className="report-hint">{tr("compat.report_hint")}</span>
           </div>
         )}
       </div>
