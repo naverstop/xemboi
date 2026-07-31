@@ -1,0 +1,10 @@
+{"label":"smoke-1990-03-15","birth_date":"1990-03-15","birth_time":"14:30","calendar":"solar","gender":"male","expected":{"year":"庚午","month":"己卯","day":"己卯","hour":"辛未"},"note":"smoke 검증 — 엔진/원광 일치 확인 완료(2026-05-31)"}
+{"label":"y2000-자시조","birth_date":"2000-01-01","birth_time":"00:30","calendar":"solar","gender":"male","expected":null,"note":"조자시(00:30) — 원광 입력 후 4기둥 채워주세요"}
+{"label":"y2000-자시야","birth_date":"2000-01-01","birth_time":"23:30","calendar":"solar","gender":"female","expected":null,"note":"야자시(23:30) — 원광 일주 다음날 처리 확인"}
+{"label":"입춘전-1984","birth_date":"1984-02-04","birth_time":"12:00","calendar":"solar","gender":"male","expected":null,"note":"입춘일 정오 — 연주가 癸亥인지 甲子인지(입춘각 전후)"}
+{"label":"입춘후-1984","birth_date":"1984-02-05","birth_time":"00:00","calendar":"solar","gender":"male","expected":null,"note":"입춘 다음날 0시"}
+{"label":"중년사례-1972","birth_date":"1972-07-07","birth_time":"03:30","calendar":"solar","gender":"female","expected":null,"note":"소서 절입 인근"}
+{"label":"음력입력-1990","birth_date":"1990-01-19","birth_time":"14:30","calendar":"lunar","gender":"male","is_leap_month":false,"expected":null,"note":"음력 평월"}
+{"label":"음력윤달-2020","birth_date":"2020-04-15","birth_time":"09:00","calendar":"lunar","gender":"female","is_leap_month":true,"expected":null,"note":"음력 윤4월"}
+{"label":"하지-2025","birth_date":"2025-06-21","birth_time":"12:00","calendar":"solar","gender":"male","expected":null,"note":"하지"}
+{"label":"동지조자-2025","birth_date":"2025-12-22","birth_time":"00:30","calendar":"solar","gender":"female","expected":null,"note":"동지 조자시"}

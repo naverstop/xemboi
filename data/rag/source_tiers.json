@@ -1,0 +1,40 @@
+{
+  "_README": "RAG 출처 신뢰등급 규칙. 출처명(파일 stem) 부분일치. tier1_override 최우선 → tier3 → tier1, 나머지는 default_tier. youtube 카테고리는 항상 3. 수정 후 재태깅: python -m scripts.retag_corpus",
+  "tier1_patterns": [
+    "명리전",
+    "적천수",
+    "자평진전",
+    "자평",
+    "연해자평",
+    "궁통보감",
+    "삼명통회",
+    "천간론",
+    "지지론",
+    "월령론",
+    "일주론",
+    "간지총론",
+    "체용",
+    "형상격국",
+    "격국",
+    "신살",
+    "용신",
+    "육친",
+    "십성",
+    "조후",
+    "정신"
+  ],
+  "tier3_patterns": [
+    "카톡",
+    "대화",
+    "채팅",
+    "메모",
+    "잡담",
+    "톡정리",
+    "요약정리"
+  ],
+  "default_tier": 2,
+  "low_quality_threshold": 0.5,
+  "tier1_override_patterns": [
+    "카톡정리"
+  ]
+}

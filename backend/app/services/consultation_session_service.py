@@ -1,0 +1,387 @@
+"""1:1 상담 세션 수명주기 — 요청→수락(선차감)→진행→종료(정산). 서버 권위.
+
+포인트 블록제: 수락 시 price_p 선차감(adjust_credit), 노쇼(미수락 타임아웃)·조기취소 시 멱등 환불.
+종료 시 정산 원장 산출(수수료·세금, 표시용). 실시간 릴레이/카운트다운은 consultation_rt(WS 계층, 2a-2).
+설계: [[consultation-1on1-plan]].
+"""
+from __future__ import annotations
+
+import os
+import uuid
+from datetime import datetime, timedelta
+from typing import Any, Optional
+
+from sqlalchemy import and_, delete, or_, select
+from sqlalchemy.orm import Session
+
+from backend.app.repositories.auth_models import User
+from backend.app.repositories.consultation_models import (
+    Consultant,
+    ConsultationMessage,
+    ConsultationSession,
+    ConsultationSettlement,
+)
+from backend.app.services import auth_service, consultation_service as csvc, settings_service
+
+# 종료로 간주하는 상태(멱등 처리용)
+_TERMINAL = {"completed", "cancelled", "no_show", "expired"}
+
+
+def _now() -> datetime:
+    return datetime.utcnow()
+
+
+# ───────────────────────── 조회/직렬화 ─────────────────────────
+
+def get_session(db: Session, session_id: str) -> Optional[ConsultationSession]:
+    return db.get(ConsultationSession, session_id)
+
+
+def session_dict(db: Session, s: ConsultationSession) -> dict[str, Any]:
+    c = db.get(Consultant, s.consultant_id)
+    total_min = s.duration_min + (s.extended_min or 0)
+    remaining_sec = None
+    if s.status == "active" and s.started_at:
+        elapsed = int((_now() - s.started_at).total_seconds())
+        remaining_sec = max(0, total_min * 60 - elapsed)
+    return {
+        "id": s.id,
+        "status": s.status,
+        "specialty": s.specialty,
+        "consultant_id": s.consultant_id,
+        "consultant_name": c.business_name if c else None,
+        "user_id": s.user_id,
+        "price_p": s.price_p,
+        "duration_min": s.duration_min,
+        "extended_min": s.extended_min or 0,
+        "total_min": total_min,
+        "remaining_sec": remaining_sec,
+        "started_at": s.started_at.isoformat() if s.started_at else None,
+        "ended_at": s.ended_at.isoformat() if s.ended_at else None,
+        "consent_at": s.consent_at.isoformat() if s.consent_at else None,
+        "pdf_token": s.pdf_token,
+    }
+
+
+def is_participant(db: Session, s: ConsultationSession, user: User) -> bool:
+    """세션의 사용자 본인 또는 담당 상담사인지(권한 게이트)."""
+    if s.user_id == user.id:
+        return True
+    c = db.get(Consultant, s.consultant_id)
+    return bool(c and c.user_id == user.id)
+
+
+# ───────────────────────── 수명주기 ─────────────────────────
+
+def request_session(db: Session, user: User, consultant_id: int, *, consent: bool = False) -> ConsultationSession:
+    """사용자 상담 요청 — 잔액·상담사 확인 후 requested 세션 생성(차감은 수락 시)."""
+    c = db.get(Consultant, consultant_id)
+    if c is None or not c.is_active:
+        raise LookupError("상담 가능한 상담사가 아니에요.")
+    price, dur, _comm = csvc.effective(db, c)
+    bal = auth_service.get_balance(db, user.id)
+    if bal < price:
+        raise ValueError(f"포인트가 부족해요. (필요 {price:,}P · 보유 {bal:,}P)")
+    # 사용자가 이미 진행/대기 중인 세션이 있으면 중복 방지
+    active = db.execute(
+        select(ConsultationSession).where(
+            ConsultationSession.user_id == user.id,
+            ConsultationSession.status.in_(["requested", "accepted", "active"]),
+        )
+    ).scalars().first()
+    if active is not None:
+        raise ValueError("이미 진행 중이거나 대기 중인 상담이 있어요.")
+    s = ConsultationSession(
+        id=uuid.uuid4().hex,
+        user_id=user.id,
+        consultant_id=c.id,
+        specialty=c.specialty,
+        status="requested",
+        price_p=price,
+        duration_min=dur,
+        consent_at=_now() if consent else None,
+        requested_at=_now(),
+    )
+    db.add(s)
+    db.commit()
+    db.refresh(s)
+    return s
+
+
+def accept_session(db: Session, session_id: str, consultant: Consultant) -> ConsultationSession:
+    """상담사 수락 — 담당 확인 → 사용자 포인트 선차감 → active. (요건 ⑪ 수락 시 채팅 가능)"""
+    s = db.get(ConsultationSession, session_id)
+    if s is None:
+        raise LookupError("상담 요청을 찾을 수 없어요.")
+    if s.consultant_id != consultant.id:
+        raise PermissionError("본인에게 요청된 상담만 수락할 수 있어요.")
+    if s.status != "requested":
+        raise ValueError("이미 처리되었거나 만료된 요청이에요.")
+    # 선차감(원자적). 잔액 부족이면 요청 취소 처리.
+    try:
+        auth_service.adjust_credit(db, s.user_id, -s.price_p, reason="consultation", ref_id=s.id)
+    except ValueError:
+        s.status = "cancelled"
+        db.commit()
+        raise ValueError("사용자 포인트가 부족해 상담을 시작할 수 없어요.")
+    now = _now()
+    s.status = "active"
+    s.accepted_at = now
+    s.started_at = now
+    s.credits_charged = s.price_p
+    consultant.presence = "busy"  # 상담 중 — 사용자 리스트에 '상담중' 표기(요건 ⑫)
+    db.commit()
+    db.refresh(s)
+    return s
+
+
+def decline_session(db: Session, session_id: str, consultant: Consultant) -> ConsultationSession:
+    """상담사 거절 — requested 상태에서만. 차감 전이라 환불 불필요."""
+    s = db.get(ConsultationSession, session_id)
+    if s is None:
+        raise LookupError("상담 요청을 찾을 수 없어요.")
+    if s.consultant_id != consultant.id:
+        raise PermissionError("본인에게 요청된 상담만 처리할 수 있어요.")
+    if s.status == "requested":
+        s.status = "cancelled"
+        db.commit()
+        db.refresh(s)
+    return s
+
+
+def cancel_requested(db: Session, session_id: str, *, no_show: bool = False) -> Optional[ConsultationSession]:
+    """미수락 타임아웃/사용자 취소 — requested 상태만. 차감 전이라 환불 없음."""
+    s = db.get(ConsultationSession, session_id)
+    if s is None or s.status != "requested":
+        return s
+    s.status = "no_show" if no_show else "cancelled"
+    db.commit()
+    db.refresh(s)
+    return s
+
+
+def _refund(db: Session, s: ConsultationSession, ratio: float, reason: str) -> int:
+    """멱등 환불 — 이미 환불했으면 0. ratio(0~1) 비율만큼 환급."""
+    if s.refunded or not s.credits_charged:
+        return 0
+    amount = int(round(s.credits_charged * max(0.0, min(1.0, ratio))))
+    if amount > 0:
+        auth_service.adjust_credit(db, s.user_id, amount, reason=reason, ref_id=s.id)
+    s.refunded = True
+    s.refund_p = amount
+    return amount
+
+
+def end_session(db: Session, session_id: str, *, reason: str = "user_end") -> ConsultationSession:
+    """상담 종료 — 경과시간 확정 + 정산 산출 + 파기예정 설정. 멱등."""
+    s = db.get(ConsultationSession, session_id)
+    if s is None:
+        raise LookupError("세션을 찾을 수 없어요.")
+    if s.status in _TERMINAL:
+        return s
+    now = _now()
+    s.ended_at = now
+    if s.started_at:
+        s.elapsed_sec = int((now - s.started_at).total_seconds())
+    s.status = "completed"
+    retention = settings_service.get_int(db, "consultation_retention_days", 7)
+    s.purge_after = now + timedelta(days=retention)
+    _ensure_settlement(db, s)
+    # 상담사 busy 해제 — 콘솔이 연결돼 있으면 online, 아니면 콘솔 disconnect 가 offline 처리.
+    c = db.get(Consultant, s.consultant_id)
+    if c is not None and c.presence == "busy":
+        c.presence = "online"
+    db.commit()
+    db.refresh(s)
+    return s
+
+
+def _ensure_settlement(db: Session, s: ConsultationSession) -> None:
+    """세션 정산 원장 1회 생성(멱등)."""
+    exists = db.execute(
+        select(ConsultationSettlement).where(ConsultationSettlement.session_id == s.id)
+    ).scalars().first()
+    if exists is not None:
+        return
+    revenue = s.credits_charged or s.price_p
+    if revenue <= 0:
+        return
+    c = db.get(Consultant, s.consultant_id)
+    _p, _d, comm_pct = csvc.effective(db, c) if c else (0, 0, settings_service.get_int(db, "consultation_commission_pct", 20))
+    tax_pct = settings_service.get_float(db, "consultation_tax_pct", 3.3)
+    calc = csvc.compute_settlement(revenue, comm_pct, tax_pct)
+    db.add(
+        ConsultationSettlement(
+            session_id=s.id,
+            consultant_id=s.consultant_id,
+            revenue_p=calc["revenue_p"],
+            commission_pct=calc["commission_pct"],
+            commission_p=calc["commission_p"],
+            taxable_p=calc["taxable_p"],
+            tax_pct=calc["tax_pct"],
+            tax_p=calc["tax_p"],
+            payout_p=calc["payout_p"],
+            status="pending",
+        )
+    )
+
+
+def extend_session(db: Session, session_id: str, user: User) -> ConsultationSession:
+    """블록 연장 — 동일 단가 추가 차감 + duration 만큼 시간 연장(active 상태만)."""
+    s = db.get(ConsultationSession, session_id)
+    if s is None:
+        raise LookupError("세션을 찾을 수 없어요.")
+    if s.user_id != user.id:
+        raise PermissionError("본인 상담만 연장할 수 있어요.")
+    if s.status != "active":
+        raise ValueError("진행 중인 상담만 연장할 수 있어요.")
+    try:
+        auth_service.adjust_credit(db, user.id, -s.price_p, reason="consultation_extend", ref_id=s.id)
+    except ValueError:
+        raise ValueError(f"포인트가 부족해 연장할 수 없어요. (필요 {s.price_p:,}P)")
+    s.extended_min = (s.extended_min or 0) + s.duration_min
+    s.credits_charged = (s.credits_charged or 0) + s.price_p
+    db.commit()
+    db.refresh(s)
+    return s
+
+
+# ───────────────────────── 메시지 ─────────────────────────
+
+def add_message(db: Session, session_id: str, sender: str, content: str) -> ConsultationMessage:
+    m = ConsultationMessage(session_id=session_id, sender=sender, content=content)
+    db.add(m)
+    db.commit()
+    db.refresh(m)
+    return m
+
+
+def list_messages(db: Session, session_id: str) -> list[dict[str, Any]]:
+    rows = db.execute(
+        select(ConsultationMessage)
+        .where(ConsultationMessage.session_id == session_id)
+        .order_by(ConsultationMessage.id.asc())
+    ).scalars().all()
+    return [
+        {"id": m.id, "sender": m.sender, "content": m.content, "created_at": m.created_at.isoformat()}
+        for m in rows
+    ]
+
+
+def transcript_for_summary(db: Session, session_id: str) -> list[dict[str, str]]:
+    """요약 PDF용 — user→'user' / consultant→'assistant' 매핑(system 제외). 요건 ⑧."""
+    rows = db.execute(
+        select(ConsultationMessage)
+        .where(ConsultationMessage.session_id == session_id)
+        .order_by(ConsultationMessage.id.asc())
+    ).scalars().all()
+    out: list[dict[str, str]] = []
+    for m in rows:
+        if m.sender == "user":
+            out.append({"role": "user", "content": m.content})
+        elif m.sender == "consultant":
+            out.append({"role": "assistant", "content": m.content})
+    return out
+
+
+# ───────────────────────── 상담사 접수함 ─────────────────────────
+
+def consultant_pending(db: Session, consultant: Consultant) -> list[dict[str, Any]]:
+    """상담사 접수함 — 대기/진행 중 세션(요건 ⑩ 접수 알람 목록)."""
+    rows = db.execute(
+        select(ConsultationSession)
+        .where(
+            ConsultationSession.consultant_id == consultant.id,
+            ConsultationSession.status.in_(["requested", "active"]),
+        )
+        .order_by(ConsultationSession.requested_at.asc())
+    ).scalars().all()
+    return [session_dict(db, s) for s in rows]
+
+
+def submit_rating(db: Session, session_id: str, user: User, rating: int) -> ConsultationSession:
+    """사용자 만족도 평점(1~5) — 종료된 본인 상담만. 간판 만족도 집계에 반영."""
+    if rating < 1 or rating > 5:
+        raise ValueError("평점은 1~5 사이여야 해요.")
+    s = db.get(ConsultationSession, session_id)
+    if s is None:
+        raise LookupError("세션을 찾을 수 없어요.")
+    if s.user_id != user.id:
+        raise PermissionError("본인 상담만 평가할 수 있어요.")
+    if s.status != "completed":
+        raise ValueError("종료된 상담만 평가할 수 있어요.")
+    s.rating = int(rating)
+    db.commit()
+    db.refresh(s)
+    return s
+
+
+def list_user_sessions(db: Session, user: User, limit: int = 30) -> list[dict[str, Any]]:
+    rows = db.execute(
+        select(ConsultationSession)
+        .where(ConsultationSession.user_id == user.id)
+        .order_by(ConsultationSession.requested_at.desc())
+        .limit(limit)
+    ).scalars().all()
+    return [session_dict(db, s) for s in rows]
+
+
+# ───────────────────────── 7일 파기 배치 (개인정보 준수) ─────────────────────────
+
+# 요약 PDF 저장 경로(pdf.py 와 동일: 저장소 루트/data/pdf)
+_PDF_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", "data", "pdf"))
+
+
+def _delete_pdf(token: str) -> int:
+    """요약 PDF 파일(+.name) 삭제. 삭제한 pdf 수(0/1) 반환."""
+    n = 0
+    for ext in (".pdf", ".name"):
+        p = os.path.join(_PDF_DIR, f"{token}{ext}")
+        try:
+            if os.path.isfile(p):
+                os.remove(p)
+                if ext == ".pdf":
+                    n = 1
+        except OSError:
+            pass
+    return n
+
+
+def purge_expired(db: Session, *, now: Optional[datetime] = None, limit: int = 1000) -> dict[str, int]:
+    """보관기간(consultation_retention_days, 기본 7일) 지난 상담의 대화·요약 PDF를 **완전 파기**.
+
+    입장 전 동의 게이트에서 고지한 '대화는 7일 후 자동·완전 파기' 준수(개인정보). 세션 메타(정산·시각)는
+    보존하고 PII(대화 메시지 + 요약 PDF 파일)만 하드 삭제 후 purged=True. 종료 세션은 purge_after 기준,
+    비정상 잔류(장기 미종료) 세션은 requested_at + retention+1일 안전망으로도 파기한다.
+
+    반환: {sessions, messages, pdfs}. 스케줄러(04:20)·수동 호출 공용. LLM/GPU 없음(순수 DB+파일).
+    """
+    now = now or datetime.utcnow()
+    retention = settings_service.get_int(db, "consultation_retention_days", 7)
+    abandoned_cutoff = now - timedelta(days=retention + 1)
+    rows = db.execute(
+        select(ConsultationSession)
+        .where(
+            ConsultationSession.purged.is_(False),
+            or_(
+                and_(
+                    ConsultationSession.purge_after.isnot(None),
+                    ConsultationSession.purge_after < now,
+                ),
+                ConsultationSession.requested_at < abandoned_cutoff,
+            ),
+        )
+        .limit(limit)
+    ).scalars().all()
+    n_sess = n_msg = n_pdf = 0
+    for s in rows:
+        res = db.execute(delete(ConsultationMessage).where(ConsultationMessage.session_id == s.id))
+        n_msg += int(res.rowcount or 0)
+        if s.pdf_token:
+            n_pdf += _delete_pdf(s.pdf_token)
+            s.pdf_token = None
+        s.purged = True
+        n_sess += 1
+    if n_sess:
+        db.commit()
+    return {"sessions": n_sess, "messages": n_msg, "pdfs": n_pdf}

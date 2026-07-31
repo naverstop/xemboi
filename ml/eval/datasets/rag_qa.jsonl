@@ -1,0 +1,50 @@
+{"id": "q001", "question": "비견(比肩)이란 무엇인가?", "expected_keywords": ["비견", "일간", "같", "오행"], "note": "십성 기본"}
+{"id": "q002", "question": "오행 상생 순서를 설명해줘", "expected_keywords": ["목", "화", "토", "금", "수", "생"], "note": "기초"}
+{"id": "q003", "question": "오행 상극 관계는?", "expected_keywords": ["극", "목", "토", "수", "화", "금"], "note": "기초"}
+{"id": "q004", "question": "정관(正官)이 사주에 미치는 영향은?", "expected_keywords": ["정관", "극", "일간", "명예", "질서"], "note": "십성 의미"}
+{"id": "q005", "question": "신강 신약은 어떻게 판별하는가?", "expected_keywords": ["신강", "신약", "일간", "뿌리", "월령"], "note": "강약 판별"}
+{"id": "q006", "question": "용신(用神)을 정하는 기본 원리는?", "expected_keywords": ["용신", "억부", "조후", "통관"], "note": "용신론"}
+{"id": "q007", "question": "지장간이란?", "expected_keywords": ["지장간", "지지", "천간", "숨"], "note": "지장간 개념"}
+{"id": "q008", "question": "천간 합(合)에는 어떤 것이 있는가?", "expected_keywords": ["갑기", "을경", "병신", "정임", "무계", "합"], "note": "천간오합"}
+{"id": "q009", "question": "지지 삼합은 무엇이고 어떻게 구성되는가?", "expected_keywords": ["삼합", "해묘미", "인오술", "사유축", "신자진"], "note": "지지삼합"}
+{"id": "q010", "question": "대운(大運)은 어떻게 정해지는가?", "expected_keywords": ["대운", "월주", "순행", "역행", "10년"], "note": "대운 원리"}
+{"id": "q011", "question": "식신(食神)과 상관(傷官)의 차이는?", "expected_keywords": ["식신", "상관", "일간", "생"], "note": "식상 구분"}
+{"id": "q012", "question": "편재와 정재의 차이는?", "expected_keywords": ["편재", "정재", "재성", "음양"], "note": "재성 구분"}
+{"id": "q013", "question": "형충파해 중 충(沖)이란?", "expected_keywords": ["충", "지지", "대립", "마주"], "note": "지지 충"}
+{"id": "q014", "question": "공망(空亡)이 의미하는 것은?", "expected_keywords": ["공망", "육갑", "순"], "note": "공망"}
+{"id": "q015", "question": "토(土)일간의 일반적 특성은?", "expected_keywords": ["토", "일간", "중후", "신용", "포용"], "note": "오행별 일간"}
+{"id": "q016", "question": "세운(歲運)은 무엇인가?", "expected_keywords": ["세운", "해", "간지", "한해"], "note": "세운"}
+{"id": "q017", "question": "인성(印星)의 역할은?", "expected_keywords": ["인성", "정인", "편인", "일간", "생"], "note": "인성"}
+{"id": "q018", "question": "비겁(比劫)이 많으면 어떤 경향이 나타나는가?", "expected_keywords": ["비견", "겁재", "경쟁", "독립", "고집"], "note": "비겁 다자"}
+{"id": "q019", "question": "수(水)가 부족한 사주의 보완 방법은?", "expected_keywords": ["수", "부족", "보완", "오행"], "note": "오행 결손"}
+{"id": "q020", "question": "월령(月令)이 사주 해석에서 왜 중요한가?", "expected_keywords": ["월령", "월지", "왕쇠", "계절", "뿌리"], "note": "월령 중요성"}
+{"id": "q021", "question": "지지 육합(六合)의 짝은 어떻게 구성되는가?", "expected_keywords": ["육합", "자축", "인해", "묘술", "진유", "사신", "오미"], "note": "지지 육합"}
+{"id": "q022", "question": "지지 방합(方合)이란 무엇인가?", "expected_keywords": ["방합", "인묘진", "사오미", "신유술", "해자축", "계절"], "note": "방합"}
+{"id": "q023", "question": "형(刑)에는 어떤 종류가 있는가?", "expected_keywords": ["형", "삼형", "자형", "인사신", "축술미"], "note": "지지 형"}
+{"id": "q024", "question": "파(破)와 해(害)는 어떻게 작용하는가?", "expected_keywords": ["파", "해", "지지", "갈등"], "note": "파해"}
+{"id": "q025", "question": "겁재(劫財)의 의미와 영향은?", "expected_keywords": ["겁재", "비겁", "음양", "재물"], "note": "겁재"}
+{"id": "q026", "question": "편관(偏官)과 정관(正官)의 차이는?", "expected_keywords": ["편관", "정관", "칠살", "음양"], "note": "관성 구분"}
+{"id": "q027", "question": "편인(偏印)과 정인(正印)의 차이는?", "expected_keywords": ["편인", "정인", "효신", "음양", "생"], "note": "인성 구분"}
+{"id": "q028", "question": "재성(財星)이 많으면 어떤 경향이 있는가?", "expected_keywords": ["재", "다자", "신약", "재다신약", "관리"], "note": "재성 다자"}
+{"id": "q029", "question": "관성(官星)이 많으면 어떤 경향이 있는가?", "expected_keywords": ["관", "다자", "관다신약", "압박", "스트레스"], "note": "관성 다자"}
+{"id": "q030", "question": "식상(食傷)이 많으면 어떤 경향이 있는가?", "expected_keywords": ["식상", "다자", "표현", "재능", "설기"], "note": "식상 다자"}
+{"id": "q031", "question": "조후용신(調候用神)이란?", "expected_keywords": ["조후", "용신", "한난", "조습", "계절"], "note": "조후 용신"}
+{"id": "q032", "question": "억부용신(抑扶用神)이란?", "expected_keywords": ["억부", "용신", "신강", "신약", "억제", "도움"], "note": "억부 용신"}
+{"id": "q033", "question": "통관용신(通關用神)이란?", "expected_keywords": ["통관", "용신", "오행", "대립", "중재"], "note": "통관 용신"}
+{"id": "q034", "question": "병약용신(病藥用神)이란?", "expected_keywords": ["병약", "용신", "병", "약", "제거"], "note": "병약 용신"}
+{"id": "q035", "question": "근묘화실(根苗花實)은 무엇을 의미하는가?", "expected_keywords": ["근묘화실", "년주", "월주", "일주", "시주", "초년", "중년", "말년"], "note": "사주 단계"}
+{"id": "q036", "question": "갑(甲)일간의 일반적 특성은?", "expected_keywords": ["갑", "목", "양", "리더", "곧"], "note": "갑일간"}
+{"id": "q037", "question": "을(乙)일간의 일반적 특성은?", "expected_keywords": ["을", "목", "음", "유연", "화초"], "note": "을일간"}
+{"id": "q038", "question": "병(丙)일간의 일반적 특성은?", "expected_keywords": ["병", "화", "양", "태양", "밝"], "note": "병일간"}
+{"id": "q039", "question": "정(丁)일간의 일반적 특성은?", "expected_keywords": ["정", "화", "음", "촛불", "섬세"], "note": "정일간"}
+{"id": "q040", "question": "경(庚)일간의 일반적 특성은?", "expected_keywords": ["경", "금", "양", "강", "결단"], "note": "경일간"}
+{"id": "q041", "question": "신(辛)일간의 일반적 특성은?", "expected_keywords": ["신", "금", "음", "보석", "예민"], "note": "신일간"}
+{"id": "q042", "question": "임(壬)일간의 일반적 특성은?", "expected_keywords": ["임", "수", "양", "강물", "포용"], "note": "임일간"}
+{"id": "q043", "question": "계(癸)일간의 일반적 특성은?", "expected_keywords": ["계", "수", "음", "이슬", "지혜"], "note": "계일간"}
+{"id": "q044", "question": "백호살(白虎殺)이란?", "expected_keywords": ["백호", "살", "갑진", "을미", "병술"], "note": "백호살"}
+{"id": "q045", "question": "괴강살(魁罡殺)이란?", "expected_keywords": ["괴강", "경진", "경술", "임진", "임술"], "note": "괴강"}
+{"id": "q046", "question": "도화살(桃花殺)은 어떤 의미인가?", "expected_keywords": ["도화", "자", "오", "묘", "유", "매력"], "note": "도화"}
+{"id": "q047", "question": "역마살(驛馬殺)은 어떤 의미인가?", "expected_keywords": ["역마", "인", "신", "사", "해", "이동", "변동"], "note": "역마"}
+{"id": "q048", "question": "화개살(華蓋殺)은 어떤 의미인가?", "expected_keywords": ["화개", "진", "술", "축", "미", "고독", "예술"], "note": "화개"}
+{"id": "q049", "question": "양인(陽刃)이란?", "expected_keywords": ["양인", "겁재", "강", "갑묘", "병오", "임자"], "note": "양인"}
+{"id": "q050", "question": "공망과 살의 차이는 무엇인가?", "expected_keywords": ["공망", "살", "지지", "흉신"], "note": "공망 vs 살"}

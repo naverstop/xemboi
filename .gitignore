@@ -1,0 +1,122 @@
+# ===== Python =====
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+.venv_old*/
+.venv_ocr/
+venv/
+env/
+*.egg-info/
+.eggs/
+dist/
+build/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# ===== Node / Next.js =====
+node_modules/
+.next/
+out/
+.turbo/
+.pnpm-store/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ===== IDE / OS =====
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ===== Env / Secret =====
+.env
+.env.*
+!.env.example
+!.env.vn.example
+*.pem
+*.key
+secrets/
+
+# ===== Data / Models (대용량) =====
+ml/models/*
+!ml/models/.gitkeep
+data/raw/*
+!data/raw/.gitkeep
+data/processed/*
+!data/processed/.gitkeep
+data/ocr/*
+!data/ocr/.gitkeep
+data/logs/*
+!data/logs/.gitkeep
+data/inbox/*
+!data/inbox/.gitkeep
+data/eval/*
+!data/eval/.gitkeep
+data/rag/quarantine/*
+data/pdf/*
+!data/pdf/.gitkeep
+logs/*
+!logs/.gitkeep
+
+# 학습자료는 저작권 자료이므로 커밋 금지 (PDF·스캔 이미지 포함)
+학습자료/
+학습자료_new/
+학습자료_old/
+학습자료_dup_removed/
+학습자료_품질미달/
+*.pdf
+*.hwp
+*.docx
+*.pptx
+
+# ===== Database / Cache =====
+*.db
+*.sqlite*
+postgres-data/
+qdrant-data/
+redis-data/
+
+# ===== Misc =====
+*.bak
+*.tmp
+tmp/
+.cache/
+
+# 배치 산출물(일일 인사이트 리포트 등) — 매 실행 생성되는 아티팩트
+output/
+
+# Claude Code 로컬 설정(머신별)
+.claude/settings.local.json
+
+# ===== 런타임 데이터/모델/바이너리 (커밋 금지) =====
+infra/qdrant/
+infra/ollama/
+infra/hf_cache/
+*.tsbuildinfo
+*.lnk
+
+# 사주 영상 런타임 산출물
+data/video/
+
+# ===== 생성물·워크스페이스(재생성 가능·리포 비대화 방지) =====
+image/
+tarot/
+shorts/
+data/feedback/
+frontend/public/icons/icon-128.png
+# ===== 운영/개인 자료(앱 소스 아님) =====
+사업자 등록사항/
+조후용신_감수/
+인생상담친구_아이콘.png
+# 1:1 상담 입점업체 간판 이미지(런타임 업로드)
+data/media/

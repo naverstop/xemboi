@@ -1,0 +1,20 @@
+{"id":"dp001","calendar":"solar","date":"1990-03-15","time":"14:30","gender":"male","expected":{"year":"庚午","month":"己卯","day":"己卯","hour":"辛未"},"note":"smoke 기준값"}
+{"id":"dp002","calendar":"solar","date":"2000-01-01","time":"00:30","gender":"male","expected":{"year":"己卯","month":"丙子","day":"甲戌","hour":"甲子"},"note":"자시 경계(조자시)"}
+{"id":"dp003","calendar":"solar","date":"2000-01-01","time":"23:30","gender":"female","expected":{"year":"己卯","month":"丙子","day":"乙亥","hour":"丙子"},"note":"야자시 — 일주 다음날 / 시주 子"}
+{"id":"dp004","calendar":"solar","date":"1984-02-04","time":"12:00","gender":"male","expected":{"year":"癸亥","month":"乙丑","day":"乙丑","hour":"壬午"},"note":"입춘일(낮) — 입춘각 전이면 전년"}
+{"id":"dp005","calendar":"solar","date":"1984-02-05","time":"00:00","gender":"male","expected":{"year":"甲子","month":"丙寅","day":"丙寅","hour":"戊子"},"note":"입춘 다음날 — 갑자년 시작"}
+{"id":"dp006","calendar":"solar","date":"1955-09-23","time":"08:15","gender":"male","expected":{"year":"乙未","month":"乙酉","day":"丁酉","hour":"甲辰"},"note":"백로 후"}
+{"id":"dp007","calendar":"solar","date":"1972-07-07","time":"03:30","gender":"female","expected":{"year":"壬子","month":"丁未","day":"庚午","hour":"戊寅"},"note":"소서 경계"}
+{"id":"dp008","calendar":"solar","date":"1988-12-31","time":"23:59","gender":"male","expected":{"year":"戊辰","month":"甲子","day":"乙丑","hour":"丙子"},"note":"연말 야자시"}
+{"id":"dp009","calendar":"solar","date":"1995-05-05","time":"06:00","gender":"female","expected":{"year":"乙亥","month":"庚辰","day":"丙辰","hour":"辛卯"},"note":"입하 직후"}
+{"id":"dp010","calendar":"solar","date":"2003-11-08","time":"19:45","gender":"male","expected":{"year":"癸未","month":"癸亥","day":"癸卯","hour":"壬戌"},"note":"입동 직후 — 월주 亥"}
+{"id":"dp011","calendar":"solar","date":"2010-02-04","time":"06:30","gender":"male","expected":{"year":"庚寅","month":"戊寅","day":"丙寅","hour":"辛卯"},"note":"입춘일 — 절기 전후 검증"}
+{"id":"dp012","calendar":"solar","date":"1968-08-15","time":"10:00","gender":"male","expected":{"year":"戊申","month":"庚申","day":"己酉","hour":"己巳"},"note":"입추 후"}
+{"id":"dp013","calendar":"solar","date":"1976-04-30","time":"15:20","gender":"female","expected":{"year":"丙辰","month":"壬辰","day":"丁亥","hour":"戊申"},"note":"청명 후"}
+{"id":"dp014","calendar":"solar","date":"1999-12-25","time":"21:00","gender":"male","expected":{"year":"己卯","month":"丙子","day":"戊辰","hour":"癸亥"},"note":"동지 후"}
+{"id":"dp015","calendar":"solar","date":"2024-02-29","time":"12:00","gender":"female","expected":{"year":"甲辰","month":"丙寅","day":"癸丑","hour":"戊午"},"note":"윤년 2/29"}
+{"id":"dp016","calendar":"solar","date":"1945-08-15","time":"12:00","gender":"male","expected":{"year":"乙酉","month":"甲申","day":"癸酉","hour":"戊午"},"note":"광복일 정오"}
+{"id":"dp017","calendar":"lunar","date":"1990-01-19","time":"14:30","gender":"male","is_leap_month":false,"expected":{"year":"庚午","month":"戊寅","day":"丁未","hour":"丁未"},"note":"음력 1.19 → 양력 2/14"}
+{"id":"dp018","calendar":"lunar","date":"2020-04-15","time":"09:00","gender":"female","is_leap_month":true,"expected":{"year":"庚子","month":"壬午","day":"庚辰","hour":"辛巳"},"note":"음력 윤4월"}
+{"id":"dp019","calendar":"solar","date":"2025-06-21","time":"12:00","gender":"male","expected":{"year":"乙巳","month":"壬午","day":"乙丑","hour":"壬午"},"note":"하지"}
+{"id":"dp020","calendar":"solar","date":"2025-12-22","time":"00:30","gender":"female","expected":{"year":"乙巳","month":"戊子","day":"庚午","hour":"丙子"},"note":"동지 조자시"}

@@ -1,0 +1,444 @@
+{
+ "_README": "관법(觀法) 룰 — 선생님(현명역학원) 자료에서 추출한 '조건→해석' 공식. reviewed:true(선생님 감수 완료)만 운영 주입됨. 감수 시트: docs/gwanbeop_rules_review.md. star는 인수/재/관/식상/비겁 5분류, state는 intact(온전)/broken(세운과 충·형·파·극)/in_seun(세운으로 들어옴)/합(세운과 합 참여), pair+rel은 두 십성 그룹 간 합/극. [2026-07-08 운영자 승인으로 전건 활성화 — 선생님 감수 회신 도착 시 ○/× 및 문구 교정 반영 예정]",
+ "rules": [
+  {
+   "id": "contract-01",
+   "topics": [
+    "contract"
+   ],
+   "when": [
+    {
+     "pair": [
+      "재",
+      "인수"
+     ],
+     "rel": "합"
+    }
+   ],
+   "then": "(계약·매매) 세운에서 재(돈)와 인수(문서·계약)가 합 — 계약 성사 방향, 문서가 돈으로 이어진다",
+   "source": "회사승진_사례(부동산 매매 계약)·세운분석보연5(집 매매)",
+   "reviewed": true
+  },
+  {
+   "id": "contract-02",
+   "topics": [
+    "contract"
+   ],
+   "when": [
+    {
+     "star": "인수",
+     "state": "broken"
+    }
+   ],
+   "then": "(계약·매매) 인수(문서·계약)가 세운과 충·형·파·극으로 깨짐 — 계약 성사 어렵고 계약상 문제 주의",
+   "source": "세운분석보연3(卯酉冲 묘 인수 — 계약 안된다)·5(巳申刑 — 사지 마라)",
+   "reviewed": true
+  },
+  {
+   "id": "contract-03",
+   "topics": [
+    "contract"
+   ],
+   "when": [
+    {
+     "star": "재",
+     "state": "broken"
+    }
+   ],
+   "then": "(계약·매매) 재(돈)가 깨짐 — 매매·계약을 해도 제값 받기 어렵다",
+   "source": "세운분석보연3(돈 깨졌으니 적당한 돈 받고 팔아라)·5(재 깨져 제값 못 받는다)",
+   "reviewed": true
+  },
+  {
+   "id": "contract-04",
+   "topics": [
+    "contract"
+   ],
+   "when": [
+    {
+     "star": "인수",
+     "state": "intact"
+    },
+    {
+     "star": "재",
+     "state": "intact"
+    }
+   ],
+   "then": "(계약·매매) 인수·재 모두 온전 — 계약 가능한 흐름(하나라도 깨지면 안 되는데 둘 다 무사)",
+   "source": "세운분석보연4(인수·재 이상 없으니 계약 된다, 하나라도 깨지면 안 된다)",
+   "reviewed": true
+  },
+  {
+   "id": "contract-05",
+   "topics": [
+    "contract"
+   ],
+   "when": [
+    {
+     "pair": [
+      "식상",
+      "인수"
+     ],
+     "rel": "합"
+    }
+   ],
+   "then": "(계약·매매) 식상과 인수가 합 — 계약 성사 방향(계약 공식: 천간에 재성 또는 식상이 인성과 합)",
+   "source": "카톡정리(계약은 천간에 재성(식상)과 인성이 合되면서 일지와 剋이 되지 않으면 계약된다)",
+   "reviewed": true
+  },
+  {
+   "id": "career-01",
+   "topics": [
+    "career"
+   ],
+   "when": [
+    {
+     "star": "관",
+     "state": "broken"
+    },
+    {
+     "star": "재",
+     "state": "intact"
+    }
+   ],
+   "then": "(직장) 관(직장)은 깨지고 재(돈)는 온전 — 퇴직이 아니라 인사이동·부서/업무 변화 수준",
+   "source": "세운분석보연1(관만 깨졌으니 인사이동)·5(재 살고 관 깨지면 인사이동)",
+   "reviewed": true
+  },
+  {
+   "id": "career-02",
+   "topics": [
+    "career"
+   ],
+   "when": [
+    {
+     "star": "관",
+     "state": "broken"
+    },
+    {
+     "star": "재",
+     "state": "broken"
+    }
+   ],
+   "then": "(직장) 재·관이 모두 깨짐 — 직장인이라면 퇴직·이직 수준의 큰 변화 운",
+   "source": "세운분석보연3(재·관 깨져 퇴직)·5(재·관 극맞아 퇴직)",
+   "reviewed": true
+  },
+  {
+   "id": "career-03",
+   "topics": [
+    "career"
+   ],
+   "when": [
+    {
+     "star": "관",
+     "state": "intact"
+    },
+    {
+     "star": "재",
+     "state": "broken"
+    }
+   ],
+   "then": "(취업) 관(직장)은 온전하나 재가 깨짐 — 취업 자체는 되지만 입사 후 적응·마음고생",
+   "source": "세운분석보연5(관 살아 취업은 된다, 재 깨져 적응 힘들다)",
+   "reviewed": true
+  },
+  {
+   "id": "career-04",
+   "topics": [
+    "career"
+   ],
+   "when": [
+    {
+     "star": "관",
+     "state": "intact"
+    },
+    {
+     "star": "재",
+     "state": "intact"
+    }
+   ],
+   "then": "(직장·취업) 재·관 모두 온전 — 직장운 안정, 취업 가능한 흐름",
+   "source": "세운분석보연5(직장인은 재·관을 같이 본다)",
+   "reviewed": true
+  },
+  {
+   "id": "career-05",
+   "topics": [
+    "career",
+    "business"
+   ],
+   "when": [
+    {
+     "star": "식상",
+     "state": "broken"
+    }
+   ],
+   "then": "(하는 일) 식상(하는 일·일거리)이 극·충 맞음 — 업무/하는 일의 변화, 새 일을 벌이기엔 불리",
+   "source": "세운분석보연1(식상 극맞았으니 하는 일 변화)·강의요점(식상 얻어맞아 사업시작 안된다)",
+   "reviewed": true
+  },
+  {
+   "id": "promo-01",
+   "topics": [
+    "promotion"
+   ],
+   "when": [
+    {
+     "star": "관",
+     "state": "in_seun"
+    },
+    {
+     "star": "재",
+     "state": "합"
+    }
+   ],
+   "then": "(승진) 세운 천간·지지로 관성이 들어오고 재성이 합 — 승진 명단에 포함될 조건",
+   "source": "회사승진_사례(세운 천간 관성 만나면 지지는 재성의 합이 될 때)",
+   "reviewed": true
+  },
+  {
+   "id": "promo-02",
+   "topics": [
+    "promotion"
+   ],
+   "when": [
+    {
+     "star": "재",
+     "state": "in_seun"
+    },
+    {
+     "star": "관",
+     "state": "합"
+    }
+   ],
+   "then": "(승진) 세운으로 재성이 들어오고 관성이 합 — 승진 명단에 포함될 조건",
+   "source": "회사승진_사례(세운 천간에서 재성 만나면 관성과 합이 될 때)",
+   "reviewed": true
+  },
+  {
+   "id": "promo-03",
+   "topics": [
+    "promotion"
+   ],
+   "when": [
+    {
+     "star": "관",
+     "state": "broken"
+    },
+    {
+     "star": "재",
+     "state": "intact"
+    }
+   ],
+   "then": "(승진) 관은 극 맞아 변화가 생기고 재는 좋아야 승진 — 관 변화+재 온전이라 승진 가능 흐름",
+   "source": "세운분석보연5(승진 볼 때: 관은 극 맞아 변화 있어야 하고 재는 좋아야 된다)",
+   "reviewed": true
+  },
+  {
+   "id": "promo-04",
+   "topics": [
+    "promotion"
+   ],
+   "when": [
+    {
+     "pair": [
+      "관",
+      "식상"
+     ],
+     "rel": "합"
+    },
+    {
+     "star": "재",
+     "state": "intact"
+    }
+   ],
+   "then": "(승진) 세운 관성이 원국 식상과 합하고 재성이 온전 — 승진 명단에 포함될 조건",
+   "source": "회사승진_사례(EX: 세운 辛金 관성이 丙火 식상과 합, 축토 재성 형충파 아니면 포함)",
+   "reviewed": true
+  },
+  {
+   "id": "exam-01",
+   "topics": [
+    "exam"
+   ],
+   "when": [
+    {
+     "pair": [
+      "관",
+      "식상"
+     ],
+     "rel": "합"
+    }
+   ],
+   "then": "(시험) 관성과 식상이 합 — 원하는 시험에 합격할 실력이 갖춰진 운",
+   "source": "회사승진_사례(시험: 천간 관성과 식상이 합이 되면 된다)",
+   "reviewed": true
+  },
+  {
+   "id": "exam-02",
+   "topics": [
+    "exam"
+   ],
+   "when": [
+    {
+     "star": "인수",
+     "state": "intact"
+    }
+   ],
+   "then": "(시험) 시험 당일 운은 인수로 본다 — 인수가 온전해 제 실력 발휘 가능",
+   "source": "세운분석보연5(시험일은 인수를 봐라)",
+   "reviewed": true
+  },
+  {
+   "id": "exam-03",
+   "topics": [
+    "exam"
+   ],
+   "when": [
+    {
+     "star": "인수",
+     "state": "broken"
+    }
+   ],
+   "then": "(시험) 인수가 깨짐 — 시험에서 제 실력 발휘가 어렵다(발표 결과는 관으로 별도 판단)",
+   "source": "세운분석보연1(子酉破 — 시험합격 힘들다)·5",
+   "reviewed": true
+  },
+  {
+   "id": "exam-04",
+   "topics": [
+    "exam"
+   ],
+   "when": [
+    {
+     "pair": [
+      "재",
+      "인수"
+     ],
+     "rel": "합"
+    }
+   ],
+   "then": "(시험) 인성과 재성이 합 — 합격 가능 신호(단, 운의 지지가 일지를 충하면 불합격 반전 주의)",
+   "source": "카톡정리(인성 丁火와 재성 壬水가 丁壬合하면 합격, 亥水가 일지 巳火와 巳亥沖하여 불합격 사례)",
+   "reviewed": true
+  },
+  {
+   "id": "biz-01",
+   "topics": [
+    "business"
+   ],
+   "when": [
+    {
+     "star": "재",
+     "state": "intact"
+    }
+   ],
+   "then": "(사업) 사업하는 사람은 재만 보면 된다 — 재가 온전하니 사업 이상 없음",
+   "source": "세운분석보연1(사업이면 財만 보면 된다)·3(재 괜찮으니 괜찮다)",
+   "reviewed": true
+  },
+  {
+   "id": "biz-02",
+   "topics": [
+    "business"
+   ],
+   "when": [
+    {
+     "star": "재",
+     "state": "broken"
+    }
+   ],
+   "then": "(사업) 재가 깨짐 — 사업·가게가 힘들어지는 운, 확장·개업은 피할 것",
+   "source": "세운분석보연3(재 깨지니 안된다)·4(재 깨졌다 — 차리면 안된다)",
+   "reviewed": true
+  },
+  {
+   "id": "biz-03",
+   "topics": [
+    "business"
+   ],
+   "when": [
+    {
+     "pair": [
+      "재",
+      "관"
+     ],
+     "rel": "합"
+    }
+   ],
+   "then": "(사업) 재와 관이 합 — 사업이 잘 되는 조합",
+   "source": "세운분석보연3(재·관 합이 되었다 — 사업 잘 된다)",
+   "reviewed": true
+  },
+  {
+   "id": "invest-01",
+   "topics": [
+    "invest"
+   ],
+   "when": [
+    {
+     "star": "재",
+     "state": "합"
+    },
+    {
+     "star": "인수",
+     "state": "합"
+    }
+   ],
+   "then": "(투자) 재도 합, 인수도 합 — 투자·계약을 실행해볼 만한 시기(달·일진도 재·인수 합일 때로)",
+   "source": "세운분석보연5(투자하는 달은 재와 합+인수와도 합이 되어야 한다)",
+   "reviewed": true
+  },
+  {
+   "id": "invest-02",
+   "topics": [
+    "invest",
+    "money"
+   ],
+   "when": [
+    {
+     "star": "재",
+     "state": "broken"
+    }
+   ],
+   "then": "(투자·금전) 재가 극·충 맞음 — 투자 부적기, 돈 빌려주면 돌려받기 어렵다",
+   "source": "세운분석보연3(주식하면 안 된다, 돈 빌려주면 못 받는다)",
+   "reviewed": true
+  },
+  {
+   "id": "money-01",
+   "topics": [
+    "money"
+   ],
+   "when": [
+    {
+     "pair": [
+      "비겁",
+      "재"
+     ],
+     "rel": "극"
+    }
+   ],
+   "then": "(금전) 비겁이 재를 극 — 내 돈을 남이 가져가는 형국, 동업·보증·대여 금물",
+   "source": "세운분석보연1(甲木이 戊土 財를 극한다 — 내 돈인데 남이 가져간다)",
+   "reviewed": true
+  },
+  {
+   "id": "love-01",
+   "topics": [
+    "love"
+   ],
+   "gender": "male",
+   "when": [
+    {
+     "star": "재",
+     "state": "broken"
+    }
+   ],
+   "then": "(연애·남성) 재(이성)가 극 맞음 — 다툼이 많아지나 헤어짐까지 가진 않는 운",
+   "source": "세운분석보연5(여자친구 丁 재가 극 맞으니 다툼 많아도 헤어지지 않는다)",
+   "reviewed": true
+  }
+ ]
+}

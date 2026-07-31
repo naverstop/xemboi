@@ -1,0 +1,52 @@
+# Caddyfile - Saju Agent reverse proxy
+# 도메인: saju.songstock.art (Cloudflare Tunnel을 통해 127.0.0.1:8080 → 외부)
+# 로컬 개발/운영용. TLS는 Cloudflare가 종단함 (origin은 HTTP only).
+#
+# 운영 흐름:
+#   Browser → Cloudflare (HTTPS) → cloudflared tunnel → Caddy :8080 → FastAPI :8000 + Vite preview :5173
+#
+# Caddy for Windows 설치: https://caddyserver.com/download (zip → C:\caddy\caddy.exe)
+# 실행: caddy run --config Caddyfile
+
+{
+    # global options
+    auto_https off
+    admin off
+}
+
+:8080 {
+    encode gzip
+
+    # API → FastAPI
+    handle /api/* {
+        reverse_proxy 127.0.0.1:8000 {
+            header_up X-Real-IP {remote}
+            header_up X-Forwarded-For {remote}
+        }
+    }
+
+    # 정적 프론트 (빌드된 frontend/dist 를 서빙) — 운영용
+    # 개발 시에는 아래 root 줄 주석 + dev_proxy 블록 사용
+    root * "C:/sajufe/dist"
+    file_server
+    try_files {path} /index.html
+
+    # 헬스/메트릭 짧은 경로
+    handle /healthz {
+        respond "ok"
+    }
+
+    # 로그
+    log {
+        output file C:/saju/logs/caddy.log {
+            roll_size 50mb
+            roll_keep 7
+        }
+        format console
+    }
+}
+
+# 개발용(선택): Vite dev 서버 프록시
+# :8081 {
+#     reverse_proxy 127.0.0.1:5173
+# }

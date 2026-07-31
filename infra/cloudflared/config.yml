@@ -1,0 +1,28 @@
+# cloudflared tunnel 설정 (Saju Agent)
+#
+# 사전 작업:
+#   1. cloudflared 설치 (winget install --id Cloudflare.cloudflared)
+#   2. cloudflared tunnel login   → 브라우저로 Cloudflare 계정 인증
+#   3. cloudflared tunnel create saju-agent
+#      → ~/.cloudflared/<UUID>.json 생성됨. 그 UUID를 아래 tunnel: 에 넣음
+#   4. Cloudflare DNS: saju.songstock.art → CNAME <UUID>.cfargotunnel.com (또는 cloudflared tunnel route dns saju-agent saju.songstock.art)
+#   5. 실행: cloudflared tunnel --config config.yml run
+#   6. NSSM 으로 서비스 등록 (../nssm/install_services.ps1 참고)
+
+tunnel: REPLACE_WITH_TUNNEL_UUID
+credentials-file: C:\Users\orion\.cloudflared\REPLACE_WITH_TUNNEL_UUID.json
+
+ingress:
+  - hostname: saju.songstock.art
+    service: http://127.0.0.1:8080
+    originRequest:
+      noTLSVerify: true
+      connectTimeout: 30s
+      keepAliveTimeout: 90s
+
+  # 모든 매칭 실패 시 404
+  - service: http_status:404
+
+# 로그
+loglevel: info
+log-directory: C:\saju\logs\cloudflared

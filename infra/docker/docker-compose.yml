@@ -1,0 +1,30 @@
+# Qdrant (벡터DB) + Redis (세션/캐시) 만 컨테이너로 실행.
+# PostgreSQL은 Windows 네이티브 설치본 사용.
+# Ollama 는 Windows 네이티브 설치본 사용 (GPU 직결).
+
+services:
+  qdrant:
+    image: qdrant/qdrant:v1.11.5
+    container_name: saju-qdrant
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:6333:6333"   # HTTP API
+      - "127.0.0.1:6334:6334"   # gRPC
+    volumes:
+      - qdrant-data:/qdrant/storage
+    environment:
+      - QDRANT__LOG_LEVEL=INFO
+
+  redis:
+    image: redis:7.4-alpine
+    container_name: saju-redis
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:6379:6379"
+    volumes:
+      - redis-data:/data
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "512mb", "--maxmemory-policy", "allkeys-lru"]
+
+volumes:
+  qdrant-data:
+  redis-data:
