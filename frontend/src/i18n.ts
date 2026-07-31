@@ -5,6 +5,7 @@ import i18n from "i18next";
 import LanguageDetector from "i18next-browser-languagedetector";
 import { initReactI18next } from "react-i18next";
 import { chatKo, chatVi } from "./locales/chat";
+import { compatKo, compatVi } from "./locales/compat";
 
 export const SUPPORTED = ["ko", "vi"] as const;
 export type Locale = (typeof SUPPORTED)[number];
@@ -123,6 +124,7 @@ const resources = {
         need_charge_alert: "{{label}} 입장에는 {{cost}}P가 필요합니다.\n현재 잔액 {{bal}}P — 포인트를 충전한 뒤 다시 시도해 주세요.",
       },
       chat: chatKo,
+      compat: compatKo,
     },
   },
   vi: {
@@ -229,6 +231,7 @@ const resources = {
         need_charge_alert: "Vào {{label}} cần {{cost}} điểm.\nSố dư hiện tại {{bal}} điểm — vui lòng nạp thêm rồi thử lại.",
       },
       chat: chatVi,
+      compat: compatVi,
     },
   },
 };
