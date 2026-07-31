@@ -39,7 +39,8 @@ TAEKIL_SYSTEM = """당신은 한국 택일(좋은 날 고르기) 전문가입니
 """
 
 
-def _to_birth_input(b: BirthDTO) -> BirthInput:
+def _to_birth_input(b: BirthDTO, locale: str = "ko") -> BirthInput:
+    # locale 은 요청 로케일(get_locale) 단일 진실원 — vi 면 105°E·hongoc_duc 경로.
     return BirthInput(
         birth_date=b.birth_date, birth_time=b.birth_time, calendar=b.calendar,
         is_leap_month=b.is_leap_month, gender=b.gender,
@@ -47,6 +48,7 @@ def _to_birth_input(b: BirthDTO) -> BirthInput:
         birth_longitude=b.birth_longitude,
         apply_equation_of_time=b.apply_equation_of_time,
         night_zi_mode=b.night_zi_mode,
+        locale=locale,
     )
 
 
@@ -75,7 +77,7 @@ def _mask_preview_result(result: dict | None) -> dict | None:
 
 def _persist_and_bill(
     db: Session, tool: str, kind: str, birth: BirthDTO, chart, input_json: dict,
-    result_json: dict, user: User | None, depth: str,
+    result_json: dict, user: User | None, depth: str, locale: str = "ko",
 ) -> dict[str, Any]:
     """입장료 차감(생성=입장) + 세션 영속. tool_id/billing 반환.
 
@@ -96,6 +98,7 @@ def _persist_and_bill(
             balance_after = auth_service.get_balance(db, user.id)
     row = ToolSession(
         tool_id=tid, tool=tool, kind=kind, user_id=user.id if user else None,
+        locale=locale,
         birth_date=birth.birth_date, birth_time=birth.birth_time,
         calendar=birth.calendar.value if hasattr(birth.calendar, "value") else str(birth.calendar),
         is_leap_month=birth.is_leap_month,
@@ -119,9 +122,9 @@ def _persist_and_bill(
 def create_naming(
     db: Session, kind: str, birth: BirthDTO, surname: str | None,
     current_name: str | None, user: User | None = None, depth: str = "deep",
-    reading: str | None = None,
+    reading: str | None = None, locale: str = "ko",
 ) -> dict[str, Any]:
-    chart = build_chart(_to_birth_input(birth))
+    chart = build_chart(_to_birth_input(birth, locale=locale))
     if kind == "gaemyeong":
         name = (current_name or "").strip()
         if len(name) < 2:
@@ -140,19 +143,20 @@ def create_naming(
                   "candidates": [c.model_dump(mode="json") for c in cands],
                   "deficient": naming_engine._deficient_elements(chart)}
         input_json = {"surname": sur}
-    return _persist_and_bill(db, "naming", kind, birth, chart, input_json, result, user, depth)
+    return _persist_and_bill(db, "naming", kind, birth, chart, input_json, result, user, depth, locale)
 
 
 def create_taekil(
     db: Session, birth: BirthDTO, purpose: str, start: date_t, days: int,
     user: User | None = None, depth: str = "deep", birth2: BirthDTO | None = None,
+    locale: str = "ko",
 ) -> dict[str, Any]:
-    chart = build_chart(_to_birth_input(birth))
-    chart2 = build_chart(_to_birth_input(birth2)) if (birth2 and purpose == "birth") else None
+    chart = build_chart(_to_birth_input(birth, locale=locale))
+    chart2 = build_chart(_to_birth_input(birth2, locale=locale)) if (birth2 and purpose == "birth") else None
     res = taekil_engine.recommend_dates(chart, start, days=days, purpose=purpose, top=10, user_chart2=chart2)
     result = res.model_dump(mode="json")
     input_json = {"purpose": purpose, "start_date": start.isoformat(), "days": days}
-    return _persist_and_bill(db, "taekil", purpose, birth, chart, input_json, result, user, depth)
+    return _persist_and_bill(db, "taekil", purpose, birth, chart, input_json, result, user, depth, locale)
 
 
 def get_tool(db: Session, tool_id: str, user: User | None) -> dict[str, Any] | None:
@@ -227,6 +231,7 @@ def stream_message(
     brief = _render(row)
     dialect = (getattr(user, "answer_dialect", None) or "standard") if user else "standard"
     di = chat_service._dialect_instruction(dialect)
+    locale = getattr(row, "locale", "ko")   # 세션 확정 로케일 — 응답 언어·모델 선택(chat 미러)
     has_assistant = any(m.role == "assistant" for m in row.messages)
     is_explain = not has_assistant
 
@@ -241,7 +246,7 @@ def stream_message(
         is_preview = row.is_preview
         billing_mode = "tool_explain"; credits = 0
         use_free = use_daily = use_mem = False
-        sys_content = chat_service._compose_sys_content(_system_for(row), dialect, explain_level)
+        sys_content = chat_service._compose_sys_content(_system_for(row), dialect, explain_level, locale)
         ucontent = brief if not rag_ctx else f"{brief}\n\n[참고자료]\n{rag_ctx}"
         msgs = [{"role": "system", "content": sys_content}, {"role": "user", "content": ucontent}]
         save_user = None
@@ -253,7 +258,7 @@ def stream_message(
         is_preview = bill["is_preview"]; credits = bill["credits_to_charge"]
         billing_mode = bill["billing_mode"]
         use_free = bill["use_free_quota"]; use_daily = bill["use_daily_free"]; use_mem = bill["use_membership"]
-        sys_content = chat_service._compose_sys_content(_system_for(row), dialect, explain_level)
+        sys_content = chat_service._compose_sys_content(_system_for(row), dialect, explain_level, locale)
         analysis = f"[분석]\n{brief}" + (f"\n\n[참고자료]\n{rag_ctx}" if rag_ctx else "")
         # 메뉴 이탈 질문(내 명식/일간/세운 등) 대비 — 전체 명식 요약 + 현재 세운/월운 + 질문날짜 간지 주입.
         # 택일/작명 brief엔 4주가 없어 직접 명식 질문 시 환각 → chat과 동일 정보로 일관 차단.
@@ -284,7 +289,9 @@ def stream_message(
 
     def _produce():
         try:
-            for tok in chat_service._stream_ollama(msgs, stop_event=stop_event):
+            for tok in chat_service._stream_ollama(
+                msgs, model=chat_service._draft_model(locale), stop_event=stop_event
+            ):
                 tok_q.put(tok)
         except Exception as e:  # noqa: BLE001
             err["e"] = e
@@ -343,7 +350,7 @@ def stream_message(
         qb = None
         for ev in chat_service._bg_with_heartbeat(s, lambda af=answer: chat_service._refine_with_qwen(
                 question=_q, draft=af, saju_summary=None, evidence=brief,
-                rag_context=rag_ctx, dialect_instruction=di or None)):
+                rag_context=rag_ctx, dialect_instruction=di or None, locale=locale)):
             if ev[0] == "result":
                 qb = ev[1]
             else:

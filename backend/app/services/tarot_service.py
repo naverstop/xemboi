@@ -58,6 +58,34 @@ TAROT_FOLLOWUP_HINT = (
     "새 카드를 뽑거나 카드·방향을 바꾸지 마세요."
 )
 
+# 베트남어(vi) 타로 시스템 프롬프트 — ko 룰(한국어 존댓말·상담체)을 vi 에 주입하면 충돌하므로 별도.
+TAROT_SYSTEM_VI = """Bạn là một nhà tư vấn Tarot tiếng Việt ấm áp, sâu sắc và tinh tế.
+
+Đầu vào gồm câu hỏi, chủ đề, tên trải bài và từng lá theo vị trí (tên vị trí, tên lá, chiều xuôi/ngược, từ khoá).
+
+Nguyên tắc:
+1. Chỉ dùng đúng tên lá, chiều (xuôi/ngược) và vị trí đã cho; không bịa ra lá, chiều hay vị trí mới.
+   Lá ngược KHÔNG có nghĩa là "xấu" — từ khoá bên cạnh chính là ý nghĩa của chiều đó.
+2. Thứ tự luận giải: giải theo từng vị trí → tương tác giữa các lá → tổng hợp → lời khuyên cụ thể cho câu hỏi.
+   Khi giải từng vị trí, hãy nêu rõ tên lá và chiều của nó trong bài viết.
+3. Tránh phán hung/cát tuyệt đối; tập trung vào khả năng và lời khuyên hành động. Không dùng "chắc chắn", "100%".
+4. Viết đủ dài và phong phú; xử lý đầy đủ tất cả các vị trí, không gộp qua loa các lá về sau.
+5. Dùng giọng lịch sự, tôn trọng người hỏi; mở đầu tự nhiên, không lặp lại nguyên văn câu hỏi.
+6. Chỉ viết bằng tiếng Việt (chữ Quốc ngữ có dấu). TUYỆT ĐỐI không dùng chữ Hán / tiếng Trung.
+"""
+
+TAROT_FOLLOWUP_HINT_VI = (
+    "\n[Câu hỏi thêm] Người dùng hỏi thêm về phần luận giải trải bài ở trên. "
+    "Dựa trên các lá đã rút (vị trí·chiều·từ khoá) và cuộc trò chuyện trước, hãy trả lời cụ thể. "
+    "Không rút lá mới, không đổi lá hay chiều."
+)
+
+# vi 상담체 줄글 규칙(마크다운 금지) — ko CONSULTANT_STYLE_RULE 대응.
+TAROT_STYLE_RULE_VI = (
+    "[Định dạng — bắt buộc] Không dùng markdown (#, **, -, danh sách đánh số, bảng); "
+    "viết thành các đoạn văn tự nhiên như đang tư vấn trực tiếp."
+)
+
 # 내부(qwen)·외부(Claude) 보강용 — 사주 감수 프롬프트를 쓰면 명리 용어가 오염되므로 타로 전용으로 분리.
 TAROT_REFINE_SYSTEM = (
     "당신은 한국어 타로 상담 감수자입니다. 주어진 1차 해석을 [타로 스프레드] 근거에 비추어 "
@@ -138,11 +166,12 @@ def _render_spread_for_llm(row: TarotSession) -> str:
 # 생성 — 입장료 차감(궁합 미러) + 드로우 확정
 # ============================================================
 def create_tarot(
-    db: Session, section: str, question: str, user: User | None = None
+    db: Session, section: str, question: str, user: User | None = None, locale: str = "ko"
 ) -> dict[str, Any]:
     """타로 세션 생성: 섹션 검증 → 입장료 1회 차감(compat 동일) → CSPRNG 드로우 확정 저장.
 
     이 차감이 '타로 1회'이며, 최초 해석 스트림은 추가 과금하지 않는다.
+    locale(요청 로케일)은 세션 행에 저장돼 해석 스트림의 응답 언어·모델을 결정한다.
     """
     spread_type, positions = tarot_deck.spread_for_section(section)
     question = (question or "").strip()
@@ -182,6 +211,7 @@ def create_tarot(
     row = TarotSession(
         tarot_id=tarot_id,
         user_id=user.id if user else None,
+        locale=locale,
         section=section,
         question=question,
         spread_type=spread_type,
@@ -419,8 +449,12 @@ def _refine_len_ok(refined: str, original: str) -> bool:
     return r >= int(len(original.strip()) * 0.6) or r >= 1200
 
 
-def _compose_tarot_sys(base: str, dialect: str | None) -> str:
-    """타로용 시스템 프롬프트 합성 — 사주 전용 규칙(간지/대운/용신) 대신 상담체 규칙만 주입."""
+def _compose_tarot_sys(base: str, dialect: str | None, locale: str = "ko") -> str:
+    """타로용 시스템 프롬프트 합성 — 사주 전용 규칙(간지/대운/용신) 대신 상담체 규칙만 주입.
+
+    vi 는 한국어 방언·상담체 규칙(ko)을 주입하면 언어 충돌 → vi 전용 줄글 규칙만 덧붙인다."""
+    if locale == "vi":
+        return base + "\n\n" + TAROT_STYLE_RULE_VI
     parts = [base]
     di = chat_service._dialect_instruction(dialect)
     if di:
@@ -460,6 +494,7 @@ def stream_message(
     brief = _render_spread_for_llm(row)
     dialect = (getattr(user, "answer_dialect", None) or "standard") if user else "standard"
     di = chat_service._dialect_instruction(dialect)
+    locale = getattr(row, "locale", "ko")   # 세션 확정 로케일 — 응답 언어·모델 선택(chat 미러)
 
     has_assistant = any(m.role == "assistant" for m in row.messages)
     is_explain = not has_assistant
@@ -469,13 +504,21 @@ def stream_message(
         is_preview = row.is_preview
         billing_mode = "tarot_explain"
         credits_to_charge = 0
-        sys_content = _compose_tarot_sys(TAROT_SYSTEM, dialect)
+        _base = TAROT_SYSTEM_VI if locale == "vi" else TAROT_SYSTEM
+        sys_content = _compose_tarot_sys(_base, dialect, locale)
         _n_cards = len(row.cards_json or [])
-        ucontent = (
-            f"{brief}\n\n위 스프레드를 포지션별 해석 → 카드 간 상호작용 → 종합 → "
-            f"질문에 대한 구체적 조언 순서로 충분히 풀이해 주세요. "
-            f"{_n_cards}개 포지션을 1번부터 {_n_cards}번까지 하나도 빠짐없이 각각 다뤄 주세요."
-        )
+        if locale == "vi":
+            ucontent = (
+                f"{brief}\n\nHãy luận giải trải bài trên theo thứ tự: giải từng vị trí → "
+                f"tương tác giữa các lá → tổng hợp → lời khuyên cụ thể cho câu hỏi. "
+                f"Xử lý đầy đủ {_n_cards} vị trí, từ 1 đến {_n_cards}, không bỏ sót lá nào."
+            )
+        else:
+            ucontent = (
+                f"{brief}\n\n위 스프레드를 포지션별 해석 → 카드 간 상호작용 → 종합 → "
+                f"질문에 대한 구체적 조언 순서로 충분히 풀이해 주세요. "
+                f"{_n_cards}개 포지션을 1번부터 {_n_cards}번까지 하나도 빠짐없이 각각 다뤄 주세요."
+            )
         msgs = [{"role": "system", "content": sys_content}, {"role": "user", "content": ucontent}]
         save_user: str | None = None
     else:
@@ -487,7 +530,8 @@ def stream_message(
         is_preview = bill["is_preview"]
         credits_to_charge = bill["credits_to_charge"]
         billing_mode = bill["billing_mode"]
-        sys_content = _compose_tarot_sys(TAROT_SYSTEM + TAROT_FOLLOWUP_HINT, dialect)
+        _base = (TAROT_SYSTEM_VI + TAROT_FOLLOWUP_HINT_VI) if locale == "vi" else (TAROT_SYSTEM + TAROT_FOLLOWUP_HINT)
+        sys_content = _compose_tarot_sys(_base, dialect, locale)
         msgs = [
             {"role": "system", "content": sys_content},
             {"role": "user", "content": brief},
@@ -501,8 +545,10 @@ def stream_message(
         settings_service.get_bool(db, "external_llm_enabled", True)
         and external_llm.is_enabled()
     )
-    do_qwen = (not is_preview) and s.deep_local_refine_enabled          # 1차 내부 보강(기본·심화)
-    do_claude = depth == "deep" and (not is_preview) and _claude_avail  # 심화 외부 보강
+    # vi: 타로 보강 프롬프트(_tarot_refine_qwen/_tarot_claude_refine)는 '한국어로만' 강제라
+    # vi 초안을 한국어로 되돌려버린다 → vi 는 보강 단계를 건너뛰고 qwen3 초안을 그대로 사용.
+    do_qwen = (not is_preview) and s.deep_local_refine_enabled and locale != "vi"   # 1차 내부 보강(기본·심화)
+    do_claude = depth == "deep" and (not is_preview) and _claude_avail and locale != "vi"  # 심화 외부 보강
     will_refine = do_qwen or do_claude
 
     yield ("meta", {
@@ -522,7 +568,9 @@ def stream_message(
 
     def _produce() -> None:
         try:
-            for tok in chat_service._stream_ollama(msgs, stop_event=stop_event):
+            for tok in chat_service._stream_ollama(
+                msgs, model=chat_service._draft_model(locale), stop_event=stop_event
+            ):
                 tok_q.put(tok)
         except Exception as e:  # noqa: BLE001
             _err["e"] = e
@@ -620,7 +668,8 @@ def stream_message(
     if not is_preview and answer_full.strip():
         _scrubbed = chat_service._scrub_source_refs(answer_full)
         _scrubbed = _strip_markdown(_scrubbed or answer_full)
-        _scrubbed = _localize_card_names(_scrubbed)
+        if locale != "vi":
+            _scrubbed = _localize_card_names(_scrubbed)  # vi: 카드 한글명 주입 방지(영문/베트남어 유지)
         if _scrubbed and _scrubbed != answer_full:
             answer_full = _scrubbed
             refined = True

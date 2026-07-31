@@ -9,7 +9,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from backend.app.core.db import get_db
-from backend.app.core.deps import get_optional_user
+from backend.app.core.deps import get_locale, get_optional_user
 from backend.app.domain.compat_dto import CreateCompatRequest
 from backend.app.repositories.auth_models import User
 from backend.app.services import chat_service, compat_service
@@ -29,11 +29,12 @@ def create_compatibility(
     req: CreateCompatRequest,
     db: Session = Depends(get_db),
     user: Optional[User] = Depends(get_optional_user),
+    locale: str = Depends(get_locale),
 ) -> dict[str, Any]:
     try:
         return compat_service.create_compatibility(
             db, req.person_a, req.person_b, user=user,
-            depth=req.depth, explain_level=req.explain_level,
+            depth=req.depth, explain_level=req.explain_level, locale=locale,
         )
     except PermissionError as e:
         raise HTTPException(status_code=401, detail=str(e))

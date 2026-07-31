@@ -90,7 +90,8 @@ def _resolve_person(
     raise ValueError("person requires profile_id or birth")
 
 
-def _to_birth_input(b: BirthDTO) -> BirthInput:
+def _to_birth_input(b: BirthDTO, locale: str = "ko") -> BirthInput:
+    # locale 은 요청 로케일(get_locale) 단일 진실원 — vi 면 105°E·hongoc_duc 경로.
     return BirthInput(
         birth_date=b.birth_date,
         birth_time=b.birth_time,
@@ -101,6 +102,7 @@ def _to_birth_input(b: BirthDTO) -> BirthInput:
         birth_longitude=b.birth_longitude,
         apply_equation_of_time=b.apply_equation_of_time,
         night_zi_mode=b.night_zi_mode,
+        locale=locale,
     )
 
 
@@ -139,19 +141,21 @@ def create_compatibility(
     user: User | None = None,
     depth: str = "deep",
     explain_level: str = "normal",
+    locale: str = "ko",
 ) -> dict[str, Any]:
     """궁합 생성: 두 명식 → 엔진 → 빌링(상담쿼터 공유, 1회 차감) → 저장.
 
     해설은 생성하지 않고 결과를 즉시 반환한다(스트리밍 해설은 별도 엔드포인트).
     이 차감이 '궁합 1회'이며, 첫 해설 스트림은 추가 과금하지 않는다.
+    locale(요청 로케일)은 두 명식 계산(역법·경도)과 세션 행 locale 에 함께 반영된다.
     """
     birth_a, label_a = _resolve_person(db, req_person_a, user)
     birth_b, label_b = _resolve_person(db, req_person_b, user)
     label_a = label_a or "사람 A"
     label_b = label_b or "사람 B"
 
-    chart_a = build_chart(_to_birth_input(birth_a))
-    chart_b = build_chart(_to_birth_input(birth_b))
+    chart_a = build_chart(_to_birth_input(birth_a, locale=locale))
+    chart_b = build_chart(_to_birth_input(birth_b, locale=locale))
     result = compute_compatibility(chart_a, chart_b)
 
     # ---- 빌링(궁합 입장료 1회 차감) ----
@@ -178,6 +182,7 @@ def create_compatibility(
     row = CompatibilitySession(
         compat_id=compat_id,
         user_id=user.id if user else None,
+        locale=locale,
         a_label=label_a,
         a_birth_date=birth_a.birth_date, a_birth_time=birth_a.birth_time,
         a_calendar=birth_a.calendar.value if hasattr(birth_a.calendar, "value") else str(birth_a.calendar),
@@ -296,6 +301,7 @@ def stream_message(
 
     dialect = (getattr(user, "answer_dialect", None) or "standard") if user else "standard"
     di = chat_service._dialect_instruction(dialect)
+    locale = getattr(row, "locale", "ko")   # 세션 확정 로케일 — 응답 언어·모델 선택(chat 미러)
 
     has_assistant = any(m.role == "assistant" for m in row.messages)
     is_explain = not has_assistant
@@ -313,7 +319,7 @@ def stream_message(
         billing_mode = "compat_explain"
         credits_to_charge = 0
         use_free = use_daily = use_mem = False
-        sys_content = chat_service._compose_sys_content(COMPAT_SYSTEM, dialect, explain_level)
+        sys_content = chat_service._compose_sys_content(COMPAT_SYSTEM, dialect, explain_level, locale)
         ucontent = brief if not rag_ctx else f"{brief}\n\n[참고자료]\n{rag_ctx}"
         msgs = [{"role": "system", "content": sys_content}, {"role": "user", "content": ucontent}]
         save_user: str | None = None
@@ -330,7 +336,7 @@ def stream_message(
         use_daily = bill["use_daily_free"]
         use_mem = bill["use_membership"]
         sys_content = chat_service._compose_sys_content(
-            COMPAT_SYSTEM + COMPAT_FOLLOWUP_HINT, dialect, explain_level
+            COMPAT_SYSTEM + COMPAT_FOLLOWUP_HINT, dialect, explain_level, locale
         )
         analysis = f"[궁합 분석]\n{brief}" + (f"\n\n[참고자료]\n{rag_ctx}" if rag_ctx else "")
         # 메뉴 이탈 질문(올해 세운/특정 날짜) 대비 — 현재 세운/월운 + 질문날짜 간지 주입(두 명식은 brief에 이미 있음)
@@ -371,7 +377,9 @@ def stream_message(
 
     def _produce() -> None:
         try:
-            for tok in chat_service._stream_ollama(msgs, stop_event=stop_event):
+            for tok in chat_service._stream_ollama(
+                msgs, model=chat_service._draft_model(locale), stop_event=stop_event
+            ):
                 tok_q.put(tok)
         except Exception as e:  # noqa: BLE001
             _err["e"] = e
@@ -442,7 +450,7 @@ def stream_message(
         qb = None
         for ev in chat_service._bg_with_heartbeat(s, lambda af=answer_full: chat_service._refine_with_qwen(
                 question=_q, draft=af, saju_summary=_ss, evidence=brief,
-                rag_context=rag_ctx, dialect_instruction=di or None)):
+                rag_context=rag_ctx, dialect_instruction=di or None, locale=locale)):
             if ev[0] == "result":
                 qb = ev[1]
             else:

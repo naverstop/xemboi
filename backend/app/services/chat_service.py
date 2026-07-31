@@ -305,7 +305,9 @@ def warmup_models() -> None:
             log.warning("[warmup] LLM 워밍업 실패(%s): %s", model, e)
 
 
-def _to_birth_input(b: BirthDTO) -> BirthInput:
+def _to_birth_input(b: BirthDTO, locale: str = "ko") -> BirthInput:
+    # locale 은 요청 로케일(get_locale)이 단일 진실원 — BirthDTO.locale(기본 ko)이 아니라
+    # 이 인자를 신뢰한다. vi 면 pillars 가 105°E·hongoc_duc 경로를 탄다.
     return BirthInput(
         birth_date=b.birth_date,
         birth_time=b.birth_time,
@@ -316,6 +318,7 @@ def _to_birth_input(b: BirthDTO) -> BirthInput:
         birth_longitude=b.birth_longitude,
         apply_equation_of_time=b.apply_equation_of_time,
         night_zi_mode=b.night_zi_mode,
+        locale=locale,
     )
 
 
@@ -1285,8 +1288,11 @@ def create_session(
     birth: BirthDTO,
     top_k: int | None,
     user: User | None = None,
+    locale: str = "ko",
 ) -> tuple[str, str, SajuChart]:
-    """채팅 세션 생성. birth 필수. DB에 영속. user가 있으면 소유자로 연결."""
+    """채팅 세션 생성. birth 필수. DB에 영속. user가 있으면 소유자로 연결.
+
+    locale(요청 로케일)은 BirthInput 계산(역법·경도)과 세션 행 locale 에 함께 반영된다."""
     if birth is None:
         raise ValueError("birth is required: 채팅 시작 전 생년월일(시) 정보가 필요합니다.")
     s = get_settings()
@@ -1302,7 +1308,7 @@ def create_session(
             )
     sid = uuid.uuid4().hex
     k = max(1, min(top_k or s.rag_top_k_default, s.rag_max_top_k))
-    bi = _to_birth_input(birth)
+    bi = _to_birth_input(birth, locale=locale)
     chart = build_chart(bi)
     saju_summary = _build_saju_summary(chart, bi)
     chat_repo.create_session(
@@ -1313,6 +1319,7 @@ def create_session(
         saju_summary=saju_summary,
         chart_json=chart.model_dump(mode="json"),
         user_id=user.id if user else None,
+        locale=locale,
     )
     return sid, saju_summary, chart
 

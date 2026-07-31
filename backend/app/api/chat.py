@@ -9,7 +9,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from backend.app.core.db import get_db
-from backend.app.core.deps import get_current_user, get_optional_user
+from backend.app.core.deps import get_current_user, get_locale, get_optional_user
 from backend.app.domain.chat_dto import (
     CreateSessionRequest,
     CreateSessionResponse,
@@ -29,9 +29,10 @@ def create_session(
     req: CreateSessionRequest,
     db: Session = Depends(get_db),
     user: Optional[User] = Depends(get_optional_user),
+    locale: str = Depends(get_locale),
 ) -> CreateSessionResponse:
     try:
-        sid, summary, chart = chat_service.create_session(db, req.birth, req.top_k, user=user)
+        sid, summary, chart = chat_service.create_session(db, req.birth, req.top_k, user=user, locale=locale)
     except chat_service.SessionLimitError as e:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,

@@ -9,7 +9,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from backend.app.core.db import get_db
-from backend.app.core.deps import get_current_user, get_optional_user
+from backend.app.core.deps import get_current_user, get_locale, get_optional_user
 from backend.app.domain.tarot_dto import CreateTarotRequest, TarotMessageRequest, TarotPicksRequest
 from backend.app.repositories import tarot_repo
 from backend.app.repositories.auth_models import User
@@ -36,9 +36,10 @@ def create_tarot(
     req: CreateTarotRequest,
     db: Session = Depends(get_db),
     user: Optional[User] = Depends(get_optional_user),
+    locale: str = Depends(get_locale),
 ) -> dict[str, Any]:
     try:
-        return tarot_service.create_tarot(db, req.section, req.question, user=user)
+        return tarot_service.create_tarot(db, req.section, req.question, user=user, locale=locale)
     except chat_service.SessionLimitError as e:
         # 세션 개수 상한 초과 — chat 과 동일 상태코드(409)+detail("session_limit...").
         # 서비스에서 입장료 차감 '전'에 발생 → 초과 시 과금 없음.
