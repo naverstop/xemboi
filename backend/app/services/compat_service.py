@@ -427,7 +427,7 @@ def stream_message(
             fb = chat_service.external_fallback_answer(
                 question=(message or f"{la}와 {lb}의 궁합 해설"),
                 evidence=brief, rag_context=rag_ctx, dialect_instruction=di or None,
-                saju_summary=f"{sa}\n\n{sb}",
+                saju_summary=f"{sa}\n\n{sb}", locale=locale,
             )
         if fb:
             parts = [fb]
@@ -468,7 +468,7 @@ def stream_message(
         cb = None
         for ev in chat_service._bg_with_heartbeat(s, lambda af=answer_full: chat_service._claude_boost(
                 question=_q, draft=af, saju_summary=_ss, evidence=brief,
-                rag_context=rag_ctx, dialect_instruction=di or None)):
+                rag_context=rag_ctx, dialect_instruction=di or None, locale=locale)):
             if ev[0] == "result":
                 cb = ev[1]
             else:

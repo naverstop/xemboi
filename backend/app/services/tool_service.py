@@ -332,7 +332,7 @@ def stream_message(
         if not is_preview:
             fb = chat_service.external_fallback_answer(
                 question=(message or "해설"), evidence=brief, rag_context=rag_ctx,
-                dialect_instruction=di or None,
+                dialect_instruction=di or None, locale=locale,
             )
         if fb:
             parts = [fb]
@@ -366,7 +366,7 @@ def stream_message(
         cb = None
         for ev in chat_service._bg_with_heartbeat(s, lambda af=answer: chat_service._claude_boost(
                 question=_q, draft=af, saju_summary=None, evidence=brief,
-                rag_context=rag_ctx, dialect_instruction=di or None)):
+                rag_context=rag_ctx, dialect_instruction=di or None, locale=locale)):
             if ev[0] == "result":
                 cb = ev[1]
             else:

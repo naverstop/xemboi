@@ -1245,12 +1245,16 @@ def rag_context_block(chunks: list[RetrievedChunk]) -> str | None:
 def external_fallback_answer(
     *, question: str, evidence: str | None, rag_context: str | None,
     dialect_instruction: str | None, saju_summary: str | None = None,
+    locale: str = "ko",
 ) -> str | None:
-    """로컬 Ollama 전체 다운 시 외부(Claude)로 본문 생성 폴백. 실패/비활성 시 None."""
+    """로컬 Ollama 전체 다운 시 외부(Claude)로 본문 생성 폴백. 실패/비활성 시 None.
+
+    locale='vi' 면 외부 생성도 베트남어(ko 는 기존 한국어 그대로)."""
     try:
         out = external_llm.generate_answer(
             question=question, saju_summary=saju_summary, evidence=evidence,
             rag_context=rag_context, dialect_instruction=dialect_instruction,
+            locale=locale,
         )
         return out.strip() if out and out.strip() else None
     except Exception:  # noqa: BLE001
@@ -2005,6 +2009,7 @@ def _deep_refine(
     evidence: str | None,
     rag_context: str | None,
     dialect_instruction: str | None,
+    locale: str = "ko",
 ) -> tuple[str | None, str | None]:
     """심화 2차 보강 해석: 로컬 qwen 우선 → 실패/깨짐 시 Claude 폴백.
 
@@ -2014,7 +2019,7 @@ def _deep_refine(
     out = _refine_with_qwen(
         question=question, draft=draft, saju_summary=saju_summary,
         evidence=evidence, rag_context=rag_context,
-        dialect_instruction=dialect_instruction,
+        dialect_instruction=dialect_instruction, locale=locale,
     )
     if out:
         return out, "qwen"
@@ -2023,7 +2028,7 @@ def _deep_refine(
         c = external_llm.refine_answer(
             question=question, draft=draft, saju_summary=saju_summary,
             evidence=evidence, rag_context=rag_context,
-            dialect_instruction=dialect_instruction,
+            dialect_instruction=dialect_instruction, locale=locale,
         )
         if c and c.strip():
             return c.strip(), "claude"
@@ -2032,12 +2037,13 @@ def _deep_refine(
 
 def _claude_boost(
     *, question: str, draft: str, saju_summary: str | None, evidence: str | None,
-    rag_context: str | None, dialect_instruction: str | None,
+    rag_context: str | None, dialect_instruction: str | None, locale: str = "ko",
 ) -> str | None:
     """심화 '외부' 보강 — Claude로 1차 답변(exaone+qwen)을 추가 검증·보강.
 
     설계: 심화는 [1차 답변] 다음에 Claude를 '연결'(보강)한다. 비활성/실패 시 None
     (직전 답변 유지). 폴백이 아니라 deep 전용 추가 단계.
+    locale='vi' 면 외부 보강도 베트남어(ko 는 기존 한국어 그대로).
     """
     if not external_llm.is_enabled():
         return None
@@ -2046,6 +2052,7 @@ def _claude_boost(
         c = external_llm.refine_answer(
             question=question, draft=draft, saju_summary=saju_summary,
             evidence=evidence, rag_context=rag_context, dialect_instruction=dialect_instruction,
+            locale=locale,
         )
     except Exception:  # noqa: BLE001
         return None
@@ -2320,7 +2327,7 @@ def post_message(
         fb = external_llm.generate_answer(
             question=message, saju_summary=row.saju_summary,
             evidence=evidence_text, rag_context=rag_context,
-            dialect_instruction=di or None,
+            dialect_instruction=di or None, locale=locale,
         )
         if not fb:
             raise  # 로컬·외부 모두 불가 → 원래 503 전파
@@ -2373,6 +2380,7 @@ def post_message(
         cb = _claude_boost(
             question=message, draft=answer_full, saju_summary=row.saju_summary,
             evidence=evidence_text, rag_context=rag_context, dialect_instruction=di or None,
+            locale=locale,
         )
         if cb:
             answer_full = cb
@@ -2623,7 +2631,7 @@ def post_message_stream(
             fb = external_llm.generate_answer(
                 question=message, saju_summary=row.saju_summary,
                 evidence=evidence_fb, rag_context=rag_context_fb,
-                dialect_instruction=di or None,
+                dialect_instruction=di or None, locale=locale,
             )
         except Exception:  # noqa: BLE001
             fb = None
@@ -2676,7 +2684,8 @@ def post_message_stream(
         cb = None
         for ev in _bg_with_heartbeat(s, lambda af=answer_full: _claude_boost(
                 question=message, draft=af, saju_summary=row.saju_summary,
-                evidence=evidence_text, rag_context=rag_context, dialect_instruction=di or None)):
+                evidence=evidence_text, rag_context=rag_context, dialect_instruction=di or None,
+                locale=locale)):
             if ev[0] == "result":
                 cb = ev[1]
             else:
