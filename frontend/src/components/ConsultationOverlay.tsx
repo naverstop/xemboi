@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
+import { useTranslation, Trans } from "react-i18next";
 import { api, type ConsultantPublic, type ConsultationConfig } from "../api";
+import { fmtNum } from "../lib/money";
 import { useConsultation } from "./ConsultationProvider";
 
 /**
@@ -11,10 +13,11 @@ import { useConsultation } from "./ConsultationProvider";
 
 type Branch = "saju" | "tarot";
 
-const PRESENCE: Record<string, { txt: string; cls: string }> = {
-  online: { txt: "대기중", cls: "on" },
-  busy: { txt: "상담중", cls: "busy" },
-  offline: { txt: "오프라인", cls: "off" },
+// 접속 상태 → 배지 라벨 키(consult.*)·CSS 클래스. 라벨은 컴포넌트에서 tr 로 해석.
+const PRESENCE: Record<string, { key: string; cls: string }> = {
+  online: { key: "presence_online", cls: "on" },
+  busy: { key: "presence_busy", cls: "busy" },
+  offline: { key: "presence_offline", cls: "off" },
 };
 
 export default function ConsultationOverlay({
@@ -24,6 +27,7 @@ export default function ConsultationOverlay({
   open: boolean;
   onClose: () => void;
 }) {
+  const { t: tr } = useTranslation();
   const { startRequest } = useConsultation();
   const [branch, setBranch] = useState<Branch | null>(null);
   const [items, setItems] = useState<ConsultantPublic[] | null>(null);
@@ -47,7 +51,7 @@ export default function ConsultationOverlay({
     setLoading(true); setErr(null); setItems(null);
     api.consultants(branch)
       .then((r) => { if (alive) setItems(r.items); })
-      .catch((e) => { if (alive) setErr(e?.message || "상담사 목록을 불러오지 못했어요."); })
+      .catch((e) => { if (alive) setErr(e?.message || tr("consult.err_list")); })
       .finally(() => { if (alive) setLoading(false); });
     return () => { alive = false; };
   }, [branch]);
@@ -60,7 +64,7 @@ export default function ConsultationOverlay({
       setPending(null);
       onClose(); // 진입 오버레이 닫고 채팅 오버레이로 전환
     } catch (e: any) {
-      setErr(e?.message || "상담 신청에 실패했어요.");
+      setErr(e?.message || tr("consult.err_request"));
     } finally {
       setSubmitting(false);
     }
@@ -69,37 +73,37 @@ export default function ConsultationOverlay({
   if (!open) return null;
 
   return (
-    <div className="pwa-overlay csl-ov" role="dialog" aria-modal="true" aria-label="1:1 상담" onClick={onClose}>
+    <div className="pwa-overlay csl-ov" role="dialog" aria-modal="true" aria-label={tr("consult.dialog_aria")} onClick={onClose}>
       <div className="pwa-modal csl-modal" onClick={(e) => e.stopPropagation()}>
-        <button className="csl-x" onClick={onClose} aria-label="닫기">×</button>
+        <button className="csl-x" onClick={onClose} aria-label={tr("consult.close")}>×</button>
 
         {!branch ? (
           <div className="csl-branch">
-            <h3 className="csl-title">1:1 상담하기</h3>
-            <p className="csl-sub">전문 상담사와 직접 채팅으로 상담하세요.</p>
+            <h3 className="csl-title">{tr("consult.entry_title")}</h3>
+            <p className="csl-sub">{tr("consult.entry_sub")}</p>
             <div className="csl-branch-grid">
               <button className="csl-branch-card saju" onClick={() => setBranch("saju")}>
                 <span className="csl-branch-ic" aria-hidden>🔮</span>
-                <span className="csl-branch-nm">사주 상담하기</span>
-                <span className="csl-branch-dc">사주·운세 전문 상담사</span>
+                <span className="csl-branch-nm">{tr("consult.branch_saju")}</span>
+                <span className="csl-branch-dc">{tr("consult.branch_saju_desc")}</span>
               </button>
               <button className="csl-branch-card tarot" onClick={() => setBranch("tarot")}>
                 <span className="csl-branch-ic" aria-hidden>🃏</span>
-                <span className="csl-branch-nm">타로 상담하기</span>
-                <span className="csl-branch-dc">타로 리딩 전문 상담사</span>
+                <span className="csl-branch-nm">{tr("consult.branch_tarot")}</span>
+                <span className="csl-branch-dc">{tr("consult.branch_tarot_desc")}</span>
               </button>
             </div>
           </div>
         ) : (
           <div className="csl-list-wrap">
             <div className="csl-list-head">
-              <button className="csl-back" onClick={() => setBranch(null)} aria-label="뒤로">‹ 뒤로</button>
-              <h3 className="csl-title">{branch === "saju" ? "사주 상담" : "타로 상담"}</h3>
+              <button className="csl-back" onClick={() => setBranch(null)} aria-label={tr("consult.back_aria")}>{tr("consult.back")}</button>
+              <h3 className="csl-title">{branch === "saju" ? tr("consult.list_title_saju") : tr("consult.list_title_tarot")}</h3>
             </div>
-            {loading && <p className="csl-empty">불러오는 중…</p>}
+            {loading && <p className="csl-empty">{tr("consult.loading")}</p>}
             {err && <p className="csl-empty csl-err">{err}</p>}
             {items && items.length === 0 && !loading && (
-              <p className="csl-empty">현재 상담 가능한 상담사가 없어요.</p>
+              <p className="csl-empty">{tr("consult.empty_consultants")}</p>
             )}
             <div className="csl-cards">
               {items?.map((c) => (
@@ -116,18 +120,24 @@ export default function ConsultationOverlay({
           <div className="csl-consent" onClick={(e) => e.stopPropagation()}>
             <h4>{pending.business_name}</h4>
             <p className="csl-consent-price">
-              {pending.price_p.toLocaleString()}P · {pending.duration_min}분 (신청 시 수락 후 차감)
+              {tr("consult.consent_price", {
+                price: `${fmtNum(pending.price_p)}${tr("pay.pt")}`,
+                min: fmtNum(pending.duration_min),
+              })}
             </p>
             <p className="csl-consent-note">
-              원활한 상담과 <b>상담서 발급</b>을 위해 대화 내용이 서버에 저장되며,
-              <b> {cfg?.retention_days ?? 7}일 후 자동·완전 파기</b>됩니다. 동의하셔야 상담이 시작돼요.
+              <Trans
+                i18nKey="consult.consent_note"
+                values={{ days: cfg?.retention_days ?? 7 }}
+                components={{ b: <b /> }}
+              />
             </p>
             {err && <p className="csl-consent-err">{err}</p>}
             <div className="csl-consent-actions">
               <button className="csl-consent-ok" onClick={confirmRequest} disabled={submitting}>
-                {submitting ? "신청 중…" : "동의하고 상담 신청"}
+                {submitting ? tr("consult.consent_submitting") : tr("consult.consent_submit")}
               </button>
-              <button className="csl-consent-cancel" onClick={() => setPending(null)} disabled={submitting}>취소</button>
+              <button className="csl-consent-cancel" onClick={() => setPending(null)} disabled={submitting}>{tr("consult.consent_cancel")}</button>
             </div>
           </div>
         </div>
@@ -148,6 +158,7 @@ function Stars({ avg }: { avg: number }) {
 }
 
 function ConsultantCard({ c, onStart }: { c: ConsultantPublic; onStart: () => void }) {
+  const { t: tr } = useTranslation();
   const p = PRESENCE[c.presence] || PRESENCE.offline;
   const canStart = c.presence === "online";
   return (
@@ -162,30 +173,30 @@ function ConsultantCard({ c, onStart }: { c: ConsultantPublic; onStart: () => vo
       <div className="csl-info">
         <div className="csl-card-top">
           <span className="csl-nm">{c.business_name}</span>
-          <span className={`csl-badge ${p.cls}`}>{p.txt}</span>
+          <span className={`csl-badge ${p.cls}`}>{tr(`consult.${p.key}`)}</span>
         </div>
         {c.intro && <p className="csl-intro">{c.intro}</p>}
         <div className="csl-rating">
           {c.rating_avg != null ? (
-            <span className="csl-stars" title={`만족도 ${c.rating_avg}/5 · ${c.rating_count}명 평가`}>
+            <span className="csl-stars" title={tr("consult.rating_title", { avg: c.rating_avg, count: fmtNum(c.rating_count) })}>
               <Stars avg={c.rating_avg} />
               <b>{c.rating_avg.toFixed(1)}</b>
               <span className="csl-rc">({c.rating_count})</span>
             </span>
           ) : (
-            <span className="csl-norate">평가 없음</span>
+            <span className="csl-norate">{tr("consult.no_rating")}</span>
           )}
           <span className="csl-dot" aria-hidden>·</span>
-          <span className="csl-scount">상담 {c.session_count.toLocaleString()}건</span>
+          <span className="csl-scount">{tr("consult.session_count", { count: fmtNum(c.session_count) })}</span>
         </div>
         <div className="csl-meta">
-          <span className="csl-price">{c.price_p.toLocaleString()}P</span>
+          <span className="csl-price">{fmtNum(c.price_p)}{tr("pay.pt")}</span>
           <span className="csl-dot" aria-hidden>·</span>
-          <span className="csl-dur">{c.duration_min}분</span>
+          <span className="csl-dur">{tr("consult.dur_min", { n: fmtNum(c.duration_min) })}</span>
         </div>
       </div>
       <button className="csl-start" disabled={!canStart} onClick={onStart}>
-        {c.presence === "busy" ? "상담중" : c.presence === "offline" ? "부재중" : "상담 신청"}
+        {c.presence === "busy" ? tr("consult.card_busy") : c.presence === "offline" ? tr("consult.card_offline") : tr("consult.card_start")}
       </button>
     </div>
   );

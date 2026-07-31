@@ -1713,15 +1713,19 @@ def suggestions_from_convo(convo: str, n: int, *, topic: str, fallback: list[str
     return qs[:n] if qs else fallback[:n]
 
 
-def synthesize_consultation(conversation: list[dict], *, topic: str = "사주 상담") -> str:
+def synthesize_consultation(
+    conversation: list[dict], *, topic: str = "사주 상담", locale: str = "ko"
+) -> str:
     """여러 질문·답변(상담 전체)을 하나의 매끄러운 '종합 감정서' 본문으로 재구성(로컬 LLM, 무과금).
 
     연속 질문으로 단편화된 답변을 중복 제거·주제별 단락으로 묶어 하나의 글로 정리한다.
     마크다운/기호는 쓰지 않게 강제(_compose 규칙 + pdf 단계 _strip_md 이중 안전망).
     LLM 실패 시 어시스턴트 답변을 단순 연결해 폴백(항상 무언가 생성).
+    locale='vi' 면 베트남어 프롬프트·vi 모델(_draft_model)로 생성(ko 룰블록/한국어 강제 미주입).
     """
+    q_lab, a_lab = ("Câu hỏi", "Trả lời") if locale == "vi" else ("질문", "답변")
     convo = "\n\n".join(
-        f"[{'질문' if m.get('role') == 'user' else '답변'}] {(m.get('content') or '').strip()}"
+        f"[{q_lab if m.get('role') == 'user' else a_lab}] {(m.get('content') or '').strip()}"
         for m in conversation if (m.get('content') or '').strip()
     )
     fallback = "\n\n".join(
@@ -1730,21 +1734,38 @@ def synthesize_consultation(conversation: list[dict], *, topic: str = "사주 �
     )
     if not convo.strip():
         return fallback
-    sys_msg = (
-        f"당신은 한국 {topic}을(를) 정리하는 전문 감정사입니다. "
-        "아래 상담 전체 대화를 하나의 매끄러운 '종합 감정서'로 재구성하세요.\n"
-        + CONSULTANT_STYLE_RULE
-    )
-    user_msg = (
-        f"{convo}\n\n"
-        "위 상담 전체를 인사말·중복 없이 주제별로 자연스럽게 묶어, 상담가가 정리해 주듯 "
-        "하나의 종합 감정서로 작성하세요. 도입(요지) → 주제별 해설 → 종합 결론·조언 흐름으로, "
-        "한국어 줄글로 충분히(최소 1,000자) 정리하세요."
-    )
+    if locale == "vi":
+        # vi: 한글(한자) 관습의 ko 룰블록은 언어 충돌 → 넣지 않고, 마크다운 금지만 베트남어로 강제.
+        sys_msg = (
+            f"Bạn là chuyên gia thẩm định đang tổng hợp buổi {topic}. "
+            "Hãy tái cấu trúc toàn bộ cuộc trò chuyện tư vấn dưới đây thành một bản luận giải tổng hợp mạch lạc. "
+            "TUYỆT ĐỐI không dùng markdown (#, **, -, bảng); chỉ viết thành đoạn văn tự nhiên như đang ngồi tư vấn trực tiếp."
+        )
+        user_msg = (
+            f"{convo}\n\n"
+            "Hãy gộp toàn bộ buổi tư vấn trên theo chủ đề (bỏ lời chào và nội dung trùng lặp), "
+            "viết thành một bản luận giải tổng hợp tự nhiên như một chuyên gia đúc kết. "
+            "Theo mạch: dẫn nhập (tóm ý) → luận giải theo chủ đề → kết luận và lời khuyên tổng hợp, "
+            "viết bằng tiếng Việt thành đoạn văn đầy đủ (tối thiểu khoảng 800 ký tự)."
+        )
+        model = _draft_model("vi")
+    else:
+        sys_msg = (
+            f"당신은 한국 {topic}을(를) 정리하는 전문 감정사입니다. "
+            "아래 상담 전체 대화를 하나의 매끄러운 '종합 감정서'로 재구성하세요.\n"
+            + CONSULTANT_STYLE_RULE
+        )
+        user_msg = (
+            f"{convo}\n\n"
+            "위 상담 전체를 인사말·중복 없이 주제별로 자연스럽게 묶어, 상담가가 정리해 주듯 "
+            "하나의 종합 감정서로 작성하세요. 도입(요지) → 주제별 해설 → 종합 결론·조언 흐름으로, "
+            "한국어 줄글로 충분히(최소 1,000자) 정리하세요."
+        )
+        model = None  # ko 기본 모델(_call_ollama 기본값)
     try:
         out = _call_ollama(
             [{"role": "system", "content": sys_msg}, {"role": "user", "content": user_msg}],
-            temperature=0.4,
+            model=model, temperature=0.4,
         )
     except Exception:  # noqa: BLE001
         return fallback

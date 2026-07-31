@@ -114,7 +114,8 @@ def _render_result_for_llm(
 ) -> str:
     parts = [f"[{label_a} 명식]\n{sa}", f"[{label_b} 명식]\n{sb}", "[궁합 분석]"]
     for key, f in result.factors.items():
-        line = f"- {_FACTOR_LABEL.get(key, key)}: {f.score}점"
+        # f.label 은 엔진이 로케일에 맞춰 산출(ko 는 _FACTOR_LABEL 와 동일) → vi 브리핑도 로케일 일관.
+        line = f"- {f.label}: {f.score}점"
         if f.items:
             line += " | " + "; ".join(it.detail for it in f.items)
         parts.append(line)
@@ -156,7 +157,7 @@ def create_compatibility(
 
     chart_a = build_chart(_to_birth_input(birth_a, locale=locale))
     chart_b = build_chart(_to_birth_input(birth_b, locale=locale))
-    result = compute_compatibility(chart_a, chart_b)
+    result = compute_compatibility(chart_a, chart_b, locale=locale)
 
     # ---- 빌링(궁합 입장료 1회 차감) ----
     bill = chat_service._decide_entry_billing(db, user, "compat", claim=True)

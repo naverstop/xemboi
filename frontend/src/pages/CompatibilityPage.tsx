@@ -147,12 +147,14 @@ function toReq(p: PState): CompatPersonReq {
   };
 }
 
+// 등급 색상 — 로케일 무관 stable key(grade_key)로 키잉. 백엔드가 grade_key
+// (soulmate|good|fair|effort|caution)를 제공하므로 한국어 문자열 매칭에 의존하지 않는다.
 const GRADE_TONE: Record<string, string> = {
-  천생연분: "var(--grad-success)",
-  "좋은 궁합": "var(--brand-grad)",
-  "무난한 궁합": "var(--grad-info)",
-  "노력 필요": "var(--grad-warning)",
-  신중히: "linear-gradient(135deg,#e57373,#c62828)",
+  soulmate: "var(--grad-success)",
+  good: "var(--brand-grad)",
+  fair: "var(--grad-info)",
+  effort: "var(--grad-warning)",
+  caution: "linear-gradient(135deg,#e57373,#c62828)",
 };
 
 // ===================== 펜타곤(레이더) =====================
@@ -229,7 +231,7 @@ function Pentagon({
         const anchor = Math.abs(x - cx) < 6 ? "middle" : x > cx ? "start" : "end";
         return (
           <text key={ax.key} x={x} y={y} textAnchor={anchor as any} className="pen-label">
-            <tspan>{ax.label}</tspan>
+            <tspan>{tr(ax.tkey)}</tspan>
             <tspan x={x} dy="13" className="pen-label-score">{couple[i]}</tspan>
           </text>
         );
@@ -243,11 +245,13 @@ function Gauge({
   label,
   total,
   grade,
+  gradeKey,
   avg,
 }: {
   label: string;
   total: number;
   grade: string;
+  gradeKey: string;
   avg: number | null;
 }) {
   const { t: tr } = useTranslation();
@@ -255,7 +259,7 @@ function Gauge({
     <div className="compat-gauge">
       <div className="cg-head">
         <span className="cg-label">{label}</span>
-        <span className="cg-grade" style={{ background: GRADE_TONE[grade] || "var(--brand-grad)" }}>
+        <span className="cg-grade" style={{ background: GRADE_TONE[gradeKey] || "var(--brand-grad)" }}>
           {grade}
         </span>
       </div>
@@ -665,7 +669,7 @@ function Result({ res, avg }: { res: CompatResponse; avg: CompatAverage | null }
         <span className="cr-heart">💞</span>
         <span className="cr-names">{res.person_b.label}</span>
         {headline && (
-          <span className="cr-grade" style={{ background: GRADE_TONE[headline.grade] || "var(--brand-grad)" }}>
+          <span className="cr-grade" style={{ background: GRADE_TONE[headline.grade_key || ""] || "var(--brand-grad)" }}>
             {headline.grade} · {tr("compat.score", { n: headline.total })}
           </span>
         )}
@@ -692,6 +696,7 @@ function Result({ res, avg }: { res: CompatResponse; avg: CompatAverage | null }
               label={p.label}
               total={p.total}
               grade={p.grade}
+              gradeKey={p.grade_key || ""}
               avg={avg?.average?.totals?.[p.key] ?? null}
             />
           ))}

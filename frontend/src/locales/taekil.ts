@@ -52,6 +52,16 @@ export const taekilKo = {
   pdf_item: "{{label}} 택일",
   pdf_header_title: "[추천 길일]",
   pdf_line: "- {{date}} ({{ganzhi}}) · {{score}}점 · {{grade}}",
+  // 용도 선택 칩 라벨(백엔드 purpose_label 과 동일값 — 셀렉터 즉시 표시용)
+  purpose_wedding: "혼인",
+  purpose_birth: "출산",
+  purpose_moving: "이사",
+  purpose_opening: "개업",
+  purpose_contract: "계약",
+  purpose_ceremony: "고사·제사",
+  purpose_surgery: "수술",
+  purpose_travel: "여행",
+  purpose_general: "일반",
 };
 
 export const taekilVi: typeof taekilKo = {
@@ -104,4 +114,14 @@ export const taekilVi: typeof taekilKo = {
   pdf_item: "Chọn ngày {{label}}",
   pdf_header_title: "[Ngày tốt đề xuất]",
   pdf_line: "- {{date}} ({{ganzhi}}) · {{score}} điểm · {{grade}}",
+  // 용도 선택 칩 라벨
+  purpose_wedding: "Cưới hỏi",
+  purpose_birth: "Sinh con",
+  purpose_moving: "Chuyển nhà",
+  purpose_opening: "Khai trương",
+  purpose_contract: "Ký kết",
+  purpose_ceremony: "Cúng tế",
+  purpose_surgery: "Phẫu thuật",
+  purpose_travel: "Du lịch",
+  purpose_general: "Chung",
 };

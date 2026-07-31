@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from "react";
+import i18n from "./i18n";
 
 const BASE = "/api";
 const TOKEN_KEY = "saju_token";
@@ -62,31 +63,33 @@ function authHeaders(extra?: HeadersInit): HeadersInit {
   return h;
 }
 
-// 서버가 보내는 영어 detail/코드 → 사용자 친화 한국어 매핑(안전망).
-const ERR_MAP: Record<string, string> = {
-  "invalid credentials": "이메일 또는 비밀번호가 올바르지 않습니다. 다시 확인해 주세요.",
-  "login required": "로그인이 필요해요. 먼저 로그인해 주세요.",
-  "admin only": "관리자 전용 기능이에요.",
-  "email already registered": "이미 가입된 이메일이에요. 로그인해 주세요.",
-  "invalid refresh token": "로그인이 만료되었어요. 다시 로그인해 주세요.",
-  "user not found": "계정을 찾을 수 없어요. 다시 로그인해 주세요.",
-  "share_quota_exceeded": "오늘 공유 횟수를 모두 사용했어요.",
-  "not your session": "본인의 상담만 이용할 수 있어요.",
-  "login required to share": "공유하려면 먼저 로그인해 주세요.",
+// 서버가 보내는 영어 detail/코드 → i18n 에러 카탈로그 키(err.*) 매핑(안전망, 로케일 반영).
+const ERR_KEYS: Record<string, string> = {
+  "invalid credentials": "err.invalid_credentials",
+  "login required": "err.login_required",
+  "admin only": "err.admin_only",
+  "email already registered": "err.email_registered",
+  "invalid refresh token": "err.invalid_refresh",
+  "user not found": "err.user_not_found",
+  "share_quota_exceeded": "err.share_quota",
+  "not your session": "err.not_your_session",
+  "login required to share": "err.login_to_share",
 };
 
-// HTTP 상태코드별 기본 친화 메시지.
+// HTTP 상태코드별 기본 친화 메시지(i18n 로케일 반영).
 function statusFallback(status: number): string {
-  if (status === 401) return "로그인이 필요하거나 인증이 만료되었어요. 다시 로그인해 주세요.";
-  if (status === 403) return "이 기능에 접근할 권한이 없어요.";
-  if (status === 404) return "요청한 정보를 찾을 수 없어요.";
-  if (status === 409) return "이미 존재하는 정보예요.";
-  if (status === 429) return "요청이 많아요. 잠시 후 다시 시도해 주세요.";
-  if (status >= 500) return "서버에 일시적인 문제가 생겼어요. 잠시 후 다시 시도해 주세요.";
-  return `요청 처리 중 오류가 발생했어요. (${status})`;
+  if (status === 401) return i18n.t("err.s401");
+  if (status === 403) return i18n.t("err.s403");
+  if (status === 404) return i18n.t("err.s404");
+  if (status === 409) return i18n.t("err.s409");
+  if (status === 429) return i18n.t("err.s429");
+  if (status >= 500) return i18n.t("err.s500");
+  return i18n.t("err.s_other", { status });
 }
 
-const HANGUL = /[가-힣]/;
+// 백엔드가 이미 로케일 언어로 보낸 detail(한국어 한글 / 베트남어 라틴+성조부호)은 그대로 노출.
+// 내부 영어 코드/식별자는 전부 ASCII → 비-ASCII 문자가 있으면 사람이 읽는 로케일 메시지로 판단(ko·vi 공통).
+const LOCALIZED_DETAIL = /[^\x00-\x7F]/;
 
 // jfetch가 던지는 에러. 친화 메시지(message) 외에 HTTP status와 서버 원본 detail
 // 코드(code)를 보존한다. 친화 메시지로 치환하는 과정에서 status/code를 통째로 잃어
@@ -116,15 +119,15 @@ async function parseError(r: Response): Promise<{ message: string; code: string 
   if (Array.isArray(detail) && detail.length) {
     const msgs = detail.map((d: any) => d?.msg).filter(Boolean);
     return {
-      message: msgs.length ? `입력값을 확인해 주세요: ${msgs.join(", ")}` : statusFallback(r.status),
+      message: msgs.length ? i18n.t("err.validation", { msgs: msgs.join(", ") }) : statusFallback(r.status),
       code: null,
     };
   }
   if (typeof detail === "string" && detail.trim()) {
     const raw = detail.trim();
     const key = raw.toLowerCase();
-    if (ERR_MAP[key]) return { message: ERR_MAP[key], code: raw }; // 알려진 영어 코드 → 한국어
-    if (HANGUL.test(detail)) return { message: detail, code: raw }; // 이미 한국어면 그대로
+    if (ERR_KEYS[key]) return { message: i18n.t(ERR_KEYS[key]), code: raw }; // 알려진 영어 코드 → 로케일 메시지
+    if (LOCALIZED_DETAIL.test(detail)) return { message: detail, code: raw }; // 이미 로케일 언어(ko/vi)면 그대로
     return { message: statusFallback(r.status), code: raw }; // 알 수 없는 영어/코드는 숨기되 코드는 보존
   }
   return { message: statusFallback(r.status), code: null };
@@ -643,7 +646,8 @@ export type CompatPerspective = {
   weights: Record<string, number>;
   contributions: Record<string, number>;
   total: number;
-  grade: string;
+  grade: string;                 // 로케일 표시 라벨(백엔드 산출)
+  grade_key?: string;            // 로케일 무관 stable key: soulmate|good|fair|effort|caution
   interpretation: string;
 };
 export type CompatResult = {
@@ -670,13 +674,13 @@ export type CompatAverage = {
 };
 export type CompatPersonReq = { label?: string; profile_id?: number; birth?: Birth };
 
-// 펜타곤 축 순서/라벨 (프론트 공용)
-export const COMPAT_AXES: { key: string; label: string }[] = [
-  { key: "day_branch", label: "일지" },
-  { key: "day_stem", label: "일간" },
-  { key: "wuxing", label: "오행" },
-  { key: "ten_god", label: "십성" },
-  { key: "sinsal", label: "신살" },
+// 펜타곤 축 순서 + i18n 키 (프론트 공용). 라벨은 compat 카탈로그(axis_*)에서 로케일별로 렌더.
+export const COMPAT_AXES: { key: string; tkey: string }[] = [
+  { key: "day_branch", tkey: "compat.axis_ilji" },
+  { key: "day_stem", tkey: "compat.axis_ilgan" },
+  { key: "wuxing", tkey: "compat.axis_ohaeng" },
+  { key: "ten_god", tkey: "compat.axis_sipseong" },
+  { key: "sinsal", tkey: "compat.axis_sinsal" },
 ];
 
 // ---- 타로 ----

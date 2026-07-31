@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import {
   api,
@@ -7,6 +8,7 @@ import {
   type ConsultationSession,
   type ConsultantAdmin,
 } from "../api";
+import { fmtNum } from "../lib/money";
 import { useConsultation } from "../components/ConsultationProvider";
 
 /**
@@ -17,6 +19,7 @@ import { useConsultation } from "../components/ConsultationProvider";
  * 수락 시 같은 실시간 채팅 오버레이(ConsultationProvider)를 상담사 역할로 연다.
  */
 export default function ConsultantConsolePage() {
+  const { t: tr } = useTranslation();
   const me = useMe();
   const { openSession, setConsoleOnDuty } = useConsultation();
   const [profile, setProfile] = useState<ConsultantAdmin | null | undefined>(undefined); // undefined=로딩
@@ -80,7 +83,7 @@ export default function ConsultantConsolePage() {
       openSession(s.id, "consultant");
       setRequests((cur) => cur.filter((x) => x.id !== s.id));
     } catch (e: any) {
-      alert(e?.message || "수락에 실패했어요.");
+      alert(e?.message || tr("consult.con_accept_fail"));
     }
   }
   async function decline(s: ConsultationSession) {
@@ -90,12 +93,12 @@ export default function ConsultantConsolePage() {
     } catch { /* ignore */ }
   }
 
-  if (profile === undefined) return <div className="ccon-wrap">불러오는 중…</div>;
+  if (profile === undefined) return <div className="ccon-wrap">{tr("consult.loading")}</div>;
   if (!me || !profile)
     return (
       <div className="ccon-wrap">
-        <h3>상담사 전용</h3>
-        <p>입점 상담사 계정만 이용할 수 있어요. <Link to="/">홈으로</Link></p>
+        <h3>{tr("consult.con_only_title")}</h3>
+        <p>{tr("consult.con_only_desc")} <Link to="/">{tr("consult.con_go_home")}</Link></p>
       </div>
     );
 
@@ -103,33 +106,33 @@ export default function ConsultantConsolePage() {
   return (
     <div className="ccon-wrap">
       <div className="ccon-head">
-        <h2>상담사 콘솔</h2>
-        <label className="ccon-switch" title="영업 상태">
+        <h2>{tr("consult.con_title")}</h2>
+        <label className="ccon-switch" title={tr("consult.con_status_aria")}>
           <input type="checkbox" checked={online} onChange={(e) => setOnline(e.target.checked)} />
-          <span className={online ? "on" : "off"}>{online ? "🟢 영업 중" : "⚪ 영업 종료"}</span>
+          <span className={online ? "on" : "off"}>{online ? tr("consult.con_on") : tr("consult.con_off")}</span>
         </label>
       </div>
       <p className="ccon-biz">
-        {profile.business_name} · {profile.eff_price_p.toLocaleString()}P / {profile.eff_duration_min}분
+        {profile.business_name} · {fmtNum(profile.eff_price_p)}{tr("pay.pt")} / {tr("consult.dur_min", { n: fmtNum(profile.eff_duration_min) })}
       </p>
       {!online && (
         <p className="ccon-off">
-          ‘영업 중’으로 켜면 접수 알림을 받고, 사용자 목록에 ‘대기중’으로 표시돼요. (영업 중엔 자동 로그아웃되지 않아요)
+          {tr("consult.con_off_note")}
         </p>
       )}
       {online && (
         <div className="ccon-reqs">
-          <h3>접수 대기 ({pending.length})</h3>
-          {pending.length === 0 && <p className="ccon-empty">새 상담 요청을 기다리는 중이에요…</p>}
+          <h3>{tr("consult.con_pending", { count: pending.length })}</h3>
+          {pending.length === 0 && <p className="ccon-empty">{tr("consult.con_waiting")}</p>}
           {pending.map((s) => (
             <div key={s.id} className="ccon-req">
               <div>
-                <b>새 상담 요청</b>
-                <div className="ccon-req-sub">{s.price_p.toLocaleString()}P · {s.duration_min}분</div>
+                <b>{tr("consult.con_new_req")}</b>
+                <div className="ccon-req-sub">{fmtNum(s.price_p)}{tr("pay.pt")} · {tr("consult.dur_min", { n: fmtNum(s.duration_min) })}</div>
               </div>
               <div className="ccon-req-act">
-                <button className="ccon-accept" onClick={() => accept(s)}>수락</button>
-                <button className="ccon-decline" onClick={() => decline(s)}>거절</button>
+                <button className="ccon-accept" onClick={() => accept(s)}>{tr("consult.con_accept")}</button>
+                <button className="ccon-decline" onClick={() => decline(s)}>{tr("consult.con_decline")}</button>
               </div>
             </div>
           ))}

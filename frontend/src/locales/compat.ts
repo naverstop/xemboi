@@ -56,6 +56,12 @@ export const compatKo = {
   pdf_other_named: "{{label}} 님",
   pdf_other_ym: "상대방님({{y}}년 {{m}}월님)",
   pdf_other: "상대방님",
+  // 펜타곤 축 라벨(백엔드 factor.label 과 별개 — 축약 표기)
+  axis_ilji: "일지",
+  axis_ilgan: "일간",
+  axis_ohaeng: "오행",
+  axis_sipseong: "십성",
+  axis_sinsal: "신살",
 };
 
 export const compatVi: typeof compatKo = {
@@ -113,4 +119,10 @@ export const compatVi: typeof compatKo = {
   pdf_other_named: "{{label}}",
   pdf_other_ym: "Đối phương (tháng {{m}}/{{y}})",
   pdf_other: "Đối phương",
+  // 펜타곤 축 라벨
+  axis_ilji: "Địa chi",
+  axis_ilgan: "Thiên can",
+  axis_ohaeng: "Ngũ hành",
+  axis_sipseong: "Thập thần",
+  axis_sinsal: "Thần sát",
 };

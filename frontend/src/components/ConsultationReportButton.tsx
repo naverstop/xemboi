@@ -3,6 +3,7 @@
  *  build()가 null이면 비활성(상담 내용 없음).
  */
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { api } from "../api";
 
 export type ReportReq = {
@@ -15,6 +16,7 @@ export type ReportReq = {
 };
 
 export default function ConsultationReportButton({ build }: { build: () => ReportReq | null }) {
+  const { t: tr } = useTranslation();
   const [busy, setBusy] = useState(false);
   const [url, setUrl] = useState("");   // 생성 완료 시 세팅 → '열기' 링크 노출(팝업차단 대비·재생성 방지)
 
@@ -34,7 +36,7 @@ export default function ConsultationReportButton({ build }: { build: () => Repor
       window.dispatchEvent(new CustomEvent("saju:gen-done", { detail: { id, url: r.url, filename: r.filename } }));
     } catch {
       window.dispatchEvent(new CustomEvent("saju:gen-error", {
-        detail: { id, message: "종합 감정서 생성 중 오류가 발생했어요. 잠시 후 다시 시도해 주세요." },
+        detail: { id, message: tr("consult.rb_error") },
       }));
     } finally {
       setBusy(false);
@@ -43,14 +45,14 @@ export default function ConsultationReportButton({ build }: { build: () => Repor
 
   return (
     <span className="report-wrap">
-      <button className="report-btn" onClick={onClick} disabled={busy} title="상담 전체를 하나의 감정서로 정리">
-        {busy ? "⏳ 종합 정리 중…" : url ? "📋 감정서 다시 만들기" : "📋 상담 전체 종합 감정서 PDF"}
+      <button className="report-btn" onClick={onClick} disabled={busy} title={tr("consult.rb_title")}>
+        {busy ? tr("consult.rb_busy") : url ? tr("consult.rb_remake") : tr("consult.rb_make")}
       </button>
       {url && !busy && (
         // 생성된 감정서 열기(실제 링크=사용자 제스처라 팝업차단 없음, API 재호출 없음)
         <a className="report-btn report-open" href={url} target="_blank" rel="noopener noreferrer"
-           style={{ marginLeft: 8 }} title="방금 만든 종합 감정서 PDF 열기·저장">
-          ⤓ 감정서 열기
+           style={{ marginLeft: 8 }} title={tr("consult.rb_open_title")}>
+          {tr("consult.rb_open")}
         </a>
       )}
     </span>

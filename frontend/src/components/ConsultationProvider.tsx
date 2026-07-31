@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
+import { useTranslation } from "react-i18next";
 import {
   api,
   consultationSessionWsUrl,
@@ -44,6 +45,7 @@ function fmt(sec: number | null): string {
 }
 
 export function ConsultationProvider({ children }: { children: ReactNode }) {
+  const { t: tr } = useTranslation();
   const [active, setActive] = useState<{ sessionId: string; role: Role } | null>(null);
   const [session, setSession] = useState<ConsultationSession | null>(null);
   const [messages, setMessages] = useState<ConsultationChatMessage[]>([]);
@@ -179,7 +181,7 @@ export function ConsultationProvider({ children }: { children: ReactNode }) {
   async function extend() {
     if (!active) return;
     try { await api.extendConsultation(active.sessionId); setWarned(false); }
-    catch (e: any) { alert(e?.message || "연장에 실패했어요."); }
+    catch (e: any) { alert(e?.message || tr("consult.extend_fail")); }
   }
 
   async function makeReport() {
@@ -190,7 +192,7 @@ export function ConsultationProvider({ children }: { children: ReactNode }) {
       const r = await api.consultationReport(active.sessionId);
       window.dispatchEvent(new CustomEvent("saju:gen-done", { detail: { id, url: r.url, filename: r.filename } }));
     } catch {
-      window.dispatchEvent(new CustomEvent("saju:gen-error", { detail: { id, message: "상담서 생성에 실패했어요." } }));
+      window.dispatchEvent(new CustomEvent("saju:gen-error", { detail: { id, message: tr("consult.report_fail") } }));
     }
     closeOverlay();
   }
@@ -208,26 +210,26 @@ export function ConsultationProvider({ children }: { children: ReactNode }) {
       {children}
       {active &&
         createPortal(
-          <div className="csl-chat-wrap" role="dialog" aria-label="1:1 상담 채팅">
+          <div className="csl-chat-wrap" role="dialog" aria-label={tr("consult.chat_aria")}>
             <div className="csl-chat">
               <div className="csl-chat-head">
                 <div className="csl-chat-title">
-                  {session?.consultant_name || "1:1 상담"}
-                  <span className="csl-chat-role">{active.role === "consultant" ? "상담사" : "상담"}</span>
+                  {session?.consultant_name || tr("consult.chat_default_title")}
+                  <span className="csl-chat-role">{active.role === "consultant" ? tr("consult.role_consultant") : tr("consult.role_user")}</span>
                 </div>
                 {status === "active" && (
                   <div className={`csl-timer ${warned ? "warn" : ""}`}>⏱ {fmt(remaining)}</div>
                 )}
-                <button className="csl-chat-x" onClick={() => (status === "active" ? endChat() : closeOverlay())} aria-label="닫기">×</button>
+                <button className="csl-chat-x" onClick={() => (status === "active" ? endChat() : closeOverlay())} aria-label={tr("consult.close")}>×</button>
               </div>
 
               {/* 대기 중(수락 전) */}
               {(status === "requested" || status == null) && !ended && (
                 <div className="csl-chat-wait">
                   <div className="csl-spin" aria-hidden />
-                  <p>상담사 연결을 기다리는 중이에요…</p>
-                  <p className="csl-wait-sub">상담사가 수락하면 채팅이 시작돼요. (미응답 시 자동 취소·환불)</p>
-                  <button className="csl-wait-cancel" onClick={cancelWaiting}>요청 취소</button>
+                  <p>{tr("consult.wait_title")}</p>
+                  <p className="csl-wait-sub">{tr("consult.wait_sub")}</p>
+                  <button className="csl-wait-cancel" onClick={cancelWaiting}>{tr("consult.wait_cancel")}</button>
                 </div>
               )}
 
@@ -243,7 +245,7 @@ export function ConsultationProvider({ children }: { children: ReactNode }) {
                   </div>
                   {warned && (
                     <div className="csl-extend-bar">
-                      곧 상담 시간이 끝나요. <button onClick={extend}>연장하기</button>
+                      {tr("consult.extend_bar")} <button onClick={extend}>{tr("consult.extend_btn")}</button>
                     </div>
                   )}
                   <div className="csl-chat-input">
@@ -251,41 +253,41 @@ export function ConsultationProvider({ children }: { children: ReactNode }) {
                       value={draft}
                       onChange={(e) => setDraft(e.target.value)}
                       onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }}
-                      placeholder="메시지를 입력하세요"
+                      placeholder={tr("consult.input_ph")}
                       rows={1}
                     />
-                    <button onClick={send} disabled={!draft.trim()}>전송</button>
+                    <button onClick={send} disabled={!draft.trim()}>{tr("consult.send")}</button>
                   </div>
-                  <button className="csl-end" onClick={endChat}>상담 종료</button>
+                  <button className="csl-end" onClick={endChat}>{tr("consult.end")}</button>
                 </>
               )}
 
               {/* 노쇼(미응답) */}
               {ended?.noShow && (
                 <div className="csl-chat-wait">
-                  <p>상담사가 응답하지 않았어요.</p>
-                  <p className="csl-wait-sub">결제하신 포인트는 전액 환불되었어요.</p>
-                  <button className="csl-wait-cancel" onClick={closeOverlay}>닫기</button>
+                  <p>{tr("consult.noshow_title")}</p>
+                  <p className="csl-wait-sub">{tr("consult.noshow_sub")}</p>
+                  <button className="csl-wait-cancel" onClick={closeOverlay}>{tr("consult.close")}</button>
                 </div>
               )}
 
               {/* 종료 → 만족도 평가 + 요약 PDF 동의 팝업(요건 ⑧) */}
               {ended && !ended.noShow && (
                 <div className="csl-chat-end">
-                  <p className="csl-end-title">상담이 종료되었어요.</p>
+                  <p className="csl-end-title">{tr("consult.ended_title")}</p>
                   {active.role === "user" && (
                     <div className="csl-rate-box">
                       <p className="csl-rate-q">
-                        {rated ? "평가해 주셔서 감사합니다!" : "상담은 어떠셨나요? 만족도를 평가해 주세요."}
+                        {rated ? tr("consult.rate_thanks") : tr("consult.rate_q")}
                       </p>
-                      <div className="csl-rate-stars" role="radiogroup" aria-label="만족도">
+                      <div className="csl-rate-stars" role="radiogroup" aria-label={tr("consult.rate_aria")}>
                         {[1, 2, 3, 4, 5].map((n) => (
                           <button
                             key={n}
                             className={`csl-rate-star ${n <= rated ? "on" : ""}`}
                             onClick={() => submitRating(n)}
                             disabled={!!rated}
-                            aria-label={`${n}점`}
+                            aria-label={tr("consult.rate_star_aria", { n })}
                           >
                             ★
                           </button>
@@ -293,11 +295,11 @@ export function ConsultationProvider({ children }: { children: ReactNode }) {
                       </div>
                     </div>
                   )}
-                  <p className="csl-end-sub">대화 내용을 요약해 상담서(PDF)로 만들어 드릴까요?</p>
+                  <p className="csl-end-sub">{tr("consult.report_offer")}</p>
                   <div className="csl-end-actions">
-                    <button className="csl-end-make" onClick={makeReport}>상담서 만들기</button>
+                    <button className="csl-end-make" onClick={makeReport}>{tr("consult.report_make")}</button>
                     <button className="csl-end-skip" onClick={closeOverlay}>
-                      {rated || active.role !== "user" ? "닫기" : "안 할래요"}
+                      {rated || active.role !== "user" ? tr("consult.close") : tr("consult.report_skip_no")}
                     </button>
                   </div>
                 </div>

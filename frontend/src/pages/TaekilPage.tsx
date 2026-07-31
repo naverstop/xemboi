@@ -103,7 +103,7 @@ export default function TaekilPage() {
                       className={`purpose-chip ${purpose === p ? "on" : ""}`}
                       onClick={() => setPurpose(p)}>
                 <span className="pp-icon">{PURPOSE_ICONS[p]}</span>
-                <span className="pp-label">{PURPOSE_LABELS[p]}</span>
+                <span className="pp-label">{tr(`taekil.purpose_${p}`)}</span>
               </button>
             ))}
           </div>
@@ -150,14 +150,14 @@ export default function TaekilPage() {
           <div className="cr-sub">{tr("taekil.recommended")}</div>
           <div className="taekil-grid">
             {(res.result.best || []).map((d: any, i: number) => (
-              <div key={i} className={`day-card ${d.grade === "대길일" ? "best" : ""}`}>
+              <div key={i} className={`day-card ${d.grade_key === "best" ? "best" : ""}`}>
                 <div className="dc-date">{d.date}</div>
                 <div className="dc-ganzhi">{d.ganzhi}</div>
                 <div className="dc-tags">
                   <span className="dc-hwangdo">{d.hwangdo}</span>
                   {d.geonje && <span className="dc-geonje" title={d.geonje_note}>{d.geonje}</span>}
                   {d.su28 && <span className="dc-su28" title={d.su28_note}>{d.su28}</span>}
-                  {d.saenggi && <span className={`dc-saenggi ${["생기", "천의", "복덕"].includes(d.saenggi) ? "gil" : ["절체", "화해", "절명"].includes(d.saenggi) ? "hyung" : ""}`} title={tr("taekil.saenggi_title")}>{d.saenggi}</span>}
+                  {d.saenggi && <span className={`dc-saenggi ${d.saenggi_gil === "gil" ? "gil" : d.saenggi_gil === "hyung" ? "hyung" : ""}`} title={tr("taekil.saenggi_title")}>{d.saenggi}</span>}
                   {d.sonless && <span className="dc-son">{tr("taekil.sonless")}</span>}
                 </div>
                 <div className="dc-score">{tr("taekil.score_grade", { score: fmtNum(d.score), grade: d.grade })}</div>

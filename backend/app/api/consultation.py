@@ -26,7 +26,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from backend.app.core.db import get_db, get_session_factory
-from backend.app.core.deps import get_current_user, get_optional_user, require_admin
+from backend.app.core.deps import get_current_user, get_locale, get_optional_user, require_admin
 from backend.app.repositories.auth_models import User
 from backend.app.repositories.consultation_models import Consultant, ConsultationSession
 from backend.app.services import consultation_service as svc
@@ -38,12 +38,14 @@ router = APIRouter(prefix="/api/consultation", tags=["consultation"])
 
 
 def require_consultant(
-    db: Session = Depends(get_db), user: User = Depends(get_current_user)
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+    locale: str = Depends(get_locale),
 ) -> Consultant:
     """입점 상담사(활성) 전용 게이트 — 로그인 사용자의 이메일/계정에 연결된 Consultant 반환."""
     c = svc.get_consultant_by_user(db, user.id) or svc.link_user(db, user)
     if c is None or not c.is_active:
-        raise HTTPException(status_code=403, detail="입점 상담사 전용 기능이에요.")
+        raise HTTPException(status_code=403, detail=sess.msg("consultant_only", locale))
     return c
 admin_router = APIRouter(
     prefix="/api/admin/consultants", tags=["admin-consultation"], dependencies=[Depends(require_admin)]
@@ -120,10 +122,14 @@ def create_session(
     req: SessionRequestReq,
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
+    locale: str = Depends(get_locale),
 ) -> dict[str, Any]:
-    """사용자 상담 요청 — 잔액·상담사 확인 후 requested 생성 + 상담사 접수 알림(Web Push, 요건 ⑩)."""
+    """사용자 상담 요청 — 잔액·상담사 확인 후 requested 생성 + 상담사 접수 알림(Web Push, 요건 ⑩).
+
+    요청 로케일(locale)을 세션에 영속 → 요약 상담서 언어·모델 선택 근거(ko 기본 불변).
+    """
     try:
-        s = sess.request_session(db, user, req.consultant_id, consent=req.consent)
+        s = sess.request_session(db, user, req.consultant_id, consent=req.consent, locale=locale)
     except LookupError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except ValueError as e:
@@ -154,35 +160,38 @@ def my_sessions(
 
 @router.get("/sessions/{session_id}")
 def get_session_detail(
-    session_id: str, db: Session = Depends(get_db), user: User = Depends(get_current_user)
+    session_id: str, db: Session = Depends(get_db),
+    user: User = Depends(get_current_user), locale: str = Depends(get_locale),
 ) -> dict[str, Any]:
     s = sess.get_session(db, session_id)
     if s is None:
-        raise HTTPException(status_code=404, detail="세션을 찾을 수 없어요.")
+        raise HTTPException(status_code=404, detail=sess.msg("session_not_found", locale))
     if not sess.is_participant(db, s, user):
-        raise HTTPException(status_code=403, detail="본인 상담만 볼 수 있어요.")
+        raise HTTPException(status_code=403, detail=sess.msg("view_only_own", locale))
     return sess.session_dict(db, s)
 
 
 @router.get("/sessions/{session_id}/messages")
 def get_session_messages(
-    session_id: str, db: Session = Depends(get_db), user: User = Depends(get_current_user)
+    session_id: str, db: Session = Depends(get_db),
+    user: User = Depends(get_current_user), locale: str = Depends(get_locale),
 ) -> dict[str, Any]:
     """대화 이력(재접속 복원용). 참여자만."""
     s = sess.get_session(db, session_id)
     if s is None:
-        raise HTTPException(status_code=404, detail="세션을 찾을 수 없어요.")
+        raise HTTPException(status_code=404, detail=sess.msg("session_not_found", locale))
     if not sess.is_participant(db, s, user):
-        raise HTTPException(status_code=403, detail="본인 상담만 볼 수 있어요.")
+        raise HTTPException(status_code=403, detail=sess.msg("view_only_own", locale))
     return {"items": sess.list_messages(db, session_id)}
 
 
 @router.post("/sessions/{session_id}/accept")
 def accept_session_ep(
-    session_id: str, db: Session = Depends(get_db), consultant: Consultant = Depends(require_consultant)
+    session_id: str, db: Session = Depends(get_db),
+    consultant: Consultant = Depends(require_consultant), locale: str = Depends(get_locale),
 ) -> dict[str, Any]:
     try:
-        s = sess.accept_session(db, session_id, consultant)
+        s = sess.accept_session(db, session_id, consultant, locale=locale)
     except LookupError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except PermissionError as e:
@@ -194,10 +203,11 @@ def accept_session_ep(
 
 @router.post("/sessions/{session_id}/decline")
 def decline_session_ep(
-    session_id: str, db: Session = Depends(get_db), consultant: Consultant = Depends(require_consultant)
+    session_id: str, db: Session = Depends(get_db),
+    consultant: Consultant = Depends(require_consultant), locale: str = Depends(get_locale),
 ) -> dict[str, Any]:
     try:
-        s = sess.decline_session(db, session_id, consultant)
+        s = sess.decline_session(db, session_id, consultant, locale=locale)
     except LookupError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except PermissionError as e:
@@ -207,24 +217,26 @@ def decline_session_ep(
 
 @router.post("/sessions/{session_id}/end")
 def end_session_ep(
-    session_id: str, db: Session = Depends(get_db), user: User = Depends(get_current_user)
+    session_id: str, db: Session = Depends(get_db),
+    user: User = Depends(get_current_user), locale: str = Depends(get_locale),
 ) -> dict[str, Any]:
     """상담 종료 — 참여자(사용자/상담사) 누구나. 정산 산출 + 파기예정 설정."""
     s = sess.get_session(db, session_id)
     if s is None:
-        raise HTTPException(status_code=404, detail="세션을 찾을 수 없어요.")
+        raise HTTPException(status_code=404, detail=sess.msg("session_not_found", locale))
     if not sess.is_participant(db, s, user):
-        raise HTTPException(status_code=403, detail="본인 상담만 종료할 수 있어요.")
-    s = sess.end_session(db, session_id, reason="manual_end")
+        raise HTTPException(status_code=403, detail=sess.msg("end_only_own", locale))
+    s = sess.end_session(db, session_id, reason="manual_end", locale=locale)
     return sess.session_dict(db, s)
 
 
 @router.post("/sessions/{session_id}/extend")
 def extend_session_ep(
-    session_id: str, db: Session = Depends(get_db), user: User = Depends(get_current_user)
+    session_id: str, db: Session = Depends(get_db),
+    user: User = Depends(get_current_user), locale: str = Depends(get_locale),
 ) -> dict[str, Any]:
     try:
-        s = sess.extend_session(db, session_id, user)
+        s = sess.extend_session(db, session_id, user, locale=locale)
     except LookupError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except PermissionError as e:
@@ -236,42 +248,56 @@ def extend_session_ep(
 
 @router.post("/sessions/{session_id}/cancel")
 def cancel_session_ep(
-    session_id: str, db: Session = Depends(get_db), user: User = Depends(get_current_user)
+    session_id: str, db: Session = Depends(get_db),
+    user: User = Depends(get_current_user), locale: str = Depends(get_locale),
 ) -> dict[str, Any]:
     """사용자가 대기 중(requested) 요청 취소."""
     s = sess.get_session(db, session_id)
     if s is None:
-        raise HTTPException(status_code=404, detail="세션을 찾을 수 없어요.")
+        raise HTTPException(status_code=404, detail=sess.msg("session_not_found", locale))
     if s.user_id != user.id:
-        raise HTTPException(status_code=403, detail="본인 상담만 취소할 수 있어요.")
+        raise HTTPException(status_code=403, detail=sess.msg("cancel_only_own", locale))
     s = sess.cancel_requested(db, session_id)
     return sess.session_dict(db, s)
 
 
 @router.post("/sessions/{session_id}/report")
 def session_report(
-    session_id: str, db: Session = Depends(get_db), user: User = Depends(get_current_user)
+    session_id: str, db: Session = Depends(get_db),
+    user: User = Depends(get_current_user), locale: str = Depends(get_locale),
 ) -> dict[str, Any]:
     """상담 종료 후 대화 요약 → 상장양식 상담서 PDF(요건 ⑧). 참여자만, 동의 후 프론트가 호출.
 
     consultation_messages → transcript → 기존 synthesize_consultation + generate_consultation_pdf 재사용.
+    문서 제목·대상자·항목·주제와 요약 언어는 세션 로케일(s.locale) 기준(ko 기본 불변).
     """
     s = sess.get_session(db, session_id)
     if s is None:
-        raise HTTPException(status_code=404, detail="세션을 찾을 수 없어요.")
+        raise HTTPException(status_code=404, detail=sess.msg("session_not_found", locale))
     if not sess.is_participant(db, s, user):
-        raise HTTPException(status_code=403, detail="본인 상담만 발급할 수 있어요.")
+        raise HTTPException(status_code=403, detail=sess.msg("report_only_own", locale))
+    loc = (getattr(s, "locale", None) or locale or "ko")
+    if loc not in ("ko", "vi"):
+        loc = "ko"
     convo = sess.transcript_for_summary(db, session_id)
     if not convo:
-        raise HTTPException(status_code=400, detail="요약할 대화 내용이 없어요.")
+        raise HTTPException(status_code=400, detail=sess.msg("no_convo", loc))
     from backend.app.api.pdf import ConsultationReportReq, create_consultation_report
     c = svc.get_consultant(db, s.consultant_id)
-    person = f"{user.nickname} 님" if user.nickname else ""
+    biz = (c.business_name + " ") if c else ""
+    if loc == "vi":
+        doc_title = f"{biz}Bản tư vấn 1:1"
+        person = user.nickname or ""
+        item = tpc = "Tư vấn 1:1"
+    else:
+        doc_title = f"{biz}1:1 상담서"
+        person = f"{user.nickname} 님" if user.nickname else ""
+        item = tpc = "1:1 상담"
     req = ConsultationReportReq(
-        doc_title=f"{(c.business_name + ' ') if c else ''}1:1 상담서",
-        person_line=person, item="1:1 상담", conversation=convo, topic="1:1 상담",
+        doc_title=doc_title, person_line=person, item=item,
+        conversation=convo, topic=tpc, locale=loc,
     )
-    resp = create_consultation_report(req, db=db, user=user)
+    resp = create_consultation_report(req, db=db, user=user, locale=loc)
     s.pdf_token = resp.token  # 세션에 귀속(재다운로드·7일 파기 연동)
     db.commit()
     return resp.model_dump()
@@ -283,11 +309,12 @@ class RatingReq(BaseModel):
 
 @router.post("/sessions/{session_id}/rating")
 def rate_session(
-    session_id: str, req: RatingReq, db: Session = Depends(get_db), user: User = Depends(get_current_user)
+    session_id: str, req: RatingReq, db: Session = Depends(get_db),
+    user: User = Depends(get_current_user), locale: str = Depends(get_locale),
 ) -> dict[str, Any]:
     """종료된 상담 만족도(1~5) 제출 — 간판 만족도 집계에 반영."""
     try:
-        s = sess.submit_rating(db, session_id, user, req.rating)
+        s = sess.submit_rating(db, session_id, user, req.rating, locale=locale)
     except LookupError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except PermissionError as e:

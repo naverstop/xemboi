@@ -12,6 +12,8 @@ import { supportKo, supportVi } from "./locales/support";
 import { taekilKo, taekilVi } from "./locales/taekil";
 import { tarotKo, tarotVi } from "./locales/tarot";
 import { advKo, advVi } from "./locales/adv";
+import { consultKo, consultVi } from "./locales/consult";
+import { errKo, errVi } from "./locales/err";
 
 export const SUPPORTED = ["ko", "vi"] as const;
 export type Locale = (typeof SUPPORTED)[number];
@@ -137,6 +139,8 @@ const resources = {
       taekil: taekilKo,
       tarot: tarotKo,
       adv: advKo,
+      consult: consultKo,
+      err: errKo,
     },
   },
   vi: {
@@ -250,6 +254,8 @@ const resources = {
       taekil: taekilVi,
       tarot: tarotVi,
       adv: advVi,
+      consult: consultVi,
+      err: errVi,
     },
   },
 };

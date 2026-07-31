@@ -153,7 +153,7 @@ def create_taekil(
 ) -> dict[str, Any]:
     chart = build_chart(_to_birth_input(birth, locale=locale))
     chart2 = build_chart(_to_birth_input(birth2, locale=locale)) if (birth2 and purpose == "birth") else None
-    res = taekil_engine.recommend_dates(chart, start, days=days, purpose=purpose, top=10, user_chart2=chart2)
+    res = taekil_engine.recommend_dates(chart, start, days=days, purpose=purpose, top=10, user_chart2=chart2, locale=locale)
     result = res.model_dump(mode="json")
     input_json = {"purpose": purpose, "start_date": start.isoformat(), "days": days}
     return _persist_and_bill(db, "taekil", purpose, birth, chart, input_json, result, user, depth, locale)
