@@ -6,6 +6,11 @@ import LanguageDetector from "i18next-browser-languagedetector";
 import { initReactI18next } from "react-i18next";
 import { chatKo, chatVi } from "./locales/chat";
 import { compatKo, compatVi } from "./locales/compat";
+import { legalKo, legalVi } from "./locales/legal";
+import { settingsKo, settingsVi } from "./locales/settings";
+import { supportKo, supportVi } from "./locales/support";
+import { taekilKo, taekilVi } from "./locales/taekil";
+import { tarotKo, tarotVi } from "./locales/tarot";
 
 export const SUPPORTED = ["ko", "vi"] as const;
 export type Locale = (typeof SUPPORTED)[number];
@@ -125,6 +130,11 @@ const resources = {
       },
       chat: chatKo,
       compat: compatKo,
+      legal: legalKo,
+      settings: settingsKo,
+      support: supportKo,
+      taekil: taekilKo,
+      tarot: tarotKo,
     },
   },
   vi: {
@@ -232,6 +242,11 @@ const resources = {
       },
       chat: chatVi,
       compat: compatVi,
+      legal: legalVi,
+      settings: settingsVi,
+      support: supportVi,
+      taekil: taekilVi,
+      tarot: tarotVi,
     },
   },
 };

@@ -7,6 +7,7 @@
  *  - 버전 문자열·최소가입연령은 백엔드 설정(/api/auth/legal)에서 가져온다.
  */
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import { api, type LegalInfo } from "../api";
 import { COMPANY, show } from "../lib/company";
@@ -32,13 +33,6 @@ function buildCompany(info: LegalInfo | null): Co {
     hosting: pick(b?.hosting, COMPANY.hosting),
   };
 }
-
-const TITLE: Record<LegalKind, string> = {
-  terms: "이용약관",
-  privacy: "개인정보처리방침",
-  refund: "환불·청약철회 정책",
-  disclaimer: "면책고지",
-};
 
 const OTHER: { kind: LegalKind; to: string }[] = [
   { kind: "terms", to: "/legal/terms" },
@@ -319,6 +313,7 @@ function Disclaimer({ co }: { co: Co }) {
 }
 
 export default function LegalPage({ kind }: { kind: LegalKind }) {
+  const { t: tr } = useTranslation();
   const [info, setInfo] = useState<LegalInfo | null>(null);
   useEffect(() => {
     api.legalVersions().then(setInfo).catch(() => setInfo(null));
@@ -337,7 +332,7 @@ export default function LegalPage({ kind }: { kind: LegalKind }) {
   return (
     <div className="legal-doc">
       <header className="legal-head">
-        <h1>{TITLE[kind]}</h1>
+        <h1>{tr(`legal.title_${kind}`)}</h1>
         <div className="legal-meta">{co.serviceName}</div>
       </header>
 
@@ -355,9 +350,9 @@ export default function LegalPage({ kind }: { kind: LegalKind }) {
       </article>
 
       <nav className="legal-nav">
-        <span>관련 문서</span>
+        <span>{tr("legal.related")}</span>
         {OTHER.filter((o) => o.kind !== kind).map((o) => (
-          <Link key={o.kind} to={o.to}>{TITLE[o.kind]}</Link>
+          <Link key={o.kind} to={o.to}>{tr(`legal.title_${o.kind}`)}</Link>
         ))}
       </nav>
     </div>
