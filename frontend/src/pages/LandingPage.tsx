@@ -13,7 +13,7 @@ import { IS_VN_BUILD } from "../i18n";
 const VN_EXCLUDED = ["jakmyeong", "gaemyeong", "aho"];
 
 // 기능별 고급 일러스트(실사 이미지 없을 때 폴백) — 320×200 장면형 ──────
-const defs = (id: string, c0 = "#22b8f0", c1 = "#0496d8") => (
+const defs = (id: string, c0 = "#1fbfa8", c1 = "#0d9488") => (
   <defs>
     <linearGradient id={id} x1="0" y1="0" x2="1" y2="1">
       <stop offset="0%" stopColor={c0} /><stop offset="100%" stopColor={c1} />

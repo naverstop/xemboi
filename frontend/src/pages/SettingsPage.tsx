@@ -113,9 +113,9 @@ function DialectCard() {
             style={{
               padding: "6px 14px",
               borderRadius: 999,
-              border: dialect === d.value ? "1px solid var(--brand-600, #0496d8)" : "1px solid #d0d7de",
-              background: dialect === d.value ? "rgba(4,150,216,.10)" : "transparent",
-              color: dialect === d.value ? "var(--brand-600, #0496d8)" : "inherit",
+              border: dialect === d.value ? "1px solid var(--brand-600, #0b7d73)" : "1px solid #d0d7de",
+              background: dialect === d.value ? "rgba(13,148,136,.10)" : "transparent",
+              color: dialect === d.value ? "var(--brand-600, #0b7d73)" : "inherit",
               cursor: "pointer",
             }}
           >

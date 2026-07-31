@@ -186,11 +186,11 @@ function Pentagon({
     <svg viewBox={`0 0 ${S} ${S}`} className="pentagon" role="img" aria-label={tr("compat.pentagon_aria")}>
       <defs>
         <radialGradient id="penFill" cx="50%" cy="45%" r="65%">
-          <stop offset="0%" stopColor="#22b8f0" stopOpacity="0.40" />
-          <stop offset="100%" stopColor="#0496d8" stopOpacity="0.16" />
+          <stop offset="0%" stopColor="#1fbfa8" stopOpacity="0.40" />
+          <stop offset="100%" stopColor="#0d9488" stopOpacity="0.16" />
         </radialGradient>
         <filter id="penGlow" x="-30%" y="-30%" width="160%" height="160%">
-          <feDropShadow dx="0" dy="2" stdDeviation="4" floodColor="#0496d8" floodOpacity="0.35" />
+          <feDropShadow dx="0" dy="2" stdDeviation="4" floodColor="#0d9488" floodOpacity="0.35" />
         </filter>
       </defs>
 
