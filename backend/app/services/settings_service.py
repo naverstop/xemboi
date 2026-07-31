@@ -18,23 +18,23 @@ from backend.app.repositories.auth_models import AppSetting
 DEFAULTS: dict[str, str] = {
     "free_quota_count": "3",          # 일반회원(Level4) 무료 질문 횟수
     "free_quota_reset": "none",       # none | daily | monthly
-    "credit_cost_basic": "1000",      # 기본 답변 1건 차감 크레딧
-    "credit_cost_deep": "3000",       # 심화(듀얼 LLM) 1건 차감 크레딧
-    "preview_reveal_cost": "500",     # 미리보기 전체보기 차감
+    "credit_cost_basic": "19000",     # 기본 답변 1건 차감(VND)
+    "credit_cost_deep": "29000",      # 심화(듀얼 LLM) 1건 차감(VND)
+    "preview_reveal_cost": "10000",   # 미리보기 전체보기 차감(VND)
     "preview_max_chars": "1000",      # 미리보기 표시 글자수(무료/맛보기 분량) — 성격 한 단락이 안 끊기게
     "feedback_reward_pct": "3",       # 피드백(👍/👎) 시 결제액 대비 리워드 적립 비율(%)
-    "feedback_reward_daily_cap": "3000",  # 1일 1인 피드백 리워드 상한(P)
+    "feedback_reward_daily_cap": "30000",  # 1일 1인 피드백 리워드 상한(P, VND)
     "external_llm_enabled": "true",   # 듀얼 LLM 2차 보강 사용 여부
     # ── 프리미엄 5개 메뉴 입장료(생성=입장 시 1회 차감). 메뉴별 관리자 설정 → 코드 수정 불필요 ──
-    "entry_cost_compat": "10000",     # 궁합 입장료
-    "entry_cost_taekil": "10000",     # 택일 입장료
-    "entry_cost_jakmyeong": "10000",  # 작명 입장료
-    "entry_cost_gaemyeong": "10000",  # 개명 입장료
-    "entry_cost_aho": "10000",        # 아호 입장료
-    "entry_cost_tarot": "5000",       # 타로 입장료
+    "entry_cost_compat": "99000",     # 궁합 입장료(VND)
+    "entry_cost_taekil": "99000",     # 택일 입장료(VND)
+    "entry_cost_jakmyeong": "99000",  # 작명(VN 제외 메뉴 — 안전값)
+    "entry_cost_gaemyeong": "99000",  # 개명(VN 제외 메뉴)
+    "entry_cost_aho": "99000",        # 아호(VN 제외 메뉴)
+    "entry_cost_tarot": "49000",      # 타로 입장료(VND)
     "premium_entry_discount_pct": "0",  # 5개 메뉴 공통 행사 할인 %(0~100). 50 입력 시 반값
     # ── 사주 답변 → 1분 쇼츠 영상(부록 C). 전부 관리자 즉시 조정 ──
-    "video_gen_cost": "2000",         # '영상으로 보기' 클릭 즉시 차감 P
+    "video_gen_cost": "39000",        # '영상으로 보기' 클릭 즉시 차감(VND)
     "shorts_video_seconds": "90",     # 출력 길이(품질>시간, 60~120 허용)
     "shorts_video_seconds_max": "120", # 상한
     "shorts_aspect": "9x16",          # 9x16 | 16x9
@@ -49,7 +49,7 @@ DEFAULTS: dict[str, str] = {
     "shorts_bgm": "none",             # none(무음·현행) | auto(분위기 자동매칭) | 파일명(assets/bgm/)
     "shorts_credit": "orion0321@gmail.com",  # 음원·영상 출처(메타데이터 artist/copyright)
     # ── 1:1 인적 상담(입점업체) 전역 기본값 — 상담사별 미설정 시 폴백. [[consultation-1on1-plan]] ──
-    "consultation_default_price_p": "50000",     # 회당 기본 단가(P)
+    "consultation_default_price_p": "199000",    # 회당 기본 단가(VND, 라이브 상담 시장가)
     "consultation_default_duration_min": "30",   # 기본 상담 시간(분)
     "consultation_commission_pct": "20",         # 플랫폼 수수료(%) — 정산 산출
     "consultation_tax_pct": "3.3",               # 프리랜서 원천징수(%) — 정산 산출

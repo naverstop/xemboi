@@ -241,20 +241,20 @@ class Settings(BaseSettings):
     )
     admin_seed_credits: int = 100_000
 
-    # 크레딧/과금 정책
-    signup_bonus_credits: int = 1_000
-    question_cost: int = 1_000
-    preview_reveal_cost: int = 500
+    # 크레딧/과금 정책 (베트남 시장가, 1P = 1 VND — VN 유사서비스 top5 벤치마크)
+    signup_bonus_credits: int = 20_000     # 가입 보너스 ≈ 무료 질문 1회
+    question_cost: int = 19_000            # 추가 질문 1건 (시장가 19k~29k)
+    preview_reveal_cost: int = 10_000      # 무료 미리보기 → 전체보기 차감
     preview_char_ratio: float = 0.5  # 50% 미리보기
     free_question_per_day: int = 1
     # 피드백 리워드 — 👍/👎 남기면 해당 답변 결제액의 N%를 적립(답변당 1회·일일 상한). 파밍 차단.
     feedback_reward_pct: int = 3            # 결제액 대비 리워드 비율(%)
-    feedback_reward_daily_cap: int = 3_000  # 1일 1인 리워드 적립 상한(P)
+    feedback_reward_daily_cap: int = 30_000  # 1일 1인 리워드 적립 상한(P, VND)
     # 약관/법적 페이지
     terms_version: str = "2026-06-01"
     privacy_version: str = "2026-06-01"
     refund_version: str = "2026-06-01"
-    min_age_years: int = 19
+    min_age_years: int = 18   # 베트남 성년(민법)
 
     # 답변 품질 가드 — 올해·월별 운세 기본 포함 등 충분한 분량 목표(약 1,800자 이상).
     # num_ctx 12288 + 이력 발췌로 출력 여유 확보됨(잘림 방지).
@@ -275,22 +275,21 @@ class Settings(BaseSettings):
         default="",
         validation_alias=AliasChoices("pii_aes_key_b64", "PII_AES_KEY_B64", "BIRTH_DATA_AES_KEY"),
     )
-    # 토스페이먼츠 (1P = 1원, 패키지 4종). 결제금액 = 공급가(amount) + 부가세(vat_pct%).
-    vat_pct: int = 10  # 부가가치세 % — 결제금액에 포함(예: 10,000P → 11,000원 결제)
+    # 결제 (1P = 1 VND, 패키지 4종). VN 은 표시가격 올인 → vat_pct=0 (별도 부가세 미부과).
+    vat_pct: int = 0  # VN 올인 가격
     toss_client_key: str = "test_ck_DUMMY_REPLACE_ME"
     toss_secret_key: str = "test_sk_DUMMY_REPLACE_ME"
     toss_api_base: str = "https://api.tosspayments.com"
     # mock 결제(더미키 시 가짜 승인)는 명시적으로 켤 때만 허용 — 외부 공개 인스턴스에서 무결제 크레딧
     # 발행을 원천 차단(fail-closed). 로컬 테스트 시에만 ALLOW_MOCK_PAYMENT=true.
     allow_mock_payment: bool = False
-    # JSON 배열: [{"amount":10000,"credits":10000,"label":"1만원"}, ...]
+    # 충전 패키지 (VND, 1P=1đ). VN 시장가 기준 4종.
     payment_packages: list[dict] = Field(
         default_factory=lambda: [
-            {"amount": 10_000, "credits": 10_000, "label": "1만원"},
-            {"amount": 30_000, "credits": 30_000, "label": "3만원"},
-            {"amount": 50_000, "credits": 50_000, "label": "5만원"},
-            {"amount": 100_000, "credits": 100_000, "label": "10만원"},
-            {"amount": 120_000, "credits": 120_000, "label": "연간회원(1년+1개월)", "grade": "annual"},
+            {"amount": 50_000, "credits": 50_000, "label": "50.000đ"},
+            {"amount": 100_000, "credits": 100_000, "label": "100.000đ"},
+            {"amount": 300_000, "credits": 300_000, "label": "300.000đ"},
+            {"amount": 500_000, "credits": 500_000, "label": "500.000đ"},
         ]
     )
     payment_success_url: str = "http://127.0.0.1:5173/payments/success"

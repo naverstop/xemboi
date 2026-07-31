@@ -21,12 +21,12 @@ export const ENTRY_MENU_LABEL: Record<EntryMenu, string> = {
 
 /** 메뉴별 기본 입장료(서버 DEFAULTS와 동일) — 비로그인 등 me 부재 시 표시용 폴백. */
 const ENTRY_FALLBACK: Record<EntryMenu, number> = {
-  compat: 10000,
-  taekil: 10000,
-  jakmyeong: 10000,
-  gaemyeong: 10000,
-  aho: 10000,
-  tarot: 5000,
+  compat: 99000,
+  taekil: 99000,
+  jakmyeong: 99000, // VN 제외 메뉴(안전값)
+  gaemyeong: 99000,
+  aho: 99000,
+  tarot: 49000,
 };
 
 /** 이 사용자가 실제로 낼 입장료(P). 무료 대상이면 0. 서버값 우선, 폴백은 메뉴별 기본값. */
@@ -62,8 +62,8 @@ export function confirmEntry(me: MeResp | null | undefined, menu: EntryMenu): bo
     return false;
   }
   // 추가 질문 단가는 관리자 설정값(me.credit_cost_*)을 그대로 안내 — 하드코딩 금지.
-  const basic = me.credit_cost_basic ?? 1000;
-  const deep = me.credit_cost_deep ?? 3000;
+  const basic = me.credit_cost_basic ?? 19000;
+  const deep = me.credit_cost_deep ?? 29000;
   return window.confirm(
     `${label}은(는) 입장 시 ${cost.toLocaleString()}P가 차감됩니다.\n` +
       `(추가 질문은 별도: 기본 ${basic.toLocaleString()}P · 심화 ${deep.toLocaleString()}P)\n\n계속하시겠습니까?`,
