@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import { api, DIALECTS, useMe, setCachedMe } from "../api";
 import type { SajuProfile, SajuProfileInput } from "../api";
 import { fmtNum } from "../lib/money";
+import { DEFAULT_LON } from "../lib/regions";
 import TimeSelect from "../components/TimeSelect";
 import AdvancedBirthSettings from "../components/AdvancedBirthSettings";
 
@@ -183,7 +184,7 @@ const EMPTY_PROFILE: SajuProfileInput = {
   is_leap_month: false,
   gender: "male",
   apply_true_solar_time: true,   // 메뉴 입력화면과 동일하게 진태양시 보정 기본 ON(일관성)
-  birth_longitude: 126.98,       // 서울 기본(출생지 선택 시 갱신)
+  birth_longitude: DEFAULT_LON,       // 서울 기본(출생지 선택 시 갱신)
   apply_equation_of_time: false,
   night_zi_mode: "yaja",
   is_default: false,
@@ -229,7 +230,7 @@ function SajuProfilesCard() {
       is_leap_month: p.is_leap_month,
       gender: p.gender,
       apply_true_solar_time: p.apply_true_solar_time,
-      birth_longitude: p.birth_longitude ?? 126.98,
+      birth_longitude: p.birth_longitude ?? DEFAULT_LON,
       apply_equation_of_time: p.apply_equation_of_time ?? false,
       night_zi_mode: p.night_zi_mode ?? "yaja",
       is_default: p.is_default,

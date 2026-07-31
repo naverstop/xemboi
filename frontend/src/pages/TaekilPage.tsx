@@ -7,6 +7,7 @@ import ExplainChat from "../components/ExplainChat";
 import BirthFields, { profileToBirthValue, type BirthValue } from "../components/BirthFields";
 import { useTranslation, Trans } from "react-i18next";
 import { fmtNum } from "../lib/money";
+import { DEFAULT_LON } from "../lib/regions";
 import i18n from "../i18n";
 
 const PURPOSES = Object.keys(PURPOSE_LABELS) as TaekilPurpose[];
@@ -36,8 +37,8 @@ const PURPOSE_DESC: Record<TaekilPurpose, string> = {
 
 export default function TaekilPage() {
   const { t: tr } = useTranslation();
-  const [b, setB] = useState<BirthValue>({ birth_date: "", birth_time: "", unknown_time: false, gender: "male", calendar: "solar", is_leap_month: false , apply_true_solar_time: true, birth_longitude: 126.98 });
-  const [b2, setB2] = useState<BirthValue>({ birth_date: "", birth_time: "", unknown_time: false, gender: "female", calendar: "solar", is_leap_month: false, apply_true_solar_time: true, birth_longitude: 126.98 });
+  const [b, setB] = useState<BirthValue>({ birth_date: "", birth_time: "", unknown_time: false, gender: "male", calendar: "solar", is_leap_month: false , apply_true_solar_time: true, birth_longitude: DEFAULT_LON });
+  const [b2, setB2] = useState<BirthValue>({ birth_date: "", birth_time: "", unknown_time: false, gender: "female", calendar: "solar", is_leap_month: false, apply_true_solar_time: true, birth_longitude: DEFAULT_LON });
   const [purpose, setPurpose] = useState<TaekilPurpose>("wedding");
   const [startDate, setStartDate] = useState("");
   const [days, setDays] = useState(60);

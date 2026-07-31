@@ -11,6 +11,7 @@ import { settingsKo, settingsVi } from "./locales/settings";
 import { supportKo, supportVi } from "./locales/support";
 import { taekilKo, taekilVi } from "./locales/taekil";
 import { tarotKo, tarotVi } from "./locales/tarot";
+import { advKo, advVi } from "./locales/adv";
 
 export const SUPPORTED = ["ko", "vi"] as const;
 export type Locale = (typeof SUPPORTED)[number];
@@ -135,6 +136,7 @@ const resources = {
       support: supportKo,
       taekil: taekilKo,
       tarot: tarotKo,
+      adv: advKo,
     },
   },
   vi: {
@@ -247,6 +249,7 @@ const resources = {
       support: supportVi,
       taekil: taekilVi,
       tarot: tarotVi,
+      adv: advVi,
     },
   },
 };

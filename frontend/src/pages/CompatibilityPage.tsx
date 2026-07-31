@@ -22,6 +22,7 @@ import ConsultationReportButton, { type ReportReq } from "../components/Consulta
 import { renderRich, stripMarkdown } from "../lib/format";
 import { useTranslation, Trans } from "react-i18next";
 import { fmtNum } from "../lib/money";
+import { DEFAULT_LON } from "../lib/regions";
 import i18n from "../i18n";
 
 // 상담서 PDF 본문 상단 요약 — 종합 등급 + 관법별 점수
@@ -121,7 +122,7 @@ const blankPerson = (label: string): PState => ({
   gender: "male",
   is_leap_month: false,
   apply_true_solar_time: true,
-  birth_longitude: 126.98,
+  birth_longitude: DEFAULT_LON,
   apply_equation_of_time: false,
   night_zi_mode: "yaja",
 });

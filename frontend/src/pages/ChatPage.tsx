@@ -21,6 +21,7 @@ import { renderRich, stripMarkdown } from "../lib/format";
 import { resolveBirthTime, DEFAULT_BIRTH_TIME } from "../lib/birthTime";
 import { useCharge } from "../components/ChargeModal";
 import { fmtNum } from "../lib/money";
+import { DEFAULT_LON } from "../lib/regions";
 
 // 철학관 상호(항목 D) — 운영 설정값 연동은 P3, 우선 환경값으로 표시.
 const STUDIO_NAME = (import.meta.env.VITE_STUDIO_NAME as string | undefined) || "";
@@ -70,7 +71,7 @@ export default function ChatPage() {
     gender: "male",
     is_leap_month: false,
     apply_true_solar_time: true,
-    birth_longitude: 126.98,
+    birth_longitude: DEFAULT_LON,
     night_zi_mode: "yaja",
   });
   const [dateText, setDateText] = useState("1990-03-15");  // 생년월일 직접 입력 텍스트
