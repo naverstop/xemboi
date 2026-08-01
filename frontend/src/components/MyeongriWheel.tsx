@@ -50,7 +50,8 @@ function pos(i: number, n: number, r: number) {
 }
 
 export default function MyeongriWheel() {
-  const { t: tr } = useTranslation();
+  const { t: tr, i18n } = useTranslation();
+  const vi = i18n.language.startsWith("vi");
   const stemR = tr("chart.stem", { returnObjects: true }) as StrMap;
   const branchR = tr("chart.branch", { returnObjects: true }) as StrMap;
   const wuxingR = tr("chart.wuxing", { returnObjects: true }) as StrMap;
@@ -87,10 +88,10 @@ export default function MyeongriWheel() {
          role="group" aria-label={tr("chart.mw_aria")}>
       <div className="mw-tabs">
         <button type="button" className={tab === "gan" ? "on" : ""} onClick={() => switchTab("gan")}>
-          {tr("chart.mw_tab_gan")} <span className="mw-tab-hj">十干</span>
+          {tr("chart.mw_tab_gan")} <span className="mw-tab-hj">{vi ? "" : "十干"}</span>
         </button>
         <button type="button" className={tab === "ji" ? "on" : ""} onClick={() => switchTab("ji")}>
-          {tr("chart.mw_tab_ji")} <span className="mw-tab-hj">十二支</span>
+          {tr("chart.mw_tab_ji")} <span className="mw-tab-hj">{vi ? "" : "十二支"}</span>
         </button>
       </div>
 
@@ -102,8 +103,8 @@ export default function MyeongriWheel() {
                       className={`mw-item mw-stem ${i === sel ? "sel" : ""}`}
                       style={{ ...pos(i, STEMS.length, 40), "--el": EL_COLOR[s.el] } as React.CSSProperties}
                       aria-label={`${stemR[s.hanja]}(${s.hanja}) — ${descR[s.hanja]}`}>
-                <span className="mw-hj">{s.hanja}</span>
-                <span className="mw-ko">{stemR[s.hanja]}</span>
+                <span className="mw-hj">{vi ? stemR[s.hanja] : s.hanja}</span>
+                <span className="mw-ko">{vi ? "" : stemR[s.hanja]}</span>
               </button>
             ))
           : BRANCHES.map((b, i) => (
@@ -112,7 +113,7 @@ export default function MyeongriWheel() {
                       style={{ ...pos(i, BRANCHES.length, 41), "--el": EL_COLOR[b.el] } as React.CSSProperties}
                       aria-label={`${branchR[b.hanja]}(${b.hanja}) — ${zodiacR[b.hanja]}, ${timeR[b.hanja]}`}>
                 <img src={imgR[b.hanja]} alt="" loading="lazy" width={44} height={44} />
-                <span className="mw-bj">{b.hanja}<em>{branchR[b.hanja]}</em></span>
+                <span className="mw-bj">{vi ? "" : b.hanja}<em>{branchR[b.hanja]}</em></span>
               </button>
             ))}
 
@@ -120,16 +121,16 @@ export default function MyeongriWheel() {
         <div className="mw-hub" style={{ "--el": color } as React.CSSProperties}>
           {tab === "gan" ? (
             <>
-              <span className="mw-hub-hj">{st.hanja}</span>
-              <span className="mw-hub-name">{stemR[st.hanja]} · {tr("chart.mw_hub_stem_name", { yy: yyR[st.yy], el: wuxingR[st.el] })}({st.el})</span>
+              <span className="mw-hub-hj">{vi ? stemR[st.hanja] : st.hanja}</span>
+              <span className="mw-hub-name">{stemR[st.hanja]} · {tr("chart.mw_hub_stem_name", { yy: yyR[st.yy], el: wuxingR[st.el] })}{vi ? "" : `(${st.el})`}</span>
               <span className="mw-hub-desc">{descR[st.hanja]}</span>
             </>
           ) : (
             <>
               <img className="mw-hub-av" src={imgR[br.hanja]} alt="" width={52} height={52} />
-              <span className="mw-hub-name">{br.hanja} {branchR[br.hanja]} · {tr("chart.mw_hub_zodiac", { animal: zodiacR[br.hanja] })}</span>
+              <span className="mw-hub-name">{vi ? "" : `${br.hanja} `}{branchR[br.hanja]} · {tr("chart.mw_hub_zodiac", { animal: zodiacR[br.hanja] })}</span>
               <span className="mw-hub-desc">{timeR[br.hanja]} · {seasonR[br.hanja]} · {dirR[br.hanja]}</span>
-              <span className="mw-hub-el">{wuxingR[br.el]}({br.el})</span>
+              <span className="mw-hub-el">{wuxingR[br.el]}{vi ? "" : `(${br.el})`}</span>
             </>
           )}
         </div>

@@ -4,6 +4,8 @@
  * TermsGate/DisclaimerGate 의 약관 체크리스트 라벨은 auth.* 기존 키를 재사용(여기엔 없음).
  */
 export const miscKo = {
+  ad_label: "광고",
+  biz_unset: "(운영자 설정 전)",
   // 공용(동의 게이트)
   processing: "처리 중…",
   agree_start: "동의하고 시작하기",
@@ -77,6 +79,8 @@ export const miscKo = {
 };
 
 export const miscVi: typeof miscKo = {
+  ad_label: "Quảng cáo",
+  biz_unset: "(chưa cấu hình)",
   processing: "Đang xử lý…",
   agree_start: "Đồng ý và bắt đầu",
   gate_fail: "Xử lý đồng ý thất bại. Vui lòng thử lại.",

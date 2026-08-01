@@ -1,8 +1,8 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="180" viewBox="0 0 1200 180" role="img" aria-label="인생상담 친구">
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="180" viewBox="0 0 1200 180" role="img" aria-label="Xem Bói">
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#22b8f0"/>
-      <stop offset="1" stop-color="#0496d8"/>
+      <stop offset="0" stop-color="#1fbfa8"/>
+      <stop offset="1" stop-color="#0d9488"/>
     </linearGradient>
     <linearGradient id="glow" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0" stop-color="#ffffff" stop-opacity="0.25"/>
@@ -22,14 +22,13 @@
     <circle cx="1150" cy="56" r="2"/>
   </g>
   <!-- 가운데 정렬: 말풍선 아이콘 + 제목 + 부제 -->
-  <!-- 아이콘(제목 좌측) -->
-  <g transform="translate(372,46)">
+  <g transform="translate(430,46)">
     <rect x="0" y="0" width="72" height="54" rx="13" fill="#ffffff"/>
     <path d="M16 54 L16 70 L37 54 Z" fill="#ffffff"/>
-    <circle cx="22" cy="27" r="5.5" fill="#0496d8"/>
-    <circle cx="38" cy="27" r="5.5" fill="#22b8f0"/>
-    <circle cx="54" cy="27" r="5.5" fill="#0277b6"/>
+    <circle cx="22" cy="27" r="5.5" fill="#0d9488"/>
+    <circle cx="38" cy="27" r="5.5" fill="#1fbfa8"/>
+    <circle cx="54" cy="27" r="5.5" fill="#0b7d73"/>
   </g>
-  <text x="468" y="86" font-family="'Malgun Gothic','Segoe UI',sans-serif" font-size="46" font-weight="800" fill="#ffffff">인생상담 친구</text>
-  <text x="600" y="132" text-anchor="middle" font-family="'Malgun Gothic','Segoe UI',sans-serif" font-size="22" font-weight="500" fill="#eafaff">사주로 풀어보는 나의 길 · 언제든 편하게 물어보세요</text>
+  <text x="524" y="86" font-family="'Be Vietnam Pro','Segoe UI',sans-serif" font-size="46" font-weight="800" fill="#ffffff">Xem Bói</text>
+  <text x="600" y="132" text-anchor="middle" font-family="'Be Vietnam Pro','Segoe UI',sans-serif" font-size="22" font-weight="500" fill="#eafaff">Luận giải Tứ Trụ bằng AI · Hỏi bất cứ lúc nào</text>
 </svg>

@@ -89,7 +89,7 @@ export default function TaekilPage() {
   return (
     <div className="compat-page">
       <header className="compat-hero">
-        <div className="compat-hero-badge">擇日</div>
+        <div className="compat-hero-badge">{tr("taekil.hero_badge")}</div>
         <h1>{tr("taekil.hero_title")}</h1>
         <p><Trans i18nKey="taekil.hero_desc" components={{ b: <b /> }} /></p>
       </header>

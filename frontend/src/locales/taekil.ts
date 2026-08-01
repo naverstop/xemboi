@@ -5,6 +5,7 @@
 export const taekilKo = {
   // 히어로
   hero_title: "택일",
+  hero_badge: "擇日",
   hero_desc: "황도흑도·건제십이신·이십팔수·생기복덕·사주 조화·손없는날을 <b>용도별 비중</b>으로 가중해 가립니다. 관법은 정답이 없어 <b>세 관점</b>의 추천 1위도 함께 보여드려요.",
   // 용도 선택
   label_purpose: "용도",
@@ -67,6 +68,7 @@ export const taekilKo = {
 export const taekilVi: typeof taekilKo = {
   // 히어로
   hero_title: "Chọn ngày tốt",
+  hero_badge: "📅",
   hero_desc: "Chúng tôi cân nhắc hoàng đạo/hắc đạo · Kiến trừ thập nhị thần · Nhị thập bát tú · Sinh khí phúc đức · sự hòa hợp Tứ Trụ · ngày không sát chủ theo <b>trọng số từng mục đích</b> để chọn ngày. Mệnh lý không có đáp án tuyệt đối nên chúng tôi cũng cho bạn xem đề xuất số 1 theo <b>ba góc nhìn</b>.",
   // 용도 선택
   label_purpose: "Mục đích",
@@ -102,7 +104,7 @@ export const taekilVi: typeof taekilKo = {
   saenggi_title: "Sinh khí phúc đức (theo bản mệnh quái)",
   sonless: "Ngày không sát chủ",
   score_grade: "{{score}} điểm · {{grade}}",
-  best_hours_title: "Giờ (時) hợp giữa con và cha mẹ",
+  best_hours_title: "Giờ hợp giữa con và cha mẹ",
   persp_title: "Đề xuất số 1 theo trường phái",
   persp_sub: "(không tuyệt đối — ba góc nhìn)",
   persp_meta: "{{ganzhi}} · {{score}} điểm",

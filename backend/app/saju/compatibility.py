@@ -186,22 +186,22 @@ def _score_day_stem(a: str, b: str, locale: Locale = "ko") -> Factor:
     if pair in STEM_COMBINATIONS:
         elem = wuxing_reading(STEM_COMBINATIONS[pair], locale)
         score = 90
-        detail = (f"Thiên can ngày {a}({sa})·{b}({sb}) hợp can → khí {elem}. Sức hút ban đầu·kết hợp lý tưởng"
+        detail = (f"Thiên can ngày {sa}·{sb} hợp can → khí {elem}. Sức hút ban đầu·kết hợp lý tưởng"
                   if vi else f"일간 {a}({sa})·{b}({sb}) 천간합 → {elem} 기운. 첫 끌림·이상적 결합")
         items.append(FactorItem(type=_typ("천간합", locale), sign=1, detail=detail))
     elif pair in STEM_CONFLICTS:
         score = 30
-        detail = (f"Thiên can ngày {a}({sa})·{b}({sb}) xung can → lưu ý xung đột quan niệm sống"
+        detail = (f"Thiên can ngày {sa}·{sb} xung can → lưu ý xung đột quan niệm sống"
                   if vi else f"일간 {a}({sa})·{b}({sb}) 천간충 → 가치관 충돌 주의")
         items.append(FactorItem(type=_typ("천간충", locale), sign=-1, detail=detail))
     elif a == b:
         score = 58
-        detail = (f"Thiên can ngày giống nhau ({a}{sa}) → đồng điệu, nhưng có thể cạnh tranh"
+        detail = (f"Thiên can ngày giống nhau ({sa}) → đồng điệu, nhưng có thể cạnh tranh"
                   if vi else f"일간이 같음({a}{sa}) → 동질감, 단 경쟁 가능")
         items.append(FactorItem(type=_typ("비화", locale), detail=detail))
     else:
         score = 60
-        detail = (f"Thiên can ngày {a}({sa})·{b}({sb}) không có hợp xung đặc biệt"
+        detail = (f"Thiên can ngày {sa}·{sb} không có hợp xung đặc biệt"
                   if vi else f"일간 {a}({sa})·{b}({sb}) 특별한 합충 없음")
         items.append(FactorItem(type=_typ("무관계", locale), detail=detail))
     return Factor(key="day_stem", label=_FACTOR_LABEL_L[locale]["day_stem"], score=score, items=items)
@@ -217,28 +217,28 @@ def _score_day_branch(a: str, b: str, locale: Locale = "ko") -> Factor:
     if pair in BRANCH_SIX_COMBINATIONS:
         elem = wuxing_reading(BRANCH_SIX_COMBINATIONS[pair], locale)
         score = 92
-        detail = (f"Địa chi ngày {a}({ba})·{b}({bb}) lục hợp → {elem}. Tương hợp đời sống vợ chồng cao nhất"
+        detail = (f"Địa chi ngày {ba}·{bb} lục hợp → {elem}. Tương hợp đời sống vợ chồng cao nhất"
                   if vi else f"일지 {a}({ba})·{b}({bb}) 육합 → {elem}. 부부 생활 호환 최상")
         items.append(FactorItem(type=_typ("지지육합", locale), sign=1, detail=detail))
     elif half_trine is not None:
         elem = wuxing_reading(BRANCH_TRIPLE_COMBINATIONS[half_trine], locale)
         score = 78
-        detail = (f"Địa chi ngày {a}({ba})·{b}({bb}) một phần tam hợp → {elem}. Hợp tác tốt (với vợ chồng chỉ sau lục hợp)"
+        detail = (f"Địa chi ngày {ba}·{bb} một phần tam hợp → {elem}. Hợp tác tốt (với vợ chồng chỉ sau lục hợp)"
                   if vi else f"일지 {a}({ba})·{b}({bb}) 삼합 일부 → {elem}. 협력 좋음(부부엔 육합 다음)")
         items.append(FactorItem(type=_typ("지지반합(삼합)", locale), sign=1, detail=detail))
     elif pair in BRANCH_CONFLICTS:
         score = 28
-        detail = (f"Địa chi ngày {a}({ba})·{b}({bb}) xung → xung khắc cung phối ngẫu, lưu ý biến động·mâu thuẫn"
+        detail = (f"Địa chi ngày {ba}·{bb} xung → xung khắc cung phối ngẫu, lưu ý biến động·mâu thuẫn"
                   if vi else f"일지 {a}({ba})·{b}({bb}) 충 → 배우자궁 충돌, 변동·갈등 주의")
         items.append(FactorItem(type=_typ("지지충", locale), sign=-1, detail=detail))
     elif a == b:
         score = 60
-        detail = (f"Địa chi ngày giống nhau ({a}{ba}) → quan niệm sống tương đồng"
+        detail = (f"Địa chi ngày giống nhau ({ba}) → quan niệm sống tương đồng"
                   if vi else f"일지가 같음({a}{ba}) → 가치관 유사")
         items.append(FactorItem(type=_typ("동지", locale), detail=detail))
     else:
         score = 60
-        detail = (f"Địa chi ngày {a}({ba})·{b}({bb}) không có hợp xung đặc biệt"
+        detail = (f"Địa chi ngày {ba}·{bb} không có hợp xung đặc biệt"
                   if vi else f"일지 {a}({ba})·{b}({bb}) 특별한 합충 없음")
         items.append(FactorItem(type=_typ("무관계", locale), detail=detail))
     return Factor(key="day_branch", label=_FACTOR_LABEL_L[locale]["day_branch"], score=score, items=items)
@@ -333,11 +333,11 @@ def _score_sinsal(a: str, b: str, locale: Locale = "ko") -> tuple[Factor, list[P
         score -= 12
         tl, desc = _typ(typ, locale), desc_map[typ]
         if vi:
-            idet = f"Địa chi ngày {a}({ba})·{b}({bb}) {tl} → {desc}"
+            idet = f"Địa chi ngày {ba}·{bb} {tl} → {desc}"
         else:
             idet = f"일지 {a}({ba})·{b}({bb}) {tl} → {desc}"
         items.append(FactorItem(type=tl, sign=-1, detail=idet))
-        penalties.append(Penalty(type=tl, detail=f"{a}({ba})·{b}({bb}) {tl}: {desc}"))
+        penalties.append(Penalty(type=tl, detail=f"{ba}·{bb} {tl}: {desc}"))
 
     # --- 가점(길/인연) ---
     if _has_amhap(a, b):
@@ -408,12 +408,12 @@ def compute_compatibility(
     # 일지 충도 주의 배지에 추가
     if frozenset({a_br, b_br}) in BRANCH_CONFLICTS:
         ra, rb = branch_reading(a_br, locale), branch_reading(b_br, locale)
-        det = (f"{a_br}({ra})·{b_br}({rb}) xung: xung khắc cung phối ngẫu"
+        det = (f"{ra}·{rb} xung: xung khắc cung phối ngẫu"
                if vi else f"{a_br}({ra})·{b_br}({rb}) 충: 배우자궁 충돌")
         penalties.insert(0, Penalty(type=_typ("일지충", locale), detail=det))
     if frozenset({a_stem, b_stem}) in STEM_CONFLICTS:
         ra, rb = stem_reading(a_stem, locale), stem_reading(b_stem, locale)
-        det = (f"{a_stem}({ra})·{b_stem}({rb}) xung: xung đột quan niệm sống"
+        det = (f"{ra}·{rb} xung: xung đột quan niệm sống"
                if vi else f"{a_stem}({ra})·{b_stem}({rb}) 충: 가치관 충돌")
         penalties.insert(0, Penalty(type=_typ("일간충", locale), detail=det))
 

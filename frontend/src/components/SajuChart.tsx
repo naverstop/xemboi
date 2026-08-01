@@ -80,7 +80,8 @@ function PillarCell({ label, pillar, stemGod, branchGod, hidden, lifeStage, sins
   stemGod?: string; branchGod?: string; hidden?: string[];
   lifeStage?: string; sinsal?: string;
 }) {
-  const { t: tr } = useTranslation();
+  const { t: tr, i18n } = useTranslation();
+  const vi = i18n.language.startsWith("vi");
   const stemR = tr("chart.stem", { returnObjects: true }) as StrMap;
   const branchR = tr("chart.branch", { returnObjects: true }) as StrMap;
   const lifeR = tr("chart.life", { returnObjects: true }) as StrMap;
@@ -106,15 +107,15 @@ function PillarCell({ label, pillar, stemGod, branchGod, hidden, lifeStage, sins
       <div className="pillar-label">{label}</div>
       <div className="pillar-god top">{stemGod || ""}</div>
       <div className="pillar-stem" style={{ background: WX_COLOR[sWx], color: WX_TEXT[sWx], border: WX_BORDER[sWx] }}>
-        <div className="ch">{pillar.stem}</div>
-        <div className="ko">{stemR[pillar.stem]}</div>
+        <div className="ch">{vi ? (stemR[pillar.stem] || pillar.stem) : pillar.stem}</div>
+        <div className="ko">{vi ? "" : stemR[pillar.stem]}</div>
       </div>
       <div className="pillar-branch" style={{ background: WX_COLOR[bWx], color: WX_TEXT[bWx], border: WX_BORDER[bWx] }}>
-        <div className="ch">{pillar.branch}</div>
-        <div className="ko">{branchR[pillar.branch]}</div>
+        <div className="ch">{vi ? (branchR[pillar.branch] || pillar.branch) : pillar.branch}</div>
+        <div className="ko">{vi ? "" : branchR[pillar.branch]}</div>
       </div>
       <div className="pillar-god bot">{branchGod || ""}</div>
-      <div className="pillar-hidden">{(hidden || []).join(" ")}</div>
+      <div className="pillar-hidden">{(hidden || []).map((s) => (vi ? (stemR[s] || s) : s)).join(" ")}</div>
       <div className="pillar-extra" title={tr("chart.life_tip")}>{lifeStage ? (lifeR[lifeStage] || lifeStage) : ""}</div>
       <div className="pillar-extra sinsal" title={tr("chart.sinsal_tip")}>{sinsal ? (sinsalR[sinsal] || sinsal) : ""}</div>
     </div>
@@ -122,8 +123,10 @@ function PillarCell({ label, pillar, stemGod, branchGod, hidden, lifeStage, sins
 }
 
 export default function SajuChart({ chart }: { chart: Chart }) {
-  const { t: tr } = useTranslation();
+  const { t: tr, i18n } = useTranslation();
+  const vi = i18n.language.startsWith("vi");
   const stemR = tr("chart.stem", { returnObjects: true }) as StrMap;
+  const branchR = tr("chart.branch", { returnObjects: true }) as StrMap;
   const wuxingR = tr("chart.wuxing", { returnObjects: true }) as StrMap;
   const tengodR = tr("chart.tengod", { returnObjects: true }) as StrMap;
   const napeumR = tr("chart.napeum", { returnObjects: true }) as StrMap;
@@ -174,10 +177,10 @@ export default function SajuChart({ chart }: { chart: Chart }) {
         </div>
       )}
       {chart.saryeong && (
-        <div className="chart-gongmang">{tr("chart.saryeong_label")} <b>{chart.saryeong}({stemR[chart.saryeong] || ""})</b></div>
+        <div className="chart-gongmang">{tr("chart.saryeong_label")} <b>{vi ? (stemR[chart.saryeong] || chart.saryeong) : `${chart.saryeong}(${stemR[chart.saryeong] || ""})`}</b></div>
       )}
       {chart.gongmang && chart.gongmang.length > 0 && (
-        <div className="chart-gongmang">{tr("chart.gongmang_label")} <b>{chart.gongmang.join("·")}</b></div>
+        <div className="chart-gongmang">{tr("chart.gongmang_label")} <b>{chart.gongmang.map((c) => (vi ? (branchR[c] || c) : c)).join("·")}</b></div>
       )}
 
       <div className="wx-bars">
@@ -193,7 +196,7 @@ export default function SajuChart({ chart }: { chart: Chart }) {
       </div>
 
       <div className="day-master-info">
-        {tr("chart.day_master_label")} <strong>{chart.pillars.day.stem}({stemR[chart.pillars.day.stem]})</strong> ·
+        {tr("chart.day_master_label")} <strong>{vi ? stemR[chart.pillars.day.stem] : `${chart.pillars.day.stem}(${stemR[chart.pillars.day.stem]})`}</strong> ·
         {tr("chart.wuxing_label")} <span style={{ color: WX_COLOR[dmEl] }}>{wuxingR[dmEl]}</span> ·
         {tr("chart.strength_label")} <strong>{strengthR[chart.day_master_strength] || chart.day_master_strength}</strong>
       </div>
@@ -205,10 +208,10 @@ export default function SajuChart({ chart }: { chart: Chart }) {
           <div className="chart-yongsin" title={ys.note}>
             {tr("chart.yongsin_label")}
             <b className="ys-chip" style={{ background: WX_COLOR[pWx], color: WX_TEXT[pWx], border: WX_BORDER[pWx] }}>
-              {ys.primary}({stemR[ys.primary] || ""})
+              {vi ? (stemR[ys.primary] || ys.primary) : `${ys.primary}(${stemR[ys.primary] || ""})`}
             </b>
             {ys.supporting.length > 0 && (
-              <span className="ys-sup">{tr("chart.yongsin_support")} {ys.supporting.map((s) => `${s}(${stemR[s] || ""})`).join("·")}</span>
+              <span className="ys-sup">{tr("chart.yongsin_support")} {ys.supporting.map((s) => (vi ? (stemR[s] || s) : `${s}(${stemR[s] || ""})`)).join("·")}</span>
             )}
             {ys.is_climate_priority && <span className="ys-badge">{tr("chart.yongsin_climate")}</span>}
           </div>
@@ -230,8 +233,8 @@ export default function SajuChart({ chart }: { chart: Chart }) {
               return (
                 <div key={d.start_age} className="dw-cell">
                   <div className="dw-age">{d.start_age}</div>
-                  <div className="dw-stem" style={{ background: WX_COLOR[sWx], color: WX_TEXT[sWx], border: WX_BORDER[sWx] }}>{d.pillar.stem}</div>
-                  <div className="dw-branch" style={{ background: WX_COLOR[bWx], color: WX_TEXT[bWx], border: WX_BORDER[bWx] }}>{d.pillar.branch}</div>
+                  <div className="dw-stem" style={{ background: WX_COLOR[sWx], color: WX_TEXT[sWx], border: WX_BORDER[sWx] }}>{vi ? (stemR[d.pillar.stem] || d.pillar.stem) : d.pillar.stem}</div>
+                  <div className="dw-branch" style={{ background: WX_COLOR[bWx], color: WX_TEXT[bWx], border: WX_BORDER[bWx] }}>{vi ? (branchR[d.pillar.branch] || d.pillar.branch) : d.pillar.branch}</div>
                 </div>
               );
             })}

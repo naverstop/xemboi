@@ -223,7 +223,7 @@ _WARN_VI: dict[str, str] = {"일지충": "Xung địa chi ngày", "원진": "Oá
 
 def _geonje_badge(ch: str, locale: Locale) -> str:
     """건제신 배지 문자열 '성(成)' / 'Thành(成)'."""
-    return f"{_GEONJE_VI[ch]}({ch})" if locale == "vi" else f"{_GEONJE_KO[ch]}({ch})"
+    return _GEONJE_VI[ch] if locale == "vi" else f"{_GEONJE_KO[ch]}({ch})"
 
 
 def _fmt_hwangdo(shin_ko: str, hb: str, locale: Locale) -> str:
@@ -407,7 +407,7 @@ def _score_day(d: date, parent_chart: SajuChart, purpose: str, bonmyeong: str = 
     grade = _GRADE_LABEL[locale][grade_key]
 
     sr, br = stem_reading(ds, locale), branch_reading(db, locale)
-    ganzhi = f"{sr} {br}({ds}{db})" if vi else f"{sr}{br}({ds}{db})"
+    ganzhi = f"{sr} {br}" if vi else f"{sr}{br}({ds}{db})"
 
     return DayScore(
         date=d.isoformat(),
@@ -418,7 +418,7 @@ def _score_day(d: date, parent_chart: SajuChart, purpose: str, bonmyeong: str = 
         factors=factors,
         geonje=_geonje_badge(gj_ch, locale),
         geonje_note=gj_note,
-        su28=f"{su_read}({su_ch})",
+        su28=su_read if vi else f"{su_read}({su_ch})",
         su28_note=su_note,
         saenggi=sb_label,
         saenggi_gil=sb_key,
@@ -476,7 +476,7 @@ def recommend_dates(
     return TaekilResult(
         purpose=purpose,
         purpose_label=_PURPOSE_LABEL[locale][purpose],
-        user_day_branch=f"{branch_reading(ub, locale)}({ub})",
+        user_day_branch=(branch_reading(ub, locale) if locale == "vi" else f"{branch_reading(ub, locale)}({ub})"),
         best=best,
         avoid=avoid,
         perspectives=persp,

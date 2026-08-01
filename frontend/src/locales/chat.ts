@@ -39,6 +39,7 @@ export const chatKo = {
   ba_paid: "✓ 크레딧 {{cost}}P 차감됨",
   ba_anon: "비로그인 미리보기(50%)",
   hero_title: "사주상담",
+  hero_badge: "四柱",
   hero_desc:
     "중국·일본·한국의 명리 고서(古書)를 토대로, 한국 전통 관법에 맞춰 풀어내는 정통 AI 사주 상담입니다.",
   trust_aria: "사주 분석 방식",
@@ -187,6 +188,7 @@ export const chatVi: typeof chatKo = {
   ba_paid: "✓ Đã trừ {{cost}} điểm",
   ba_anon: "Xem trước chưa đăng nhập (50%)",
   hero_title: "Xem Tứ Trụ",
+  hero_badge: "🔮",
   hero_desc:
     "Luận giải Tứ Trụ (Bát Tự) bằng AI dựa trên cổ thư mệnh lý Trung·Nhật·Hàn, theo phép luận chuẩn mực.",
   trust_aria: "Cách phân tích Tứ Trụ",

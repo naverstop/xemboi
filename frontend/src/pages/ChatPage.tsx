@@ -722,7 +722,7 @@ export default function ChatPage() {
         {!sid && (
           <>
             <header className="compat-hero saju-hero">
-              <div className="compat-hero-badge">四柱</div>
+              <div className="compat-hero-badge">{tr("chat.hero_badge")}</div>
               <h1>{tr("chat.hero_title")}</h1>
               <p>{tr("chat.hero_desc")}</p>
             </header>

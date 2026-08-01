@@ -424,7 +424,7 @@ export default function CompatibilityPage() {
   return (
     <div className="compat-page">
       <header className="compat-hero">
-        <div className="compat-hero-badge">宮合</div>
+        <div className="compat-hero-badge">{tr("compat.hero_badge")}</div>
         <h1>{tr("compat.hero_title")}</h1>
         <p><Trans i18nKey="compat.hero_desc" components={{ b: <b /> }} /></p>
       </header>
