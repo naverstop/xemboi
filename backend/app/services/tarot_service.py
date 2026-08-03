@@ -120,6 +120,19 @@ TAROT_GENERATE_SYSTEM = (
     "4. 마크다운 없이 자연스러운 줄글 문단으로만, 최종 본문만 출력하세요.\n"
 )
 
+# 베트남어(vi) 폴백 생성 프롬프트 — ko TAROT_GENERATE_SYSTEM 대응(로컬 엔진 전체 다운 시 vi 본문 생성).
+TAROT_GENERATE_SYSTEM_VI = (
+    "Bạn là một nhà tư vấn Tarot tiếng Việt. Hãy luận giải dựa trên [trải bài] đã cho "
+    "(câu hỏi·chủ đề·lá theo vị trí·chiều·từ khoá).\n"
+    "Nguyên tắc:\n"
+    "1. Chỉ dùng đúng tên lá·chiều·vị trí đã cho, không bịa ra lá·chiều·vị trí mới.\n"
+    "2. Theo thứ tự: giải từng vị trí → tương tác giữa các lá → tổng hợp → lời khuyên cụ thể.\n"
+    "3. Tránh phán hung/cát tuyệt đối; tập trung vào khả năng và lời khuyên hành động. "
+    "Không dùng \"chắc chắn\", \"100%\".\n"
+    "4. Viết thành các đoạn văn tự nhiên (không markdown), chỉ xuất phần luận giải. "
+    "Chỉ dùng tiếng Việt có dấu; TUYỆT ĐỐI không dùng chữ Hán / tiếng Trung.\n"
+)
+
 
 # ============================================================
 # 드로우(CSPRNG) — 서버 확정, 비공개 저장
@@ -229,7 +242,7 @@ def create_tarot(
         "tarot_id": tarot_id,
         "spread_type": spread_type,
         "need": len(positions),
-        "positions": positions,
+        "positions": tarot_deck.localized_positions(spread_type, locale),
         "section": section,
         "question": question,
         "is_preview": is_preview,
@@ -268,8 +281,12 @@ def submit_picks(
 
     order = row.deck_order_json or []
     flags = row.reversed_json or []
+    positions_vi = tarot_deck.SPREAD_POSITIONS_VI.get(row.spread_type, [])
     cards = [
-        tarot_deck.card_payload(k, positions[k], order[idx], bool(flags[idx]))
+        tarot_deck.card_payload(
+            k, positions[k], order[idx], bool(flags[idx]),
+            position_name_vi=(positions_vi[k] if k < len(positions_vi) else ""),
+        )
         for k, idx in enumerate(indices)
     ]
     row.picks_json = list(indices)
@@ -288,6 +305,7 @@ def get_tarot(db: Session, tarot_id: str, user: User | None) -> dict[str, Any] |
     if row.user_id is not None and (user is None or user.id != row.user_id):
         raise PermissionError("not your tarot session")
     positions = tarot_deck.SPREAD_POSITIONS[row.spread_type]
+    resp_positions = tarot_deck.localized_positions(row.spread_type, getattr(row, "locale", "ko"))
     messages = []
     for m in row.messages:
         content = m.content
@@ -308,7 +326,7 @@ def get_tarot(db: Session, tarot_id: str, user: User | None) -> dict[str, Any] |
         "question": row.question,
         "spread_type": row.spread_type,
         "need": len(positions),
-        "positions": positions,
+        "positions": resp_positions,
         "cards": row.cards_json,   # 뽑기 전이면 None
         "messages": messages,
         "is_preview": row.is_preview,
@@ -380,12 +398,18 @@ def _tarot_claude_refine(*, question: str, draft: str, spread: str, dialect_inst
     return _tarot_claude_call(TAROT_REFINE_SYSTEM, "\n\n".join(parts))
 
 
-def _tarot_generate_fallback(*, question: str, spread: str, dialect_instruction: str | None) -> str | None:
-    """로컬 엔진 전체 다운 시 외부(Claude)로 본문 생성 폴백 — external_fallback_answer 미러."""
-    parts = [spread, f"[사용자 질문]\n{question}"]
-    if dialect_instruction:
+def _tarot_generate_fallback(
+    *, question: str, spread: str, dialect_instruction: str | None, locale: str = "ko"
+) -> str | None:
+    """로컬 엔진 전체 다운 시 외부(Claude)로 본문 생성 폴백 — external_fallback_answer 미러.
+
+    vi 로케일이면 vi 프롬프트/질문 라벨을 쓰고, ko 방언 지시는 주입하지 않는다(언어 충돌 방지)."""
+    q_label = "[Câu hỏi]" if locale == "vi" else "[사용자 질문]"
+    parts = [spread, f"{q_label}\n{question}"]
+    if dialect_instruction and locale != "vi":
         parts.append(dialect_instruction)
-    return _tarot_claude_call(TAROT_GENERATE_SYSTEM, "\n\n".join(parts))
+    system = TAROT_GENERATE_SYSTEM_VI if locale == "vi" else TAROT_GENERATE_SYSTEM
+    return _tarot_claude_call(system, "\n\n".join(parts))
 
 
 _MD_HEADER = re.compile(r"(?m)^[ \t]{0,3}#{1,6}[ \t]*")
@@ -616,7 +640,7 @@ def stream_message(
         fb = None
         if not is_preview:
             fb = _tarot_generate_fallback(
-                question=_q_text, spread=brief, dialect_instruction=di or None,
+                question=_q_text, spread=brief, dialect_instruction=di or None, locale=locale,
             )
         if fb:
             parts = [fb]

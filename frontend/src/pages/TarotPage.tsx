@@ -272,6 +272,11 @@ type Phase = "question" | "shuffle" | "table";
 export default function TarotPage() {
   const me = useMe();
   const { t: tr, i18n } = useTranslation();
+  const vi = i18n.language === "vi";
+  // 카드명·포지션명 로케일 선택 — vi 는 vi명(없으면 영문/한글 폴백), ko 는 기존 한글 그대로.
+  // 백엔드가 name_vi/position_name_vi 를 병기(구 세션엔 없을 수 있어 폴백 유지).
+  const cardMainName = (c: TarotCard) => (vi ? (c.name_vi || c.name_en) : c.name_kr);
+  const posMainName = (c: TarotCard) => (vi ? (c.position_name_vi || c.position_name) : c.position_name);
   const ensureEntry = useEnsureEntry();
   const { openCharge } = useCharge();
   const memberName = me?.nickname?.trim() || (me?.email ? me.email.split("@")[0] : "") || tr("tarot.member_fallback");
@@ -403,7 +408,7 @@ export default function TarotPage() {
         tarot_id: snap.tarot_id || id,
         spread_type: snap.spread_type,
         need: n,
-        positions: snap.positions && snap.positions.length ? snap.positions : sorted.map((c) => c.position_name),
+        positions: snap.positions && snap.positions.length ? snap.positions : sorted.map((c) => posMainName(c)),
         section: snap.section,
         question: snap.question,
       });
@@ -779,26 +784,28 @@ export default function TarotPage() {
     cards.forEach((c, i) => {
       lines.push(tr("tarot.pdf_card", {
         n: i + 1,
-        pos: c.position_name,
-        kr: c.name_kr,
+        pos: posMainName(c),
+        kr: cardMainName(c),
         en: c.name_en,
         ori: c.orientation === "reversed" ? tr("tarot.reversed") : tr("tarot.upright"),
       }));
     });
     return lines.join("\n");
-  }, [cards, sess, sec, spreadLabel, tr]);
+  }, [cards, sess, sec, spreadLabel, tr, vi]);
 
   /* 리딩 본문 강조 구절(항목5) — 백엔드가 평문화해도 화면에서 카드명·방향·포지션을 금색 강조 */
   const richHighlight = useMemo<string[]>(() => {
     if (!cards) return [];
     const hl: string[] = [tr("tarot.upright"), tr("tarot.reversed")];
     cards.forEach((c) => {
-      if (c.name_kr) hl.push(c.name_kr);
-      if (c.name_en) hl.push(c.name_en);
-      if (c.position_name) hl.push(c.position_name);
+      const nm = cardMainName(c);
+      if (nm) hl.push(nm);
+      if (c.name_en) hl.push(c.name_en);   // 본문이 영문명을 쓰는 경우도 강조(vi 공통)
+      const pos = posMainName(c);
+      if (pos) hl.push(pos);
     });
     return hl;
-  }, [cards, tr]);
+  }, [cards, tr, vi]);
 
   const basicCost = me?.credit_cost_basic ?? 1000;
   const deepCost = me?.credit_cost_deep ?? 3000;
@@ -1079,11 +1086,11 @@ export default function TarotPage() {
                   >
                     <div className="tr-ring">{ROMAN[i]}</div>
                     <div className="tr-plabel">
-                      {i + 1}. {sess.positions[i] || c?.position_name || ""}
+                      {i + 1}. {sess.positions[i] || (c ? posMainName(c) : "") || ""}
                       <span className="tr-cardnm">
                         {c && flipped[i] && (
                           <>
-                            {c.name_kr} <span style={{ opacity: .65 }}>({c.name_en})</span> ·{" "}
+                            {cardMainName(c)} <span style={{ opacity: .65 }}>({c.name_en})</span> ·{" "}
                             {c.orientation === "reversed" ? <span className="tr-revtag">{tr("tarot.reversed")}</span> : tr("tarot.upright")}
                           </>
                         )}
@@ -1105,7 +1112,7 @@ export default function TarotPage() {
                             {c && (
                               <img
                                 src={c.image_url}
-                                alt={`${c.name_kr} (${c.name_en})`}
+                                alt={`${cardMainName(c)} (${c.name_en})`}
                                 className={c.orientation === "reversed" ? "rev" : undefined}
                                 loading="lazy"
                               />

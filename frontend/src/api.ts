@@ -697,9 +697,11 @@ export type TarotCreateResp = {
 export type TarotCard = {
   position_index: number;
   position_name: string;
+  position_name_vi?: string;   // vi 포지션명(로케일 렌더용 병기)
   code: string;
   name_kr: string;
   name_en: string;
+  name_vi?: string;            // vi 카드명(로케일 렌더용 병기)
   orientation: "upright" | "reversed";
   image_url: string;
   keywords: string[];

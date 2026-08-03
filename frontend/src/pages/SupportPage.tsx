@@ -114,7 +114,7 @@ export default function SupportPage() {
           <div className="sd-ico" aria-hidden="true">✅</div>
           <h3>{tr("support.done_title", { id: done.id })}</h3>
           <p>
-            <b>{done.category_label}</b> · “{done.title}”<br />
+            <b>{tr(`support.cat_${category}`)}</b> · “{done.title}”<br />
             <Trans i18nKey="support.done_reply" values={{ email: done.contact_email }} components={{ b: <b /> }} />
           </p>
           <div className="support-done-actions">
@@ -210,7 +210,7 @@ export default function SupportPage() {
             {tickets.map((t) => (
               <div key={t.id} className="sb-row">
                 <div className="sb-main">
-                  <span className="sb-cat">{t.category_label}</span>
+                  <span className="sb-cat">{tr(`support.cat_${t.category}`)}</span>
                   <span className="sb-title">{t.title}</span>
                   <span className="sb-meta">
                     #{t.id} · {shortDate(t.created_at)}
@@ -219,7 +219,7 @@ export default function SupportPage() {
                   {t.admin_note && <div className="sb-note">💬 {t.admin_note}</div>}
                 </div>
                 <span className="sb-status" style={{ background: STATUS_TONE[t.status] || "var(--brand-grad)" }}>
-                  {t.status_label}
+                  {tr(`support.st_${t.status}`)}
                 </span>
               </div>
             ))}
