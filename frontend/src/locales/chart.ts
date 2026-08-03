@@ -211,8 +211,8 @@ export const chartVi: typeof chartKo = {
     午: "11–13h", 未: "13–15h", 申: "15–17h", 酉: "17–19h", 戌: "19–21h", 亥: "21–23h",
   },
   mw_img: {
-    子: "/zodiac/쥐_청년.jpg", 丑: "/zodiac/소_청년.jpg", 寅: "/zodiac/호랑이_청년.jpg",
-    卯: "/zodiac/토끼_청년.jpg", 辰: "/zodiac/용_청년.jpg", 巳: "/zodiac/뱀_청년.jpg",
+    子: "/zodiac/쥐_청년.jpg", 丑: "/zodiac/물소_청년.jpg", 寅: "/zodiac/호랑이_청년.jpg",
+    卯: "/zodiac/고양이_청년.jpg", 辰: "/zodiac/용_청년.jpg", 巳: "/zodiac/뱀_청년.jpg",
     午: "/zodiac/말_청년.jpg", 未: "/zodiac/양_청년.jpg", 申: "/zodiac/원숭이_청년.jpg",
     酉: "/zodiac/닭_청년.jpg", 戌: "/zodiac/개_청년.jpg", 亥: "/zodiac/돼지_청년.jpg",
   },
