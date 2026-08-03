@@ -5,7 +5,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useMe } from "../api";
 import { entryCost, type EntryMenu } from "../lib/entryFee";
 import { Ic, type IcName } from "../components/icons";
-import { ZODIACS } from "../lib/zodiacAvatar";
+import { zodiacStripKeys } from "../lib/zodiacAvatar";
 import MyeongriWheel from "../components/MyeongriWheel";
 import { IS_VN_BUILD } from "../i18n";
 
@@ -189,7 +189,7 @@ export default function LandingPage() {
             )}
             {/* 12띠 3D 캐릭터 스트립 (장식) — 애기(초년) 버전, 영상 파이프라인과 동일 에셋 */}
             <div className="lp-zodiac-strip" aria-hidden>
-              {ZODIACS.map((z) => (
+              {zodiacStripKeys().map((z) => (
                 <img key={z} src={`/zodiac/${z}_초년.jpg`} alt="" loading="lazy" width={44} height={44} />
               ))}
             </div>

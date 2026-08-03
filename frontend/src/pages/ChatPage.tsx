@@ -10,7 +10,7 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { api, Birth, useMe, getToken, setCachedMe, notifySessionExpired, Source } from "../api";
 import { fmtKSTDate } from "../lib/datetime";
 import SajuChart, { Chart } from "../components/SajuChart";
-import { zodiacAvatar } from "../lib/zodiacAvatar";
+import { zodiacAvatar, zodiacLabel } from "../lib/zodiacAvatar";
 import TimeSelect from "../components/TimeSelect";
 import BannerSlot from "../components/BannerSlot";
 import AdSlot from "../components/AdSlot";
@@ -887,7 +887,7 @@ export default function ChatPage() {
             <div className="chart-head">
               {(() => {
                 const av = zodiacAvatar(chart.pillars?.year?.branch, birth.birth_date);
-                return av ? <img className="chart-zodiac" src={av.src} alt={`${av.zodiac}띠`} width={46} height={46} loading="lazy" /> : null;
+                return av ? <img className="chart-zodiac" src={av.src} alt={zodiacLabel(av.zodiac)} width={46} height={46} loading="lazy" /> : null;
               })()}
               <h3 style={{ marginTop: 0 }}>{tr("chat.chart_title")}</h3>
             </div>
