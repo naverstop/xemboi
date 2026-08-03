@@ -1804,6 +1804,12 @@ html[data-theme="dark"] .lp-hero { background: linear-gradient(180deg, #10222e, 
 .mw-hub-name { font-size: 12.5px; font-weight: 800; color: var(--ink-900); }
 .mw-hub-desc { font-size: 11.5px; color: var(--ink-600); line-height: 1.35; }
 .mw-hub-av { border-radius: 50%; border: 2px solid var(--el); }
+
+/* ══ VN(vi) 긴 텍스트 레이아웃 보정 — Hán-Việt 독음(Giáp/Nhâm…)이 한자 1글자용 슬롯보다 길어 오버플로우 ══ */
+/* html[lang="vi"] 특이도(0,3,1)가 모바일 미디어쿼리(.mw-stem .mw-hj)까지 덮어 전 폭 적용 */
+html[lang="vi"] .mw-stem .mw-hj { font-size: 13px; letter-spacing: -0.3px; }
+html[lang="vi"] .mw-hub-hj { font-size: 30px; }
+html[lang="vi"] .app-footer-biz > span { white-space: normal; }
 .mw-hub-el { font-size: 11px; font-weight: 700; color: var(--el); }
 .mw-legend { margin-top: 9px; text-align: center; font-size: 10.5px; color: var(--ink-400); line-height: 1.5; }
 .mw-legend b { color: var(--ink-600); font-weight: 700; }
