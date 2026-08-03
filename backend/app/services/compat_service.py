@@ -110,25 +110,39 @@ def _to_birth_input(b: BirthDTO, locale: str = "ko") -> BirthInput:
 # LLM 해설
 # ============================================================
 def _render_result_for_llm(
-    result: CompatResult, label_a: str, label_b: str, sa: str, sb: str
+    result: CompatResult, label_a: str, label_b: str, sa: str, sb: str, locale: str = "ko"
 ) -> str:
-    parts = [f"[{label_a} 명식]\n{sa}", f"[{label_b} 명식]\n{sb}", "[궁합 분석]"]
+    # 요소·감점·관점·도화 내용(f.label / p.type·detail / p.label·grade / dohwa)은 엔진이 로케일에
+    # 맞춰 산출하므로, 여기서는 감싸는 섹션 라벨·단위·마무리 지시만 vi 로 번들한다.
+    vi = locale == "vi"
+    if vi:
+        parts = [f"[Lá số {label_a}]\n{sa}", f"[Lá số {label_b}]\n{sb}", "[Phân tích hợp đôi]"]
+    else:
+        parts = [f"[{label_a} 명식]\n{sa}", f"[{label_b} 명식]\n{sb}", "[궁합 분석]"]
+    unit = " điểm" if vi else "점"
     for key, f in result.factors.items():
-        # f.label 은 엔진이 로케일에 맞춰 산출(ko 는 _FACTOR_LABEL 와 동일) → vi 브리핑도 로케일 일관.
-        line = f"- {f.label}: {f.score}점"
+        line = f"- {f.label}: {f.score}{unit}"
         if f.items:
             line += " | " + "; ".join(it.detail for it in f.items)
         parts.append(line)
     if result.penalties:
-        parts.append("[주의 요소] " + ", ".join(f"{p.type}({p.detail})" for p in result.penalties))
-    parts.append("[관법별 종합]")
+        head = "[Yếu tố cần lưu ý] " if vi else "[주의 요소] "
+        parts.append(head + ", ".join(f"{p.type}({p.detail})" for p in result.penalties))
+    parts.append("[Tổng hợp theo trường phái]" if vi else "[관법별 종합]")
     for k, p in result.perspectives.items():
-        parts.append(f"- {p.label}: {p.total}점 ({p.grade})")
+        parts.append(f"- {p.label}: {p.total}{unit} ({p.grade})")
     if result.dohwa_readings:
-        parts.append("[도화 해석(여러 관점)] " + " / ".join(result.dohwa_readings))
-    parts.append(
-        f"\n위 근거로 {label_a}와 {label_b}의 궁합을 강점→주의점→조언 흐름으로 해설하세요."
-    )
+        head = "[Luận Đào Hoa (nhiều góc nhìn)] " if vi else "[도화 해석(여러 관점)] "
+        parts.append(head + " / ".join(result.dohwa_readings))
+    if vi:
+        parts.append(
+            f"\nDựa vào các căn cứ trên, hãy luận giải sự hợp đôi của {label_a} và {label_b} "
+            f"theo mạch: điểm mạnh → điểm cần lưu ý → lời khuyên."
+        )
+    else:
+        parts.append(
+            f"\n위 근거로 {label_a}와 {label_b}의 궁합을 강점→주의점→조언 흐름으로 해설하세요."
+        )
     return "\n".join(parts)
 
 
@@ -292,17 +306,17 @@ def stream_message(
     depth = "deep" if depth == "deep" else "basic"
     message = (message or "").strip()
 
+    locale = getattr(row, "locale", "ko")   # 세션 확정 로케일 — 응답 언어·모델 선택(chat 미러)
     result = CompatResult.model_validate(row.result_json or {})
     chart_a = SajuChart.model_validate(row.a_chart_json or {})
     chart_b = SajuChart.model_validate(row.b_chart_json or {})
-    sa = chat_service._build_saju_summary(chart_a)
-    sb = chat_service._build_saju_summary(chart_b)
+    sa = chat_service._build_saju_summary(chart_a, locale=locale)
+    sb = chat_service._build_saju_summary(chart_b, locale=locale)
     la, lb = row.a_label or "사람 A", row.b_label or "사람 B"
-    brief = _render_result_for_llm(result, la, lb, sa, sb)
+    brief = _render_result_for_llm(result, la, lb, sa, sb, locale)
 
     dialect = (getattr(user, "answer_dialect", None) or "standard") if user else "standard"
     di = chat_service._dialect_instruction(dialect)
-    locale = getattr(row, "locale", "ko")   # 세션 확정 로케일 — 응답 언어·모델 선택(chat 미러)
 
     has_assistant = any(m.role == "assistant" for m in row.messages)
     is_explain = not has_assistant

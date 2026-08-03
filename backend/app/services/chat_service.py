@@ -522,7 +522,230 @@ def _life_stage_ko(age: int) -> str:
     return "노년 — 건강·가족·여가·자산관리·자녀손주(취업/직장운 아님)"
 
 
-def _build_saju_summary(chart: SajuChart, birth: BirthInput | None = None) -> str:
+# ============================================================
+# vi(베트남어) 명식 요약 — LLM 컨텍스트를 한월음(Hán-Việt)·베트남어 라벨로 그라운딩.
+# ko 경로(_build_saju_summary)는 byte-identical 유지; vi 세션만 아래 경로를 탄다.
+# 한자·한글 미노출(SYSTEM_PROMPT_VI 의 '한자 절대 금지' 원칙과 일관).
+# ============================================================
+def _gz_vi(p) -> str:
+    """간지 → 한월음(예: Giáp Tý). 시주 없으면 호출 안 함."""
+    from backend.app.saju.constants import branch_reading, stem_reading
+    return f"{stem_reading(p.stem, 'vi')} {branch_reading(p.branch, 'vi')}"
+
+
+# 십성→육친(성별 반영) vi — constants.TEN_GODS_YUKCHIN_G 의 vi 미러(공통, 남성관계, 여성관계).
+_YUKCHIN_VI_G: dict[str, tuple[str, str, str]] = {
+    "比肩": ("anh em·đồng sự·đối thủ (tự tôn·độc lập)", "", ""),
+    "劫財": ("anh em·bạn bè·hợp tác (cạnh tranh·hao tán tài lộc)", "", ""),
+    "食神": ("biểu đạt·ăn mặc·thư thái·lạc quan", "mẹ vợ·cháu (không phải con)", "con cái"),
+    "傷官": ("tài năng·biểu đạt·phản biện", "bà·cháu gái (không phải con)", "con cái"),
+    "偏財": ("tài lộc lưu động·khéo kinh doanh·cha", "người yêu·khác giới", "cha·nhà chồng"),
+    "正財": ("tài lộc cố định·chăm chỉ·tiết kiệm", "vợ", "cha·nhà chồng"),
+    "偏官": ("thử thách·thúc đẩy·danh dự (áp lực)", "con cái", "người yêu·tình nhân"),
+    "正官": ("công việc·danh dự·quy củ·trách nhiệm", "con cái", "chồng"),
+    "偏印": ("học vấn·văn thư·hậu thuẫn (nghề phụ·nhanh trí)·mẹ (kế mẫu)", "", ""),
+    "正印": ("học vấn·văn thư·hậu thuẫn (chính thống·đức độ)·mẹ", "", ""),
+}
+
+
+def _yukchin_meaning_vi(hanja: str, is_male: bool | None) -> str:
+    """십성(한자) → 성별 반영 육친 의미(vi). yukchin_meaning 의 vi 미러."""
+    t = _YUKCHIN_VI_G.get(hanja)
+    if not t:
+        return ""
+    common, male_rel, fem_rel = t
+    if is_male is None:
+        return common
+    rel = male_rel if is_male else fem_rel
+    return f"{common} · {rel}" if rel else common
+
+
+def _sipsin_yukchin_lines_vi(chart: SajuChart, birth: BirthInput | None) -> list[str]:
+    """십성·육친 vi — _sipsin_yukchin_lines 의 vi 미러(한월음 라벨)."""
+    from backend.app.saju.constants import ten_god_reading
+    from backend.app.saju.types import Gender
+    tg = chart.ten_gods
+    is_male = None if birth is None else (birth.gender == Gender.MALE)
+
+    def vi(x: str | None) -> str:
+        return ten_god_reading(x, "vi") if x else "—"
+
+    pos = [
+        ("Can năm", tg.year_stem), ("Can tháng", tg.month_stem), ("Can giờ", tg.hour_stem),
+        ("Chi năm", tg.year_branch), ("Chi tháng", tg.month_branch),
+        ("Chi ngày", tg.day_branch), ("Chi giờ", tg.hour_branch),
+    ]
+    cells = ", ".join(f"{name} {vi(v)}" for name, v in pos if v)
+    seen: list[str] = []
+    for _name, v in pos:
+        if v and v not in seen:
+            seen.append(v)
+    legend = [f"    · {vi(v)} = {_yukchin_meaning_vi(v, is_male)}" for v in seen]
+    lines = [
+        "[Thập Thần · Lục Thân] — căn cứ quyết định để luận tính cách·gia đình·nhân duyên "
+        "(chỉ dùng các giá trị dưới đây, cấm tự tạo). Nhật chủ = bản thân.",
+        f"  Thập thần theo vị trí: {cells}",
+        "  Ý nghĩa Thập Thần → Lục Thân (đã xác định theo giới tính):",
+        *legend,
+    ]
+    if is_male is not None:
+        g = "nam" if is_male else "nữ"
+        lines.append(
+            f"  ※ Lục thân trên đã xác định theo giới tính bản thân ({g}). Con cái của nam = Quan tinh "
+            "(Chính quan·Thiên quan), con cái của nữ = Thực Thương (Thực thần·Thương quan)."
+        )
+    return lines
+
+
+def _yongsin_lines_vi(chart: SajuChart) -> list[str]:
+    """억부 방향 + 조후용신 vi — _yongsin_lines 의 vi 미러. jy.note(한글/한자)는 미사용,
+    계절값으로 vi 근거를 재구성해 한자 유출을 막는다."""
+    from backend.app.saju.constants import (
+        WUXING_GENERATES,
+        WUXING_OVERCOMES,
+        stem_reading,
+        wuxing_reading,
+    )
+    out: list[str] = []
+    dm_elem = chart.day_master_element
+
+    def _wk(el: str) -> str:
+        return wuxing_reading(el, "vi")
+
+    gen_me = {v: k for k, v in WUXING_GENERATES.items()}[dm_elem]   # 인성
+    my_gen = WUXING_GENERATES[dm_elem]                              # 식상
+    my_over = WUXING_OVERCOMES[dm_elem]                             # 재성
+    over_me = {v: k for k, v in WUXING_OVERCOMES.items()}[dm_elem]  # 관성
+    st = chart.day_master_strength
+    if st == "strong":
+        eokbu = (f"Thân cường nên ức phù theo hướng tiết giảm — Thực Thương {_wk(my_gen)}·"
+                 f"Tài tinh {_wk(my_over)}·Quan tinh {_wk(over_me)}")
+    elif st == "weak":
+        eokbu = (f"Thân nhược nên ức phù theo hướng bồi bổ — Ấn tinh {_wk(gen_me)}·"
+                 f"Tỷ Kiếp {_wk(dm_elem)}")
+    else:
+        eokbu = "Gần trung hòa nên xét cả điều hậu·cách cục cùng với ức phù"
+    out.append(f"  Hướng ức phù (theo cường nhược): {eokbu}")
+
+    jy = chart.johu_yongsin
+    if jy:
+        sup = ("·".join(stem_reading(s, "vi") for s in jy.supporting)) if jy.supporting else ""
+        sup_str = f" / phụ trợ {sup}" if sup else ""
+        prio = " [sinh mùa Đông·Hạ → ưu tiên điều hậu]" if jy.is_climate_priority else ""
+        season_vi = {"봄": "Xuân", "여름": "Hạ", "가을": "Thu", "겨울": "Đông"}.get(jy.season, jy.season)
+        out.append(
+            f"  Dụng thần điều hậu (Cùng Thông Bảo Giám): {stem_reading(jy.primary, 'vi')}{sup_str}{prio}"
+            f" — điều tiết hàn·noãn của mùa {season_vi}"
+        )
+    return out
+
+
+def _life_stage_vi(age: int) -> str:
+    """현재 나이 → 생애단계 라벨 vi — _life_stage_ko 의 vi 미러."""
+    if age < 8:
+        return "chưa đi học·nhi đồng"
+    if age < 14:
+        return "tiểu học — học tập·bạn bè"
+    if age < 17:
+        return "trung học cơ sở — học tập·tìm hướng đi"
+    if age < 20:
+        return "trung học phổ thông — học tập·thi cử·hướng nghiệp"
+    if age < 27:
+        return "đại học·mới đi làm — hoàn tất học tập·chuẩn bị việc làm·tình cảm"
+    if age < 35:
+        return "thanh niên — việc làm·sự nghiệp đầu·yêu·kết hôn"
+    if age < 50:
+        return "trung niên — nghề nghiệp·kinh doanh·tài lộc·gia đình"
+    if age < 65:
+        return "tráng niên — ổn định nghề·tài sản·con cái·quản lý sức khỏe"
+    return "lão niên — sức khỏe·gia đình·nghỉ ngơi·quản lý tài sản·con cháu (không phải vận việc làm)"
+
+
+def _build_calc_basis_vi(birth: BirthInput) -> str:
+    """계산 기준 vi — _build_calc_basis 의 vi 미러(핵심 항목만; 한국 표준시 역사보정은 vi 무관)."""
+    from backend.app.saju.types import CalendarType
+    parts = ["Âm lịch" if birth.calendar == CalendarType.LUNAR else "Dương lịch"]
+    if birth.apply_true_solar_time:
+        lon = f"{birth.birth_longitude}°E" if birth.birth_longitude is not None else "kinh tuyến chuẩn khu vực"
+        eot = "có quân sai" if birth.apply_equation_of_time else "không quân sai"
+        parts.append(f"hiệu chỉnh giờ mặt trời thật ({lon}·{eot})")
+    else:
+        parts.append("không áp dụng giờ mặt trời thật (giữ nguyên giờ đồng hồ)")
+    parts.append(
+        "dạ Tý thời (23–24h: trụ ngày = ngày hôm đó, can trụ giờ theo can ngày hôm sau)"
+        if birth.night_zi_mode == "yaja"
+        else "chính Tý thời (từ 23h: trụ ngày·trụ giờ đều theo ngày hôm sau)"
+    )
+    return "  Cơ sở tính toán: " + ", ".join(parts)
+
+
+def _build_saju_summary_vi(chart: SajuChart, birth: BirthInput | None = None) -> str:
+    """명식 요약 vi — _build_saju_summary 의 vi 미러(라벨=베트남어, 독음=한월음)."""
+    from backend.app.saju.constants import (
+        BRANCH_TO_WUXING,
+        STEM_IS_YANG,
+        STEM_TO_WUXING,
+        stem_reading,
+        wuxing_reading,
+    )
+    fp = chart.pillars
+    day_stem = fp.day.stem
+    day_yy = "dương" if STEM_IS_YANG[day_stem] else "âm"
+    hour_str = _gz_vi(fp.hour) if fp.hour else "không rõ giờ"
+
+    def _pil_elem(p) -> str:
+        return f"{wuxing_reading(STEM_TO_WUXING[p.stem], 'vi')}·{wuxing_reading(BRANCH_TO_WUXING[p.branch], 'vi')}"
+
+    pe = [f"Trụ năm {_gz_vi(fp.year)}={_pil_elem(fp.year)}",
+          f"Trụ tháng {_gz_vi(fp.month)}={_pil_elem(fp.month)}",
+          f"Trụ ngày {_gz_vi(fp.day)}={_pil_elem(fp.day)}"] + (
+        [f"Trụ giờ {_gz_vi(fp.hour)}={_pil_elem(fp.hour)}"] if fp.hour else [])
+    st = chart.day_master_strength
+    st_vi = {"strong": "vượng (thân cường)", "weak": "nhược (thân nhược)"}.get(st, "trung hòa")
+    w = chart.wuxing
+    wx_vi = {"Mộc": w.wood, "Hỏa": w.fire, "Thổ": w.earth, "Kim": w.metal, "Thủy": w.water}
+    lines = [
+        "[Lá số Tứ Trụ]",
+        f"  Trụ năm {_gz_vi(fp.year)}  Trụ tháng {_gz_vi(fp.month)}  Trụ ngày {_gz_vi(fp.day)}  Trụ giờ {hour_str}",
+        f"  Ngũ hành các trụ: {', '.join(pe)} — khí ngũ hành của mỗi can chi chỉ nói theo bảng này, "
+        f"không gán ngũ hành ngoài bảng cho can chi đó",
+        f"  Nhật chủ (bản thân): {stem_reading(day_stem, 'vi')} — {wuxing_reading(STEM_TO_WUXING[day_stem], 'vi')}, âm dương: {day_yy}",
+        f"  Cường nhược nhật chủ: {st_vi} (đã xét đắc lệnh nguyệt lệnh)",
+        f"  Phân bố ngũ hành: {wx_vi}",
+    ]
+    lines += _sipsin_yukchin_lines_vi(chart, birth)   # 십성·육친
+    lines += _yongsin_lines_vi(chart)                 # 억부 방향 + 조후용신
+    if chart.daewoon:
+        dw = chart.daewoon
+        dir_vi = "thuận hành" if dw.direction == "forward" else "nghịch hành"
+        lines.append(f"  Đại vận: {dir_vi}, khởi vận {dw.start_age:.1f} tuổi (trích nguyên danh sách dưới, cấm tự tạo)")
+        es = dw.entries or []
+        for i, e in enumerate(es):
+            end = (es[i + 1].start_age - 1) if i + 1 < len(es) else None
+            rng = f"{e.start_age}~{end} tuổi" if end is not None else f"{e.start_age} tuổi trở đi"
+            lines.append(f"    · {rng}: {_gz_vi(e.pillar)}")
+        if birth is not None and es:
+            from datetime import date as _today_d
+            age = (_today_d.today() - birth.birth_date).days / 365.25
+            ci = max((i for i, en in enumerate(es) if en.start_age <= age), default=0)
+            ce = es[ci]
+            cend = (es[ci + 1].start_age - 1) if ci + 1 < len(es) else None
+            crng = f"{ce.start_age}~{cend} tuổi" if cend is not None else f"{ce.start_age} tuổi trở đi"
+            nxt = (f", đại vận kế {_gz_vi(es[ci + 1].pillar)} ({es[ci + 1].start_age} tuổi trở đi)"
+                   if ci + 1 < len(es) else "")
+            lines.append(
+                f"  ※ Hiện khoảng {int(age)} tuổi ({_life_stage_vi(int(age))}) → đại vận hiện tại: {_gz_vi(ce.pillar)} ({crng}){nxt}. "
+                f"Luận theo đại vận hiện tại·tuế vận năm nay và về sau (tương lai), chỉ theo mối quan tâm hợp lứa tuổi·giai đoạn đời này, "
+                f"không thuật lại đại vận·năm đã qua."
+            )
+    if birth is not None:
+        lines.append(_build_calc_basis_vi(birth))
+    return "\n".join(lines)
+
+
+def _build_saju_summary(chart: SajuChart, birth: BirthInput | None = None, locale: str = "ko") -> str:
+    if locale == "vi":
+        return _build_saju_summary_vi(chart, birth)
     from backend.app.saju.constants import stem_korean
     fp = chart.pillars
     day_stem = fp.day.stem
@@ -1314,7 +1537,7 @@ def create_session(
     k = max(1, min(top_k or s.rag_top_k_default, s.rag_max_top_k))
     bi = _to_birth_input(birth, locale=locale)
     chart = build_chart(bi)
-    saju_summary = _build_saju_summary(chart, bi)
+    saju_summary = _build_saju_summary(chart, bi, locale=locale)
     chat_repo.create_session(
         db,
         session_id=sid,

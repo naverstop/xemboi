@@ -179,6 +179,20 @@ _ILJIN_LINES: dict[str, str] = {
     "正印": "귀인·문서·안정의 기운. 공부·계약·도움에 길한 날입니다.",
 }
 
+# 十神(십성) 본질 의미 — vi(한월음/베트남어). _ILJIN_LINES 의 vi 미러(같은 의미).
+_ILJIN_LINES_VI: dict[str, str] = {
+    "比肩": "Khí cạnh tranh·tự lập. Hợp tác với đồng sự thì lợi, nên tiết chế chi tiêu quá mức.",
+    "劫財": "Khí thúc đẩy·cạnh tranh. Quyết đoán nhưng cẩn thận tranh chấp tiền bạc và chi tiêu bốc đồng.",
+    "食神": "Khí thư thái·biểu đạt·ăn uống dư dả. Ngày tốt để tận hưởng và làm việc đều đặn.",
+    "傷官": "Khí tài năng·ngôn từ. Tốt cho biểu đạt sáng tạo nhưng cẩn thận lời nói thị phi.",
+    "偏財": "Khí hoạt động·cơ hội·tài lộc. Chủ động thì tốt, cẩn thận đầu tư bốc đồng.",
+    "正財": "Khí chăm chỉ·thực lợi. Ngày mà sự kiên trì mang lại kết quả.",
+    "偏官": "Khí quyết đoán·thử thách. Quyết đoán nhưng tránh làm quá sức và tranh cãi.",
+    "正官": "Khí trách nhiệm·danh dự·quy củ. Ngày tốt cho việc công và các cam kết.",
+    "偏印": "Khí trực giác·học hỏi·biến hóa. Tốt để tiếp thu kiến thức và ý tưởng mới.",
+    "正印": "Khí quý nhân·văn thư·ổn định. Ngày tốt cho học hành, hợp đồng và nhận trợ giúp.",
+}
+
 # saju_profile(저장된 본인 사주) 에서 BirthInput 으로 넘길 수 있는 키만 추림.
 _BIRTH_KEYS = (
     "birth_date", "birth_time", "calendar", "is_leap_month", "gender",
@@ -186,12 +200,36 @@ _BIRTH_KEYS = (
 )
 
 
-def build_personal_iljin(profile: dict[str, Any], today: Optional[Any] = None) -> Optional[tuple[str, str]]:
+def _iljin_body_vi(d, u_stem: str, t_stem: str, t_branch: str, tg: str,
+                   conflict: bool, combine: bool) -> tuple[str, str]:
+    """vi 일진 메시지(제목, 본문) — 한월음(Hán-Việt) 독음 + 베트남어 템플릿. 한자/한글 미노출."""
+    from backend.app.saju.constants import stem_reading, branch_reading, ten_god_reading
+    tg_vi = ten_god_reading(tg, "vi")
+    line = _ILJIN_LINES_VI.get(tg, "")
+    note = ""
+    if conflict:
+        note = " ※ Chi ngày hôm nay xung với chi ngày của bạn — dễ biến động·di chuyển, hãy thận trọng."
+    elif combine:
+        note = " ※ Chi ngày hôm nay hợp với chi ngày của bạn — khí duyên lành và hợp tác."
+    today_gz = f"{stem_reading(t_stem, 'vi')} {branch_reading(t_branch, 'vi')}"
+    title = "Nhật thần hôm nay 🗓"
+    body = (
+        f"{d.isoformat()} nhật thần {today_gz}. "
+        f"Theo nhật chủ {stem_reading(u_stem, 'vi')} của bạn, hôm nay mang khí '{tg_vi}' — {line}{note}"
+    )
+    return title, body
+
+
+def build_personal_iljin(
+    profile: dict[str, Any], today: Optional[Any] = None, locale: str = "ko"
+) -> Optional[tuple[str, str]]:
     """저장된 본인 사주(profile)와 오늘 날짜로 개인화 일진 메시지(제목, 본문)를 만든다.
 
     - 일진 간지: 오늘(양력) 일주(엔진 산출).
     - 십성: 본인 일간 기준 오늘 일간의 십성(엔진 산출).
     - 충/합: 본인 일지와 오늘 일지의 지지충/육합(엔진 상수).
+    - locale: 'vi' 면 BirthInput 이 105°E·hongoc_duc 경로로 진태양시를 계산하고, 메시지도
+      한월음 독음+베트남어 템플릿으로 만든다. 'ko'(기본)는 기존과 byte-identical.
     파싱/계산 실패 시 None.
     """
     from datetime import date as _date
@@ -204,22 +242,26 @@ def build_personal_iljin(profile: dict[str, Any], today: Optional[Any] = None) -
     try:
         d = today or _date.today()
         kw = {k: profile[k] for k in _BIRTH_KEYS if profile.get(k) is not None}
-        user_birth = BirthInput(**kw)
+        user_birth = BirthInput(**kw, locale=locale)
         user_fp, *_ = compute_pillars(user_birth)
-        today_fp, *_ = compute_pillars(BirthInput(birth_date=d))
+        today_fp, *_ = compute_pillars(BirthInput(birth_date=d, locale=locale))
         u_stem = user_fp.day.stem
         u_branch = user_fp.day.branch
         t_stem = today_fp.day.stem
         t_branch = today_fp.day.branch
         tg = compute_ten_god(u_stem, t_stem)             # 본인 일간 기준 오늘 일간의 십성
-        tg_ko = TEN_GODS_KO.get(tg, tg)
-        line = _ILJIN_LINES.get(tg, "")
         # 충/합 부가 노트(본인 일지 ↔ 오늘 일지)
         pair = frozenset({u_branch, t_branch})
+        conflict = u_branch != t_branch and pair in BRANCH_CONFLICTS
+        combine = u_branch != t_branch and pair in BRANCH_SIX_COMBINATIONS
+        if locale == "vi":
+            return _iljin_body_vi(d, u_stem, t_stem, t_branch, tg, conflict, combine)
+        tg_ko = TEN_GODS_KO.get(tg, tg)
+        line = _ILJIN_LINES.get(tg, "")
         note = ""
-        if u_branch != t_branch and pair in BRANCH_CONFLICTS:
+        if conflict:
             note = " ※ 오늘 일지가 본인 일지를 충(沖) — 변동·이동수, 신중히."
-        elif u_branch != t_branch and pair in BRANCH_SIX_COMBINATIONS:
+        elif combine:
             note = " ※ 오늘 일지가 본인 일지와 합(合) — 인연·협조의 기운."
         today_gz = f"{stem_korean(t_stem)}{branch_korean(t_branch)}({t_stem}{t_branch})"
         title = "오늘의 일진 🗓"
@@ -248,8 +290,9 @@ def send_daily_iljin(db: Session) -> int:
     subs = db.execute(select(PushSubscription)).scalars().all()
     if not subs:
         return 0
-    # user_id → saju_profile(dict|None) 캐시
+    # user_id → saju_profile(dict|None)·locale 캐시
     prof_cache: dict[int, Optional[dict]] = {}
+    loc_cache: dict[int, str] = {}
 
     def _profile_for(uid: Optional[int]) -> Optional[dict]:
         if uid is None:
@@ -258,6 +301,7 @@ def send_daily_iljin(db: Session) -> int:
             return prof_cache[uid]
         u = db.get(User, uid)
         raw = getattr(u, "saju_profile", None) if u else None
+        loc_cache[uid] = getattr(u, "locale", "ko") if u else "ko"
         parsed = None
         if raw:
             try:
@@ -278,7 +322,7 @@ def send_daily_iljin(db: Session) -> int:
             if sub.user_id in msg_cache:
                 title, body = msg_cache[sub.user_id]
             else:
-                built = build_personal_iljin(prof)
+                built = build_personal_iljin(prof, locale=loc_cache.get(sub.user_id, "ko"))
                 title, body = built or (generic_title, generic_body)
                 msg_cache[sub.user_id] = (title, body)
         else:
