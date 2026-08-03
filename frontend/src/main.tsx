@@ -6,6 +6,7 @@ import { ChargeProvider } from "./components/ChargeModal";
 import { ConsultationProvider } from "./components/ConsultationProvider";
 import "pretendard/dist/web/variable/pretendardvariable-dynamic-subset.css";
 import "@fontsource-variable/noto-serif-kr";
+import "./fonts-vi.css";
 import "./styles.css";
 import i18n from "./i18n";
 
