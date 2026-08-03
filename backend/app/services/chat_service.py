@@ -284,7 +284,7 @@ def warmup_models() -> None:
     log = logging.getLogger("saju.warmup")
     s = get_settings()
     try:
-        _get_retriever().retrieve("사주 성격 진로 재물 건강 워밍업", top_k=1, rerank=s.rag_reranker_enabled)
+        _get_retriever().search("사주 성격 진로 재물 건강 워밍업", top_k=1, rerank=s.rag_reranker_enabled)
         log.info("[warmup] RAG 임베더+리랭커 상주 완료")
     except Exception as e:  # noqa: BLE001
         log.warning("[warmup] RAG 워밍업 실패(첫 요청 때 로드됨): %s", e)
