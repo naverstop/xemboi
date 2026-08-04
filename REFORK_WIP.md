@@ -1,4 +1,15 @@
-# refork/saju-20260804 진행 상태 (2026-08-04, 세션 WIP — 완료 후 이 파일 삭제)
+# 신규 화면 vi 게이팅 잔여 목록 (재분기 자체는 2026-08-05 main 머지·push 완료 — 85bb530)
+아래 '후속' 항목만 남음. 이 파일은 신규 화면 vi 완료 시 삭제.
+
+## 우선순위(사용자 가시순)
+1. PrivacyNotice(전 도구 페이지 상단 🔒 안내) 2. TodayPage(오늘의 운세) 3. AmuletPage(부적)
+4. PaymentsPage 내부(패스 카드·포인트 원장 표) 5. InstallPrompt 설치가이드 본문 6. ReviewsPage/ReviewStrip 라벨
+7. CalendarPage 8. SnackPage 9. TaekilPage rule_note/점수줄/PersonHd 10. TarotPage 세션리스트/스프레드힌트
+11. ConsultationOverlay 예약·사업자 카드 12. ChargeModal EntryConfirmModal(ENTRY_MENU_LABEL/DESC→entryLabel/i18n)
+13. ConsultantConsolePage 온보딩·수익탭 14. AnswerActions 영상/공유 신규 문구 15. 명령: 한국어 스캔 = 각 페이지에서
+treeWalker [가-힣] 가시노드 카운트(이 세션 방식). DB 데이터(리뷰 내용·사업자값)는 제외.
+
+# (아카이브) refork 진행 기록
 
 ## 전략(사용자 승인 A)
 saju/main(=5f3b687e) 최신 스냅숏 위에 xemboi vi 작업을 재적용. 제외: 작명·아호·개명·신년운세·꿈해몽(프론트 노출만 제거, 백엔드 유지).
