@@ -116,7 +116,7 @@ def _parse_when(when: Optional[str]) -> "date | None":
 
 
 def _session_chart(db: Session, session_id: Optional[str],
-                   user: Optional[User]) -> tuple[dict | None, str, "date | None"]:
+                   user: Optional[User], loc: str = "ko") -> tuple[dict | None, str, "date | None"]:
     """세션의 명식(chart_json)·캡션(생년월일시)·상담일(세션 생성일 KST) — 명식 패널 + 상담일자용.
 
     소유권은 chat API와 동일 규칙(회원 세션은 본인만). 불일치/부재 시 (None, "", None)로
@@ -148,17 +148,23 @@ def _session_chart(db: Session, session_id: Optional[str],
             )
         if not owned or not getattr(row, "chart_json", None):
             return None, "", consult_date  # 미소유/명식 없음 — 상담일만 사용
-        cap = f"{row.birth_date:%Y년 %m월 %d일}"
-        if getattr(row, "birth_time", None):
-            cap += f" {row.birth_time:%H:%M}"
-        cap += " 생 · " + ("곤명(坤命)" if "female" in str(row.gender).lower() else "건명(乾命)")
+        if loc == "vi":
+            cap = f"sinh ngày {row.birth_date:%d/%m/%Y}"
+            if getattr(row, "birth_time", None):
+                cap += f" {row.birth_time:%H:%M}"
+            cap += " · " + ("Khôn mệnh" if "female" in str(row.gender).lower() else "Càn mệnh")
+        else:
+            cap = f"{row.birth_date:%Y년 %m월 %d일}"
+            if getattr(row, "birth_time", None):
+                cap += f" {row.birth_time:%H:%M}"
+            cap += " 생 · " + ("곤명(坤命)" if "female" in str(row.gender).lower() else "건명(乾命)")
         return row.chart_json, cap, consult_date
     except Exception:  # noqa: BLE001
         return None, "", None
 
 
 def _compat_data(db: Session, compat_id: Optional[str],
-                 user: Optional[User]) -> tuple[dict | None, "date | None"]:
+                 user: Optional[User], loc: str = "ko") -> tuple[dict | None, "date | None"]:
     """궁합 세션의 2인 명식·캡션·5요소 점수·상담일 — PDF 패널용. 반환 (compat_dict|None, 상담일|None).
 
     소유권은 _session_chart 와 동일 규칙(회원 본인만) + 비프리뷰(입장료 결제분)만. 미소유·프리뷰·부재 시
@@ -193,8 +199,8 @@ def _compat_data(db: Session, compat_id: Optional[str],
             "a_cap": _cap(row.a_birth_date, row.a_birth_time, row.a_gender),
             "b_chart": row.b_chart_json,
             "b_cap": _cap(row.b_birth_date, row.b_birth_time, row.b_gender),
-            "factors": [("일지", row.f_day_branch), ("일간", row.f_day_stem), ("오행", row.f_wuxing),
-                        ("십성", row.f_ten_god), ("신살", row.f_sinsal)],
+            "factors": [(("Nhật chi" if loc == "vi" else "일지"), row.f_day_branch), (("Nhật can" if loc == "vi" else "일간"), row.f_day_stem), (("Ngũ hành" if loc == "vi" else "오행"), row.f_wuxing),
+                        (("Thập thần" if loc == "vi" else "십성"), row.f_ten_god), (("Thần sát" if loc == "vi" else "신살"), row.f_sinsal)],
         }
         return compat, consult_date
     except Exception:  # noqa: BLE001 — 로드 실패해도 PDF 생성은 계속(패널만 생략)
@@ -208,8 +214,9 @@ def create_consultation_pdf(
     user: Optional[User] = Depends(get_optional_user),
     locale: str = Depends(get_locale),
 ) -> ConsultationPdfResp:
-    chart, caption, consult_date = _session_chart(db, req.session_id, user)
-    compat, compat_date = _compat_data(db, req.compat_id, user)
+    _lc = "vi" if (locale or "").startswith("vi") else "ko"
+    chart, caption, consult_date = _session_chart(db, req.session_id, user, _lc)
+    compat, compat_date = _compat_data(db, req.compat_id, user, _lc)
     try:
         pdf = generate_consultation_pdf(
             doc_title=req.doc_title, person_line=req.person_line,
@@ -260,7 +267,7 @@ def create_consultation_report(
     if not body.strip():
         detail = "Không có nội dung tư vấn để tóm tắt." if loc == "vi" else "요약할 상담 내용이 없습니다."
         raise HTTPException(status_code=400, detail=detail)
-    chart, caption, consult_date = _session_chart(db, req.session_id, user)
+    chart, caption, consult_date = _session_chart(db, req.session_id, user, loc)
     try:
         pdf = generate_consultation_pdf(
             doc_title=req.doc_title, person_line=req.person_line,
@@ -289,6 +296,7 @@ def email_consultation_pdf(
     req: EmailPdfReq,
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),   # 스팸 릴레이 방지 — 로그인 필수
+    locale: str = Depends(get_locale),
 ) -> dict:
     """생성된 상담서 PDF(token)를 받는 사람 이메일로 **첨부**해 발송(서버 SMTP).
 

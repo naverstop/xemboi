@@ -711,10 +711,10 @@ def cancel_session_ep(
     return sess.session_dict(db, s)
 
 
-def _existing_report_resp(token: str) -> dict[str, Any]:
+def _existing_report_resp(token: str, loc: str = "ko") -> dict[str, Any]:
     """저장된 상담서 토큰 → 응답(재사용). ConsultationPdfResp 와 동일 키 구조."""
     from backend.app.api.pdf import _PDF_DIR as _PDFD
-    _name = "상담서.pdf"
+    _name = "Bản tư vấn.pdf" if loc == "vi" else "상담서.pdf"
     _np = _PDFD / f"{token}.name"
     if _np.is_file():
         try:
@@ -756,7 +756,7 @@ def session_report(
         loc = "ko"
     # (B) 이미 발급된 요약서가 있으면 재사용(순차 클릭) — 누가 눌러도 같은 상담서 공유.
     if s.pdf_token and (_PDFD / f"{s.pdf_token}.pdf").is_file():
-        return _existing_report_resp(s.pdf_token)
+        return _existing_report_resp(s.pdf_token, loc)
     convo = sess.transcript_for_summary(db, session_id)
     if not convo:
         raise HTTPException(status_code=400, detail=sess.msg("no_convo", loc))
@@ -794,7 +794,7 @@ def session_report(
     db.refresh(s)
     if s.pdf_token and (_PDFD / f"{s.pdf_token}.pdf").is_file():
         _discard_report_pdf(resp.token)
-        return _existing_report_resp(s.pdf_token)
+        return _existing_report_resp(s.pdf_token, loc)
     # 확정본도 파일 부재(초극단) — 깨진 링크 방지 위해 내 결과(파일 존재)를 강제 확정하고 반환.
     db.execute(_update(_CS).where(_CS.id == session_id).values(pdf_token=resp.token))
     db.commit()

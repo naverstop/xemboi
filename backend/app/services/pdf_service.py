@@ -41,6 +41,55 @@ DISCLAIMER = (
     "의료·법률·투자 자문을 대신할 수 없으며 그 어떤 법적 책임이 없음을 고지합니다."
 )
 
+# ── 로케일 라벨(문서 크롬) — vi 는 vi 폰트로 그려야 하므로 문구 자체를 분기한다 ──
+_PDF_L: dict[str, dict[str, str]] = {
+    "ko": {
+        "brand": "인 생 상 담 친 구",
+        "item": "상담 항목", "date": "상담 일자",
+        "disclaimer": DISCLAIMER,
+        "qr_cta": "QR을 스캔해 지금 바로 만나보세요",
+        "qr_brand": "Xem Bói  ·  xemboi.io",
+        "qr_sub": "사주·궁합·택일·타로까지 한 곳에서",
+        "sec_content": "상담 내용", "sec_cards": "뽑은 카드",
+        "sec_compat_a": "첫 번째 분의 사주명식", "sec_compat_b": "두 번째 분의 사주명식",
+        "sec_pentagon": "궁합 요소 분석 (5요소 펜타곤)",
+        "sign": "인생상담 친구", "rule": "―――",
+    },
+    "vi": {
+        "brand": "X E M  B Ó I",
+        "item": "Hạng mục tư vấn", "date": "Ngày tư vấn",
+        "disclaimer": ("Bản tư vấn này được lập dựa trên nội dung tư vấn của Xem Bói (AI); "
+                        "không thay thế tư vấn y tế·pháp lý·đầu tư và không chịu trách nhiệm pháp lý nào."),
+        "qr_cta": "Quét mã QR để trải nghiệm ngay",
+        "qr_brand": "Xem Bói  ·  xemboi.io",
+        "qr_sub": "Tứ Trụ · Xem tuổi · Chọn ngày · Tarot — tất cả một nơi",
+        "sec_content": "Nội dung tư vấn", "sec_cards": "Các lá bài đã rút",
+        "sec_compat_a": "Lá số của người thứ nhất", "sec_compat_b": "Lá số của người thứ hai",
+        "sec_pentagon": "Phân tích 5 yếu tố hợp tuổi (ngũ giác)",
+        "sign": "Xem Bói", "rule": "———",
+    },
+}
+
+
+def _lbl(key: str) -> str:
+    return _PDF_L.get(_loc(), _PDF_L["ko"]).get(key, _PDF_L["ko"].get(key, key))
+
+
+_CJK_RUN = re.compile(r"([⺀-⻿㐀-䶿一-鿿豈-﫿가-힣]+)")
+
+
+def _wrap_cjk_vi(t: str) -> str:
+    """vi 모드에서 한자·한글 run 을 KO 폰트 태그로 래핑 — vi 본문 폰트(BVP)엔 CJK 글리프가 없어
+    .notdef 로 인쇄되는 것을 방지(간지 병기 '(乙巳)' 등). ko 모드는 무변환."""
+    if _loc() != "vi" or not t:
+        return t
+    ko = _font_hanja(_F)
+    return _CJK_RUN.sub(lambda m: f'<font name="{ko}">{m.group(1)}</font>', t)
+
+
+def _fmt_when(d) -> str:
+    return f"{d:%d/%m/%Y}" if _loc() == "vi" else f"{d:%Y년 %m월 %d일}"
+
 # 마크다운 제거(이중 안전망) — 프론트가 이미 strip하지만 API 직접 호출 등 어떤 경로로도
 # PDF에 #·**·- 같은 기호가 남지 않도록 헤더/굵게/이탤릭/불릿을 줄글로 정리한다.
 _MD_HEADER = re.compile(r"(?m)^[ \t]*#{1,6}[ \t]+")
@@ -75,7 +124,13 @@ _FS = "GungsuhKR"    # 관인 폴백 폰트(궁서체)
 _F_VI = "XemBoiViet"      # vi 본문(Be Vietnam Pro) — 베트남어 성조 글리프 전체 커버
 _FB_VI = "XemBoiVietBold"
 # PDF 활성 로케일 — generate_*(locale=) 가 설정. vi 면 _font()가 vi 폰트로 매핑(한자 지점은 _font_hanja).
-_ACTIVE_LOCALE = "ko"
+# ThreadPool 동시요청 교차오염 방지 위해 contextvars(요청 컨텍스트별 독립).
+import contextvars as _ctxv
+_PDF_LOCALE = _ctxv.ContextVar("pdf_locale", default="ko")
+
+
+def _loc() -> str:
+    return _PDF_LOCALE.get()
 
 # 관인 이미지(「相談紙印」 상담지인) — scripts/gen_seal.py 로 생성. 있으면 이걸 날인.
 _SEAL_IMG = Path(__file__).resolve().parent / "assets" / "seal.png"
@@ -113,7 +168,7 @@ class _MyeongsikPanel(Flowable):
         )
         c = self.canv
         w, h = self.width, self.height
-        f, ft = _font(_F), _font(_FT)
+        f, ft = _font_hanja(_F), _font_hanja(_FT)
         # 배경 — FLUX 한지 패널(비율 유지 꽉 채움), 없으면 한지색+원목 테두리 폴백
         c.saveState()
         if _MYEONGSIK_BG.is_file():
@@ -135,7 +190,7 @@ class _MyeongsikPanel(Flowable):
         top = h - 42
         c.drawCentredString(w / 2, top, "사 주 명 식 (四柱命式)")
         if self._caption:
-            c.setFont(f, 8.5)
+            c.setFont(_font(_F), 8.5)   # 캡션은 로케일 본문 폰트(vi 성조 렌더)
             c.setFillColorRGB(0.32, 0.26, 0.16)
             top -= 14
             c.drawCentredString(w / 2, top, self._caption)
@@ -260,7 +315,7 @@ class _MetricsPanel(Flowable):
         import math
         c = self.canv
         w, h = self.width, self.height
-        f, ft = _font(_F), _font(_FT)
+        f, ft = _font_hanja(_F), _font_hanja(_FT)
         # 소제목 (영역별은 올해 세운 반영)
         c.setFillColorRGB(*GOLD_TX)
         c.setFont(ft, 10.5)
@@ -395,11 +450,11 @@ class _TarotSpread(Flowable):
 
     def draw(self) -> None:
         c = self.canv
-        f, ft = _font(_F), _font(_FT)
+        f, ft = _font_hanja(_F), _font_hanja(_FT)
         w, cw, ch = self.width, self.card_w, self.card_h
         c.setFillColorRGB(*GOLD_TX)
         c.setFont(ft, 10.5)
-        c.drawString(2, self.height - 12, "뽑은 카드")
+        c.drawString(2, self.height - 12, _lbl("sec_cards"))
         top = self.height - 22
         for idx, card in enumerate(self.cards):
             r, col = idx // self.cols, idx % self.cols
@@ -502,11 +557,11 @@ def _register_vi_fonts() -> None:
 
 def _font(name: str) -> str:
     # vi 활성 시 본문/제목/볼드를 vi 폰트로 매핑(등록돼 있을 때만). 간지·한자 지점은 _font_hanja 사용.
-    if _ACTIVE_LOCALE == "vi" and _F_VI in pdfmetrics.getRegisteredFontNames():
+    if _loc() == "vi" and _F_VI in pdfmetrics.getRegisteredFontNames():
         vi_map = {_F: _F_VI, _FB: _FB_VI, _FT: _FB_VI, _FS: _F_VI}
         name = vi_map.get(name, name)
     return name if name in pdfmetrics.getRegisteredFontNames() else (
-        _F_VI if _ACTIVE_LOCALE == "vi" and _F_VI in pdfmetrics.getRegisteredFontNames() else _F)
+        _F_VI if _loc() == "vi" and _F_VI in pdfmetrics.getRegisteredFontNames() else _F)
 
 
 def _font_hanja(name: str) -> str:
@@ -524,7 +579,7 @@ def _draw_seal(c: canvas.Canvas, cx: float, cy: float, size: float = 72) -> None
         except Exception:  # noqa: BLE001
             pass
     # 폴백: 폰트로 相談紙印 (전통 배치 — 우열 相談, 좌열 紙印)
-    ft = _font(_FS)
+    ft = _font_hanja(_FS)
     half = size / 2
     c.saveState()
     c.setStrokeColorRGB(*SEAL)
@@ -545,7 +600,7 @@ def _draw_qr_cta(c: canvas.Canvas, x: float, y: float, size: float = 54) -> None
     reportlab 내장 벡터 QR(QrCodeWidget) — 외부 라이브러리·이미지 파일 없이 배율 무관 선명.
     실패해도(예: 드로잉 오류) PDF 생성 자체엔 영향 없다.
     """
-    url = "https://saju.songstock.art/"
+    url = "https://xemboi.io/"
     try:
         from reportlab.graphics.barcode.qr import QrCodeWidget
         from reportlab.graphics.shapes import Drawing
@@ -572,13 +627,13 @@ def _draw_qr_cta(c: canvas.Canvas, x: float, y: float, size: float = 54) -> None
     top = y + size
     c.setFillColorRGB(*INK)
     c.setFont(f, 10)
-    c.drawString(tx, top - 11, "QR을 스캔해 지금 바로 만나보세요")
+    c.drawString(tx, top - 11, _lbl("qr_cta"))
     c.setFillColorRGB(*NAVY)
     c.setFont(f, 9)
-    c.drawString(tx, top - 26, "인생상담 친구  ·  saju.songstock.art")
+    c.drawString(tx, top - 26, _lbl("qr_brand"))
     c.setFillColorRGB(*FAINT)
     c.setFont(f, 8)
-    c.drawString(tx, top - 40, "사주·궁합·택일·작명·개명·아호·타로까지 한 곳에서")
+    c.drawString(tx, top - 40, _lbl("qr_sub"))
 
 
 class FurnitureCanvas(canvas.Canvas):
@@ -619,12 +674,12 @@ class FurnitureCanvas(canvas.Canvas):
         if page_no == total:
             self.setFont(f, 12)
             self.setFillColorRGB(*INK)
-            self.drawCentredString(W - 96, 132, "인생상담 친구")
+            self.drawCentredString(W - 96, 132, _lbl("sign"))
             _draw_seal(self, W - 96, 86)
             self.setFont(f, 8)
             self.setFillColorRGB(*FAINT)
             # 폭을 관인(우하단) 왼쪽으로 제한해 겹침 방지
-            for j, ln in enumerate(simpleSplit(DISCLAIMER, f, 8, W - 210)):
+            for j, ln in enumerate(simpleSplit(_lbl("disclaimer"), f, 8, W - 210)):
                 self.drawString(55, 70 - j * 11, ln)
             # 사이트 방문 QR + 유도 문구(관인 왼쪽 빈 영역, 면책 위)
             _draw_qr_cta(self, 54, 84, 60)
@@ -648,13 +703,17 @@ def _font_codepoints() -> frozenset[int]:
     reportlab 이 폰트를 등록하며 이미 파싱해 둔 cmap(charToGlyph)을 그대로 쓴다 —
     별도 의존성(fontTools) 없이, 실제로 렌더에 쓰일 바로 그 폰트를 근거로 판정한다.
     """
-    key = _ACTIVE_LOCALE
+    key = _loc()
     if key in _CP_CACHE:
         return _CP_CACHE[key]
     try:
         _register_fonts()
         face = getattr(pdfmetrics.getFont(_font(_F)), "face", None)
         cps = frozenset(getattr(face, "charToGlyph", {}) or {})
+        if key == "vi":
+            # vi 본문에 한자 병기('(乙巳)')가 섞여도 삭제하지 않게 ko 폰트 cmap 합집합으로 판정.
+            ko_face = getattr(pdfmetrics.getFont(_font_hanja(_F)), "face", None)
+            cps = cps | frozenset(getattr(ko_face, "charToGlyph", {}) or {})
     except Exception:  # noqa: BLE001 — 글리프 검사는 부가 기능
         cps = frozenset()
     _CP_CACHE[key] = cps
@@ -720,7 +779,7 @@ def _build_compat_pentagon(width: float, factors: list):
             x, y = _pt(i, sc / 100.0)
             data += [x, y]
         d.add(Polygon(data, strokeColor=gold, strokeWidth=1.5, fillColor=fill))
-        fnt = _font(_F)
+        fnt = _font_hanja(_F)
         for i, (lb, sc) in enumerate(pts):              # 꼭짓점 라벨 + 점수
             lx, ly = _pt(i, 1.17)
             d.add(String(lx, ly, lb, fontName=fnt, fontSize=8, fillColor=ink, textAnchor="middle"))
@@ -751,8 +810,7 @@ def generate_consultation_pdf(
     compat(궁합)가 있으면 두 사람의 명식 2개 + 5요소 펜타곤을 넣는다(운영자 지적 #12).
     형식: {"a_chart","a_cap","b_chart","b_cap","factors":[(라벨,점수)...]}. 기본 None → 하위호환.
     """
-    global _ACTIVE_LOCALE
-    _ACTIVE_LOCALE = "vi" if locale == "vi" else "ko"   # 폰트 매핑·글리프 검사 기준
+    _PDF_LOCALE.set("vi" if locale == "vi" else "ko")   # 폰트 매핑·글리프 검사 기준(컨텍스트 로컬)
     _register_fonts()
     # 심층 방어 — 인쇄물은 되돌릴 수 없으므로 렌더러가 스스로 정리한다(전수감사 실측: 종합 감정서
     # 경로가 정리 체인을 안 타 '---' 5줄과 십성 한자 단독 '劫財'가 그대로 인쇄됐다). 체인은 멱등이라
@@ -788,12 +846,13 @@ def generate_consultation_pdf(
 
     def esc(t: str) -> str:
         t = _sub_missing_glyphs(t or "")
-        return t.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+        t = t.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+        return _wrap_cjk_vi(t)
 
     story: list = [
-        Paragraph("인 생 상 담 친 구", s_brand),
+        Paragraph(_lbl("brand"), s_brand),
         Paragraph(esc(doc_title), s_title),
-        Paragraph("―――", s_rule),
+        Paragraph(_lbl("rule"), s_rule),
     ]
     if (person_line or "").strip():
         story.append(Paragraph(esc(person_line), s_person))
@@ -803,7 +862,7 @@ def generate_consultation_pdf(
     # 밀려 잘렸다(전수감사 실측: 160자 입력 시 x=605pt > 페이지 폭 595pt).
     s_cell = ParagraphStyle("cell", fontName=f, fontSize=11, leading=15, textColor=BODY)
     info = Table(
-        [["상담 항목", Paragraph(esc(item), s_cell)], ["상담 일자", f"{when:%Y년 %m월 %d일}"]],
+        [[_lbl("item"), Paragraph(esc(item), s_cell)], [_lbl("date"), _fmt_when(when)]],
         colWidths=[70, W - 104 - 70 - 16],
     )
     info.setStyle(TableStyle([
@@ -833,18 +892,18 @@ def generate_consultation_pdf(
         try:
             pa = _build_myeongsik_panel(W - 104 - 16, compat.get("a_chart"), compat.get("a_cap") or "")
             if pa is not None:
-                story.append(Paragraph("첫 번째 분의 사주명식", s_label))
+                story.append(Paragraph(_lbl("sec_compat_a"), s_label))
                 story.append(pa); story.append(Spacer(1, 10))
             pb = _build_myeongsik_panel(W - 104 - 16, compat.get("b_chart"), compat.get("b_cap") or "")
             if pb is not None:
-                story.append(Paragraph("두 번째 분의 사주명식", s_label))
+                story.append(Paragraph(_lbl("sec_compat_b"), s_label))
                 story.append(pb); story.append(Spacer(1, 10))
         except Exception:  # noqa: BLE001 — 명식 패널 실패해도 본문은 생성
             pass
         try:
             penta = _build_compat_pentagon(W - 104 - 16, compat.get("factors") or [])
             if penta is not None:
-                story.append(Paragraph("궁합 요소 분석 (5요소 펜타곤)", s_label))
+                story.append(Paragraph(_lbl("sec_pentagon"), s_label))
                 story.append(penta); story.append(Spacer(1, 12))
         except Exception:  # noqa: BLE001
             pass
@@ -855,7 +914,7 @@ def generate_consultation_pdf(
             story.append(Spacer(1, 12))
         except Exception:  # noqa: BLE001
             pass  # 카드 패널 실패해도 본문은 생성
-    story.append(Paragraph("상담 내용", s_label))
+    story.append(Paragraph(_lbl("sec_content"), s_label))
     # [2026-07-21] 마크다운을 제거하지 않고 렌더 — ### 소제목=굵은 제목 줄, **강조**=<b>, 불릿=•.
     # 평문 입력(궁합·타로 등 strip 선적용 경로, 종합 감정서)은 변환기 통과 시 무변화(하위 호환).
     s_head = ParagraphStyle("mdhead", fontName=_font(_FB), fontSize=12, leading=18,
@@ -877,7 +936,7 @@ def generate_consultation_pdf(
                 story.append(Paragraph(esc(body), s_head))
                 continue
             ln = _MD_BULLET.sub(r"\1• ", ln)
-            lines_out.append(_md_inline(ln))
+            lines_out.append(_wrap_cjk_vi(_md_inline(ln)))
         if lines_out:
             story.append(Paragraph("<br/>".join(lines_out), s_body))
             story.append(Spacer(1, 8))

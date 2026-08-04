@@ -65,7 +65,7 @@ def test_font_candidate_chain_survives_non_windows():
         # 리눅스 상황 재현: 시스템 폰트 후보를 모두 빼고 번들만 남긴다
         P._FONT_CANDIDATES = tuple(c for c in saved_cands if "tarot" in c[0])
         P._FONTS_OK = None
-        P._font_codepoints.cache_clear()
+        P._CP_CACHE.clear()
         assert P._register_fonts() is True
         pdf = P.generate_consultation_pdf(doc_title="폴백", person_line="테 스 트 님",
                                           item="확인", content="한글 본문은 정상 인쇄되어야 합니다.",
@@ -78,7 +78,7 @@ def test_font_candidate_chain_survives_non_windows():
         assert P._register_fonts() is False
     finally:
         P._FONT_CANDIDATES, P._FONTS_OK = saved_cands, saved_ok
-        P._font_codepoints.cache_clear()
+        P._CP_CACHE.clear()
         P._register_fonts()
 
 
