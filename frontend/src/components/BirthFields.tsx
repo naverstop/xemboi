@@ -1,5 +1,6 @@
 /** 프리미엄 사주 입력 — 빠른입력 + 날짜/시각 + 성별·양음력 세그먼트 토글. 전 메뉴 공용. */
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import AdvancedBirthSettings from "./AdvancedBirthSettings";
 import TimeSelect from "./TimeSelect";
 import { DEFAULT_BIRTH_TIME } from "../lib/birthTime";
@@ -59,6 +60,7 @@ export default function BirthFields({
   /** '내 사주정보 기억하기'로 불러온(또는 저장 중인) 정보인지 — 상단 강조 카드 표시용. */
   remembered?: boolean;
 }) {
+  const { t: tr } = useTranslation();
   const [quick, setQuick] = useState("");
   const [info, setInfo] = useState<string | null>(null);
   const [dateText, setDateText] = useState(value.birth_date || "");
@@ -102,12 +104,12 @@ export default function BirthFields({
     const d = raw.replace(/\D/g, "");
     if (d.length === 0) { setInfo(null); return; }
     if (d.length !== 8 && d.length !== 10 && d.length !== 12) {
-      setInfo("8자리(생년월일) 또는 12자리(생년월일+시분)를 입력해 주세요."); return;
+      setInfo(tr("chat.q_len")); return;
     }
     const y = d.slice(0, 4), mo = d.slice(4, 6), da = d.slice(6, 8);
     const yi = +y, moi = +mo, dai = +da;
     if (yi < 1900 || yi > 2100 || moi < 1 || moi > 12 || dai < 1 || dai > 31) {
-      setInfo("생년월일 숫자를 다시 확인해 주세요."); return;
+      setInfo(tr("chat.q_date_bad")); return;
     }
     const patch: Partial<BirthValue> = { birth_date: `${y}-${mo}-${da}` };
     let timeLabel = "";
@@ -115,13 +117,13 @@ export default function BirthFields({
       const hh = d.slice(8, 10);
       const mm = d.length >= 12 ? d.slice(10, 12) : "00";
       if (+hh <= 23 && +mm <= 59) { patch.birth_time = `${hh}:${mm}`; patch.unknown_time = false; timeLabel = ` ${hh}:${mm}`; }
-      else { setInfo("시각(시·분) 숫자를 다시 확인해 주세요."); return; }
+      else { setInfo(tr("chat.q_time_bad")); return; }
     } else if (!value.unknown_time && !(value.birth_time || "").trim()) {
       // 시각 미입력 → 자동으로 00:30 채워 매끄럽게 진행('시 모름'이면 제외 유지)
       patch.birth_time = DEFAULT_BIRTH_TIME; patch.unknown_time = false; timeLabel = ` ${DEFAULT_BIRTH_TIME}`;
     }
     onChange(patch);
-    setInfo(`✓ ${yi}년 ${moi}월 ${dai}일${timeLabel} 자동 입력됨`);
+    setInfo(tr("chat.q_ok", { y: yi, mo: moi, da: dai, time: timeLabel }));
   }
 
   return (
@@ -138,33 +140,33 @@ export default function BirthFields({
       {/* 빠른 입력 (강조) */}
       <div className="bf-quick">
         <div className="bf-quick-top">
-          <span className="bf-quick-label">⚡ 빠른 입력</span>
-          <span className="bf-quick-sub">숫자만 입력하면 자동 완성</span>
+          <span className="bf-quick-label">{tr("chat.quick_label")}</span>
+          <span className="bf-quick-sub">{tr("chat.quick_sub")}</span>
         </div>
         <div className="bf-quick-row">
           <input
             className="bf-quick-input" type="text" inputMode="numeric" maxLength={14}
-            placeholder="예: 199909300530"
+            placeholder={tr("chat.quick_ph")}
             value={quick} onChange={(e) => parseQuick(e.target.value)}
           />
-          <button type="button" className="bf-quick-btn" onClick={() => parseQuick(quick)}>적용</button>
+          <button type="button" className="bf-quick-btn" onClick={() => parseQuick(quick)}>{tr("chat.apply")}</button>
         </div>
         <div className={`bf-quick-hint${info && info.startsWith("✓") ? " ok" : info ? " warn" : ""}`}>
-          {info || "8자리(YYYYMMDD) 또는 12자리(YYYYMMDDHHMM)"}
+          {info || tr("chat.quick_hint")}
         </div>
       </div>
 
-      <div className="bf-or"><span>또는 직접 입력</span></div>
+      <div className="bf-or"><span>{tr("chat.or_manual")}</span></div>
 
       {/* 직접 입력 */}
       <div className="bf-grid">
         <div className="bf-field bf-field-wide">
-          <label>📅 생년월일</label>
+          <label>{tr("chat.f_birth")}</label>
           <div className="bf-datebox">
             <input className="bf-input" type="text" inputMode="numeric" maxLength={10}
-                   placeholder="예: 1999-09-30 (직접 입력)" value={dateText}
+                   placeholder={tr("chat.birth_ph")} value={dateText}
                    onChange={(e) => typeDate(e.target.value)} />
-            <button type="button" className="bf-cal-btn" title="달력에서 선택"
+            <button type="button" className="bf-cal-btn" title={tr("chat.cal_title")}
                     onClick={() => { const el = dateRef.current; if (!el) return; (el as any).showPicker ? (el as any).showPicker() : el.focus(); }}>📅</button>
             {/* 달력 팝업 전용(시각적 숨김) — 버튼으로 호출, 선택값은 birth_date로 반영 */}
             <input ref={dateRef} type="date" className="bf-date-native" tabIndex={-1} aria-hidden
@@ -172,36 +174,36 @@ export default function BirthFields({
           </div>
         </div>
         <div className="bf-field bf-field-wide">
-          <label>🕐 태어난 시각</label>
+          <label>{tr("chat.f_time")}</label>
           <div className="bf-time">
             <TimeSelect value={value.birth_time} disabled={value.unknown_time}
                         onChange={(v) => onChange({ birth_time: v })} />
             <button type="button" className={`bf-chip ${value.unknown_time ? "on" : ""}`}
-                    onClick={() => onChange({ unknown_time: !value.unknown_time })}>시 모름</button>
+                    onClick={() => onChange({ unknown_time: !value.unknown_time })}>{tr("chat.unknown_time")}</button>
           </div>
           <div className="bf-time-hint" style={{ fontSize: 12, color: "#8a8f98", marginTop: 4 }}>
-            {value.unknown_time ? "시주 없이 3기둥으로 분석해요." : "비워두면 자동으로 00:30로 진행돼요 · 태어난 시를 모르면 ‘시 모름’"}
+            {value.unknown_time ? tr("chat.time_hint_unknown") : tr("chat.time_hint_default")}
           </div>
         </div>
         {showGender && (
           <div className="bf-field">
-            <label>성별</label>
+            <label>{tr("chat.f_gender")}</label>
             <div className="bf-seg">
-              <button type="button" className={value.gender === "male" ? "on" : ""} onClick={() => onChange({ gender: "male" })}>♂ 남자</button>
-              <button type="button" className={value.gender === "female" ? "on" : ""} onClick={() => onChange({ gender: "female" })}>♀ 여자</button>
+              <button type="button" className={value.gender === "male" ? "on" : ""} onClick={() => onChange({ gender: "male" })}>{tr("chat.male")}</button>
+              <button type="button" className={value.gender === "female" ? "on" : ""} onClick={() => onChange({ gender: "female" })}>{tr("chat.female")}</button>
             </div>
           </div>
         )}
         <div className="bf-field">
-          <label>달력</label>
+          <label>{tr("chat.f_calendar")}</label>
           <div className="bf-cal-row">
             <div className="bf-seg">
-              <button type="button" className={value.calendar === "solar" ? "on" : ""} onClick={() => onChange({ calendar: "solar", is_leap_month: false })}>양력</button>
-              <button type="button" className={value.calendar === "lunar" ? "on" : ""} onClick={() => onChange({ calendar: "lunar" })}>음력</button>
+              <button type="button" className={value.calendar === "solar" ? "on" : ""} onClick={() => onChange({ calendar: "solar", is_leap_month: false })}>{tr("chat.solar")}</button>
+              <button type="button" className={value.calendar === "lunar" ? "on" : ""} onClick={() => onChange({ calendar: "lunar" })}>{tr("chat.lunar")}</button>
             </div>
             {value.calendar === "lunar" && (
               <button type="button" className={`bf-chip ${value.is_leap_month ? "on" : ""}`}
-                      onClick={() => onChange({ is_leap_month: !value.is_leap_month })}>윤달</button>
+                      onClick={() => onChange({ is_leap_month: !value.is_leap_month })}>{tr("birth.leap")}</button>
             )}
           </div>
         </div>

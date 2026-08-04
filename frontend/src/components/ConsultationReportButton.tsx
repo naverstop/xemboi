@@ -3,6 +3,7 @@
  *  build()가 null이면 비활성(상담 내용 없음).
  */
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { api } from "../api";
 import DownloadGuard from "../components/DownloadGuard";
 
@@ -16,6 +17,7 @@ export type ReportReq = {
 };
 
 export default function ConsultationReportButton({ build }: { build: () => ReportReq | null }) {
+  const { t: tr } = useTranslation();
   const [busy, setBusy] = useState(false);
   const [url, setUrl] = useState("");     // 인라인 보기용(inline)
   const [dlUrl, setDlUrl] = useState(""); // 인라인 저장용(attachment)
@@ -39,7 +41,7 @@ export default function ConsultationReportButton({ build }: { build: () => Repor
       }));
     } catch {
       window.dispatchEvent(new CustomEvent("saju:gen-error", {
-        detail: { id, message: "종합 감정서 생성 중 오류가 발생했어요. 잠시 후 다시 시도해 주세요." },
+        detail: { id, message: tr("consult.rb_error") },
       }));
     } finally {
       setBusy(false);
@@ -48,18 +50,18 @@ export default function ConsultationReportButton({ build }: { build: () => Repor
 
   return (
     <span className="report-wrap">
-      <button className="report-btn" onClick={onClick} disabled={busy} title="상담 전체를 하나의 감정서로 정리">
-        {busy ? "⏳ 종합 정리 중…" : url ? "📋 감정서 다시 만들기" : "📋 상담 전체 종합 감정서 PDF"}
+      <button className="report-btn" onClick={onClick} disabled={busy} title={tr("consult.rb_title")}>
+        {busy ? tr("consult.rb_busy") : url ? tr("consult.rb_remake") : tr("consult.rb_make")}
       </button>
       {url && !busy && (
         // 생성된 감정서: 열기(보기)·저장(다운로드)을 사용자가 선택(실제 링크=팝업차단 없음, API 재호출 없음)
         <span style={{ marginLeft: 8 }}>
           <DownloadGuard className="report-btn report-open" href={url} mode="open">
-            📄 감정서 열기
+            {tr("consult.rb_open")}
           </DownloadGuard>
           {dlUrl && (
-            <DownloadGuard className="report-btn report-open" href={dlUrl} filename="종합감정서.pdf" mode="download">
-              ⤓ 저장
+            <DownloadGuard className="report-btn report-open" href={dlUrl} filename="tu-van.pdf" mode="download">
+              ⤓ {tr("consult.rb_save")}
             </DownloadGuard>
           )}
         </span>

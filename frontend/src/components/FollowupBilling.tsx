@@ -8,7 +8,9 @@
  *
  *  ⚠️ 플러스 패스 %할인은 반영(서버와 동일 반올림): cost = round(정가 × (100-할인)/100).
  */
+import { useTranslation } from "react-i18next";
 import { type MeResp } from "../api";
+import { fmtNum } from "../lib/money";
 
 export default function FollowupBilling({
   me,
@@ -23,15 +25,25 @@ export default function FollowupBilling({
    *  '차감' 배지. 유료 차감 상태에서는 넘기지 않는다(호출부가 판단). */
   freeNote?: string | null;
 }) {
+  const { t: tr } = useTranslation();
   const disc = me?.active_pass?.tier === "plus" ? (me?.pass_followup_discount_pct ?? 0) : 0;
   const applyDisc = (p: number) => (disc > 0 ? Math.max(0, Math.round((p * (100 - disc)) / 100)) : p);
-  const basic = applyDisc(me?.credit_cost_basic ?? 1900);
-  const deep = applyDisc(me?.credit_cost_deep ?? 3900);
+  const basic = applyDisc(me?.credit_cost_basic ?? 19000);
+  const deep = applyDisc(me?.credit_cost_deep ?? 29000);
   const cost = depth === "deep" ? deep : basic;
-
+  const free = (me?.free_remaining ?? 0) > 0;
+  const note = !me
+    ? tr("explain.fb_guest")
+    : free
+    ? tr("explain.fb_free", { rem: fmtNum(me!.free_remaining ?? 0) })
+    : tr("explain.fb_paid", {
+        level: depth === "deep" ? tr("chat.lvl_deep") : tr("chat.lvl_basic"),
+        cost: fmtNum(cost),
+        bal: fmtNum(me!.balance),
+      });
   return (
     <div className="followup-billing">
-      <div className="fb-depth" role="radiogroup" aria-label="추가질문 등급">
+      <div className="fb-depth" role="radiogroup" aria-label={tr("explain.fb_depth_aria")}>
         <button
           type="button"
           role="radio"
@@ -39,7 +51,7 @@ export default function FollowupBilling({
           className={`fb-pill${depth === "basic" ? " on" : ""}`}
           onClick={() => onDepth("basic")}
         >
-          기본 <b>{basic.toLocaleString()}P</b>
+          {tr("chat.depth_basic")} {fmtNum(basic)}{tr("pay.pt")}
         </button>
         <button
           type="button"
@@ -48,7 +60,7 @@ export default function FollowupBilling({
           className={`fb-pill${depth === "deep" ? " on" : ""}`}
           onClick={() => onDepth("deep")}
         >
-          심화 <b>{deep.toLocaleString()}P</b>
+          {tr("chat.depth_deep")} {fmtNum(deep)}{tr("pay.pt")}
         </button>
       </div>
 

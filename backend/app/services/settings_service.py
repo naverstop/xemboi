@@ -19,27 +19,24 @@ from backend.app.repositories.auth_models import AppSetting
 DEFAULTS: dict[str, str] = {
     "free_quota_count": "3",          # 일반회원(Level4) 무료 질문 횟수
     "free_quota_reset": "none",       # none | daily | monthly
-    "credit_cost_basic": "1900",      # 기본 답변 1건 차감 크레딧(시장조사 반영 2026-07-12)
-    "credit_cost_deep": "3900",       # 심화(듀얼 LLM) 1건 차감 크레딧
-    "preview_reveal_cost": "900",     # 미리보기 전체보기 차감
+    "credit_cost_basic": "19000",     # 기본 답변 1건 차감(VND)
+    "credit_cost_deep": "29000",      # 심화(듀얼 LLM) 1건 차감(VND)
+    "preview_reveal_cost": "10000",   # 미리보기 전체보기 차감(VND)
     "preview_max_chars": "1000",      # 미리보기 표시 글자수(무료/맛보기 분량) — 성격 한 단락이 안 끊기게
     "feedback_reward_pct": "3",       # 피드백(👍/👎) 시 결제액 대비 리워드 적립 비율(%)
-    "feedback_reward_daily_cap": "3000",  # 1일 1인 피드백 리워드 상한(P)
-    "review_reward_p": "500",         # B-3 후기 승인 시 1회 리워드(P). 0=지급 없음
-    "amulet_cost_p": "3900",          # B-4 부적 발행 1회 차감(P). 실패 시 무과금
+    "feedback_reward_daily_cap": "30000",  # 1일 1인 피드백 리워드 상한(P, VND)
+    "review_reward_p": "5000",        # B-3 후기 승인 시 1회 리워드(VND). 0=지급 없음
+    "amulet_cost_p": "39000",         # B-4 부적 발행 1회 차감(VND). 실패 시 무과금
     # ── B-7 월 패스(포인트 자동차감형, 30일 주기) ──
-    "pass_lite_price_p": "3900",      # 라이트: 광고 제거 + 공유쿼터 확대
-    "pass_plus_price_p": "9900",      # 플러스: 라이트 전체 + 할인/월 무료질문/월 무료부적
+    "pass_lite_price_p": "39000",     # 라이트: 광고 제거 + 공유쿼터 확대(VND)
+    "pass_plus_price_p": "99000",     # 플러스: 라이트 전체 + 할인/월 무료질문/월 무료부적(VND)
     "pass_share_quota": "20",         # 패스 공유 쿼터(기본 5 → 20)
-    # [운영자 결정 2026-07-22 '2안 균형'] 10%·월1회는 체감이 없었다(할인 190P, 혜택가치 5,800P).
-    #   30%·월5회로 상향 → 혜택가치 13,400P(패스 9,900P 대비 1.4배). 1안(월10회=22,900P)은 역마진
-    #   13,000P라 기각. 값은 관리자 화면에서 즉시 조정 가능(표시 문구도 pass_api 가 함께 따라감).
     "pass_followup_discount_pct": "30",  # 플러스 추가질문 할인 %
-    "pass_free_basic_monthly": "5",   # 플러스 월 무료 기본질문 횟수(기본질문 depth=basic 한정)
+    "pass_free_basic_monthly": "5",   # 플러스 월 무료 기본질문 횟수
     "pass_amulet_monthly": "1",       # 플러스 월 무료 부적 횟수
-    # ── 마케팅 가격 에이전트(2026-07-13) — 조사 토글. 자동적용은 미구현(승인게이트 필수) ──
-    "pricing_survey_enabled": "false",     # 주단위 시장조사·권장가 산출 자동 실행
-    "pricing_auto_apply_enabled": "false", # (자리표시자) 완전자동 — 본 차수 미사용, 어떤 코드도 자동적용 안 함
+    # ── 마케팅 가격 에이전트 — 조사 토글. 자동적용은 미구현(승인게이트 필수) ──
+    "pricing_survey_enabled": "false",
+    "pricing_auto_apply_enabled": "false",
     "external_llm_enabled": "true",   # 듀얼 LLM 2차 보강 사용 여부
     # 로컬 엔진 전체 다운 시 외부(미국) LLM 자동 폴백 — 국외이전 미동의 전송이라 기본 OFF(H4).
     "overseas_llm_fallback_enabled": "false",
@@ -50,17 +47,16 @@ DEFAULTS: dict[str, str] = {
     "retrieval_log_retention_days": "90",
     "access_log_retention_days": "365",  # 접속기록 IP 보관상한(D9)
     # ── 프리미엄 5개 메뉴 입장료(생성=입장 시 1회 차감). 메뉴별 관리자 설정 → 코드 수정 불필요 ──
-    # 시장조사(2026-07-12) 반영 — 커머디티(타로·궁합)는 앱수준↓, 전문(작명·개명)은 가치↑
-    "entry_cost_compat": "5900",      # 궁합 입장료
-    "entry_cost_taekil": "9900",      # 택일 입장료
-    "entry_cost_jakmyeong": "12900",  # 작명 입장료
-    "entry_cost_gaemyeong": "12900",  # 개명 입장료
-    "entry_cost_aho": "6900",         # 아호 입장료
-    "entry_cost_tarot": "4900",       # 타로 입장료
-    "entry_cost_sinnyeon": "9900",    # B-1 신년운세 입장료
+    "entry_cost_compat": "99000",     # 궁합 입장료(VND)
+    "entry_cost_taekil": "99000",     # 택일 입장료(VND)
+    "entry_cost_jakmyeong": "99000",  # 작명(VN 제외 메뉴 — 안전값)
+    "entry_cost_gaemyeong": "99000",  # 개명(VN 제외 메뉴)
+    "entry_cost_aho": "99000",        # 아호(VN 제외 메뉴)
+    "entry_cost_tarot": "49000",      # 타로 입장료(VND)
+    "entry_cost_sinnyeon": "99000",   # B-1 신년운세(VN 제외 메뉴 — 안전값)
     "premium_entry_discount_pct": "0",  # 5개 메뉴 공통 행사 할인 %(0~100). 50 입력 시 반값
     # ── 사주 답변 → 1분 쇼츠 영상(부록 C). 전부 관리자 즉시 조정 ──
-    "video_gen_cost": "2900",         # '영상으로 보기' 클릭 즉시 차감 P
+    "video_gen_cost": "39000",        # '영상으로 보기' 클릭 즉시 차감(VND)
     "shorts_video_seconds": "90",     # 출력 길이(품질>시간, 60~120 허용)
     "shorts_video_seconds_max": "120", # 상한
     "shorts_aspect": "9x16",          # 9x16 | 16x9
@@ -75,7 +71,7 @@ DEFAULTS: dict[str, str] = {
     "shorts_bgm": "none",             # none(무음·현행) | auto(분위기 자동매칭) | 파일명(assets/bgm/)
     "shorts_credit": "orion0321@gmail.com",  # 음원·영상 출처(메타데이터 artist/copyright)
     # ── 1:1 인적 상담(입점업체) 전역 기본값 — 상담사별 미설정 시 폴백. [[consultation-1on1-plan]] ──
-    "consultation_default_price_p": "59000",     # 회당 기본 단가(P) — 시장 진입가 30분 60,000 정렬
+    "consultation_default_price_p": "199000",    # 회당 기본 단가(VND, 라이브 상담 시장가)
     "consultation_default_duration_min": "30",   # 기본 상담 시간(분)
     "consultation_min_price_p": "0",             # 상담사 자율요금 하한(1회 블록 환산가 기준). 0=제한 없음
     "consultation_commission_pct": "20",         # 플랫폼 수수료(%) — 정산 산출

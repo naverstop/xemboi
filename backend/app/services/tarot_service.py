@@ -71,6 +71,34 @@ TAROT_FOLLOWUP_HINT = (
     "새 카드를 뽑거나 카드·방향을 바꾸지 마세요."
 )
 
+# 베트남어(vi) 타로 시스템 프롬프트 — ko 룰(한국어 존댓말·상담체)을 vi 에 주입하면 충돌하므로 별도.
+TAROT_SYSTEM_VI = """Bạn là một nhà tư vấn Tarot tiếng Việt ấm áp, sâu sắc và tinh tế.
+
+Đầu vào gồm câu hỏi, chủ đề, tên trải bài và từng lá theo vị trí (tên vị trí, tên lá, chiều xuôi/ngược, từ khoá).
+
+Nguyên tắc:
+1. Chỉ dùng đúng tên lá, chiều (xuôi/ngược) và vị trí đã cho; không bịa ra lá, chiều hay vị trí mới.
+   Lá ngược KHÔNG có nghĩa là "xấu" — từ khoá bên cạnh chính là ý nghĩa của chiều đó.
+2. Thứ tự luận giải: giải theo từng vị trí → tương tác giữa các lá → tổng hợp → lời khuyên cụ thể cho câu hỏi.
+   Khi giải từng vị trí, hãy nêu rõ tên lá và chiều của nó trong bài viết.
+3. Tránh phán hung/cát tuyệt đối; tập trung vào khả năng và lời khuyên hành động. Không dùng "chắc chắn", "100%".
+4. Viết đủ dài và phong phú; xử lý đầy đủ tất cả các vị trí, không gộp qua loa các lá về sau.
+5. Dùng giọng lịch sự, tôn trọng người hỏi; mở đầu tự nhiên, không lặp lại nguyên văn câu hỏi.
+6. Chỉ viết bằng tiếng Việt (chữ Quốc ngữ có dấu). TUYỆT ĐỐI không dùng chữ Hán / tiếng Trung.
+"""
+
+TAROT_FOLLOWUP_HINT_VI = (
+    "\n[Câu hỏi thêm] Người dùng hỏi thêm về phần luận giải trải bài ở trên. "
+    "Dựa trên các lá đã rút (vị trí·chiều·từ khoá) và cuộc trò chuyện trước, hãy trả lời cụ thể. "
+    "Không rút lá mới, không đổi lá hay chiều."
+)
+
+# vi 상담체 줄글 규칙(마크다운 금지) — ko CONSULTANT_STYLE_RULE 대응.
+TAROT_STYLE_RULE_VI = (
+    "[Định dạng — bắt buộc] Không dùng markdown (#, **, -, danh sách đánh số, bảng); "
+    "viết thành các đoạn văn tự nhiên như đang tư vấn trực tiếp."
+)
+
 # 내부(qwen)·외부(Claude) 보강용 — 사주 감수 프롬프트를 쓰면 명리 용어가 오염되므로 타로 전용으로 분리.
 TAROT_PROSE_STYLE_RULE = (
     "[작성 형식 — 필수] 마크다운(헤더 #, 굵게 **, 목록 -·*, 번호 1., 표, 구분선 '---')을 "
@@ -123,6 +151,19 @@ TAROT_GENERATE_SYSTEM = (
 # 타로 해설 전용 생성 상한 — 장문(2배 풍부화) 목표가 전역 num_predict(3072tok)에 잘리지 않게 확장.
 # num_ctx(16384) 안이므로 안전. 보강(qwen)·재생성·스트림 모두 동일 상한 사용.
 TAROT_EXPLAIN_NUM_PREDICT = 6144
+
+# 베트남어(vi) 폴백 생성 프롬프트 — ko TAROT_GENERATE_SYSTEM 대응(로컬 엔진 전체 다운 시 vi 본문 생성).
+TAROT_GENERATE_SYSTEM_VI = (
+    "Bạn là một nhà tư vấn Tarot tiếng Việt. Hãy luận giải dựa trên [trải bài] đã cho "
+    "(câu hỏi·chủ đề·lá theo vị trí·chiều·từ khoá).\n"
+    "Nguyên tắc:\n"
+    "1. Chỉ dùng đúng tên lá·chiều·vị trí đã cho, không bịa ra lá·chiều·vị trí mới.\n"
+    "2. Theo thứ tự: giải từng vị trí → tương tác giữa các lá → tổng hợp → lời khuyên cụ thể.\n"
+    "3. Tránh phán hung/cát tuyệt đối; tập trung vào khả năng và lời khuyên hành động. "
+    "Không dùng \"chắc chắn\", \"100%\".\n"
+    "4. Viết thành các đoạn văn tự nhiên (không markdown), chỉ xuất phần luận giải. "
+    "Chỉ dùng tiếng Việt có dấu; TUYỆT ĐỐI không dùng chữ Hán / tiếng Trung.\n"
+)
 
 
 # ============================================================
@@ -186,11 +227,12 @@ def _render_spread_for_llm(row: TarotSession) -> str:
 # 생성 — 입장료 차감(궁합 미러) + 드로우 확정
 # ============================================================
 def create_tarot(
-    db: Session, section: str, question: str, user: User | None = None
+    db: Session, section: str, question: str, user: User | None = None, locale: str = "ko"
 ) -> dict[str, Any]:
     """타로 세션 생성: 섹션 검증 → 입장료 1회 차감(compat 동일) → CSPRNG 드로우 확정 저장.
 
     이 차감이 '타로 1회'이며, 최초 해석 스트림은 추가 과금하지 않는다.
+    locale(요청 로케일)은 세션 행에 저장돼 해석 스트림의 응답 언어·모델을 결정한다.
     """
     spread_type, positions = tarot_deck.spread_for_section(section)
     question = (question or "").strip()
@@ -230,6 +272,7 @@ def create_tarot(
     row = TarotSession(
         tarot_id=tarot_id,
         user_id=user.id if user else None,
+        locale=locale,
         section=section,
         question=question,
         spread_type=spread_type,
@@ -247,7 +290,7 @@ def create_tarot(
         "tarot_id": tarot_id,
         "spread_type": spread_type,
         "need": len(positions),
-        "positions": positions,
+        "positions": tarot_deck.localized_positions(spread_type, locale),
         "section": section,
         "question": question,
         "is_preview": is_preview,
@@ -286,8 +329,12 @@ def submit_picks(
 
     order = row.deck_order_json or []
     flags = row.reversed_json or []
+    positions_vi = tarot_deck.SPREAD_POSITIONS_VI.get(row.spread_type, [])
     cards = [
-        tarot_deck.card_payload(k, positions[k], order[idx], bool(flags[idx]))
+        tarot_deck.card_payload(
+            k, positions[k], order[idx], bool(flags[idx]),
+            position_name_vi=(positions_vi[k] if k < len(positions_vi) else ""),
+        )
         for k, idx in enumerate(indices)
     ]
     row.picks_json = list(indices)
@@ -306,6 +353,7 @@ def get_tarot(db: Session, tarot_id: str, user: User | None) -> dict[str, Any] |
     if row.user_id is not None and (user is None or user.id != row.user_id):
         raise PermissionError("not your tarot session")
     positions = tarot_deck.SPREAD_POSITIONS[row.spread_type]
+    resp_positions = tarot_deck.localized_positions(row.spread_type, getattr(row, "locale", "ko"))
     messages = []
     for m in row.messages:
         content = m.content
@@ -331,7 +379,7 @@ def get_tarot(db: Session, tarot_id: str, user: User | None) -> dict[str, Any] |
         "question": row.question,
         "spread_type": row.spread_type,
         "need": len(positions),
-        "positions": positions,
+        "positions": resp_positions,
         "cards": row.cards_json,   # 뽑기 전이면 None
         "messages": messages,
         "is_preview": row.is_preview,
@@ -420,15 +468,19 @@ def _tarot_claude_refine(
 
 def _tarot_generate_fallback(
     *, question: str, spread: str, dialect_instruction: str | None,
-    allow_overseas: bool = False,
+    allow_overseas: bool = False, locale: str = "ko",
 ) -> str | None:
-    """로컬 엔진 전체 다운 시 외부(Claude)로 본문 생성 폴백 — external_fallback_answer 미러. 미동의 시 전송 안 함."""
-    parts = [spread, f"[사용자 질문]\n{question}"]
-    if dialect_instruction:
+    """로컬 엔진 전체 다운 시 외부(Claude)로 본문 생성 폴백 — external_fallback_answer 미러. 미동의 시 전송 안 함.
+
+    vi 로케일이면 vi 프롬프트/질문 라벨을 쓰고, ko 방언 지시는 주입하지 않는다(언어 충돌 방지)."""
+    q_label = "[Câu hỏi]" if locale == "vi" else "[사용자 질문]"
+    parts = [spread, f"{q_label}\n{question}"]
+    if dialect_instruction and locale != "vi":
         parts.append(dialect_instruction)
+    system = TAROT_GENERATE_SYSTEM_VI if locale == "vi" else TAROT_GENERATE_SYSTEM
     # 국외전송 가명화(#4) — 정확 나이를 연령대로 일반화 후 전송.
     return _tarot_claude_call(
-        TAROT_GENERATE_SYSTEM, external_llm._pseudonymize_for_transfer("\n\n".join(parts)),
+        system, external_llm._pseudonymize_for_transfer("\n\n".join(parts)),
         allow_overseas=allow_overseas,
     )
 
@@ -634,8 +686,12 @@ def _trim_to_sentence(text: str) -> str:
     return t[: m.end()] if m else text
 
 
-def _compose_tarot_sys(base: str, dialect: str | None) -> str:
-    """타로용 시스템 프롬프트 합성 — 사주 전용 규칙(간지/대운/용신) 대신 상담체 규칙만 주입."""
+def _compose_tarot_sys(base: str, dialect: str | None, locale: str = "ko") -> str:
+    """타로용 시스템 프롬프트 합성 — 사주 전용 규칙(간지/대운/용신) 대신 상담체 규칙만 주입.
+
+    vi 는 한국어 방언·상담체 규칙(ko)을 주입하면 언어 충돌 → vi 전용 줄글 규칙만 덧붙인다."""
+    if locale == "vi":
+        return base + "\n\n" + TAROT_STYLE_RULE_VI
     parts = [base]
     di = chat_service._dialect_instruction(dialect)
     if di:
@@ -797,6 +853,7 @@ def _stream_message_inner(
     brief = _render_spread_for_llm(row)
     dialect = (getattr(user, "answer_dialect", None) or "standard") if user else "standard"
     di = chat_service._dialect_instruction(dialect)
+    locale = getattr(row, "locale", "ko")   # 세션 확정 로케일 — 응답 언어·모델 선택(chat 미러)
 
     has_assistant = any(m.role == "assistant" for m in row.messages)
     is_explain = not has_assistant
@@ -806,28 +863,36 @@ def _stream_message_inner(
         is_preview = row.is_preview
         billing_mode = "tarot_explain"
         credits_to_charge = 0
-        sys_content = _compose_tarot_sys(TAROT_SYSTEM, dialect)
+        _base = TAROT_SYSTEM_VI if locale == "vi" else TAROT_SYSTEM
+        sys_content = _compose_tarot_sys(_base, dialect, locale)
         _n_cards = len(row.cards_json or [])
-        # 구조 강제(실측: 호스슈 7카드가 3번에서 요약으로 뭉개지는 조기중단 방어) — 번호 문단 강제 +
-        # 뒤 포지션 분량 균형 + '해설'은 참고자료(복붙 금지). 부족분은 아래 커버리지 가드가 결정적 보완.
-        # 예시 헤더는 실제 1번 포지션명으로 조립 — '포지션명'이라는 플레이스홀더를 쓰면 모델이
-        # 문자 그대로 "1. 포지션명: 과거"로 출력한 실사례(운영자 보고 스크린샷)가 있어 금지.
-        _pos1 = (row.cards_json[0].get("position_name") or "과거") if row.cards_json else "과거"
-        _min_chars = 4000 if _n_cards >= 11 else 2600   # 풍부화 2배 목표(운영자 지시 2026-07-15)
-        ucontent = (
-            f"{brief}\n\n"
-            f"먼저 {_n_cards}개 포지션을 각각 '1. {_pos1}:'처럼 번호와 그 자리의 포지션 이름으로 "
-            f"시작하는 번호 문단으로 1번부터 {_n_cards}번까지 빠짐없이 하나씩 해석하세요. "
-            f"절대 3~4번에서 멈추거나 뒤 포지션을 하나로 묶지 마세요 — {_n_cards}개 번호 문단이 "
-            f"모두 있어야 하며, 뒤 포지션도 앞과 같은 분량으로 다루세요. 각 포지션은 5~8문장으로: "
-            f"①카드 그림·상징이 말하는 것 ②그 의미를 이 질문 상황에 구체적으로 대입 ③그로 인한 "
-            f"조언·주의점까지 세 겹을 담고, 카드 한글명·방향을 명시하세요. 각 카드의 '해설:'은 참고 "
-            f"자료이니 그대로 베끼지 말고 이 질문·포지션에 맞게 소화해 쓰세요.\n"
-            f"{_n_cards}개 번호 문단을 마친 뒤에는 ②카드 간 상호작용(서로 강화·충돌하는 조합 2가지 "
-            f"이상을 짚어 두 문단) → ③종합(질문에 대한 답을 분명히 하는 문단) → ④구체적 조언(실행 "
-            f"순서가 있는 3~5가지) 순서로 풍부하게 마무리하세요. 전체 분량은 최소 {_min_chars}자 "
-            f"이상으로 충분히 자세히 쓰세요."
-        )
+        if locale == "vi":
+            ucontent = (
+                f"{brief}\n\nHãy luận giải trải bài trên theo thứ tự: giải từng vị trí → "
+                f"tương tác giữa các lá → tổng hợp → lời khuyên cụ thể cho câu hỏi. "
+                f"Xử lý đầy đủ {_n_cards} vị trí, từ 1 đến {_n_cards}, không bỏ sót lá nào."
+            )
+        else:
+            # 구조 강제(실측: 호스슈 7카드가 3번에서 요약으로 뭉개지는 조기중단 방어) — 번호 문단 강제 +
+            # 뒤 포지션 분량 균형 + '해설'은 참고자료(복붙 금지). 부족분은 아래 커버리지 가드가 결정적 보완.
+            # 예시 헤더는 실제 1번 포지션명으로 조립 — '포지션명'이라는 플레이스홀더를 쓰면 모델이
+            # 문자 그대로 "1. 포지션명: 과거"로 출력한 실사례(운영자 보고 스크린샷)가 있어 금지.
+            _pos1 = (row.cards_json[0].get("position_name") or "과거") if row.cards_json else "과거"
+            _min_chars = 4000 if _n_cards >= 11 else 2600   # 풍부화 2배 목표(운영자 지시 2026-07-15)
+            ucontent = (
+                f"{brief}\n\n"
+                f"먼저 {_n_cards}개 포지션을 각각 '1. {_pos1}:'처럼 번호와 그 자리의 포지션 이름으로 "
+                f"시작하는 번호 문단으로 1번부터 {_n_cards}번까지 빠짐없이 하나씩 해석하세요. "
+                f"절대 3~4번에서 멈추거나 뒤 포지션을 하나로 묶지 마세요 — {_n_cards}개 번호 문단이 "
+                f"모두 있어야 하며, 뒤 포지션도 앞과 같은 분량으로 다루세요. 각 포지션은 5~8문장으로: "
+                f"①카드 그림·상징이 말하는 것 ②그 의미를 이 질문 상황에 구체적으로 대입 ③그로 인한 "
+                f"조언·주의점까지 세 겹을 담고, 카드 한글명·방향을 명시하세요. 각 카드의 '해설:'은 참고 "
+                f"자료이니 그대로 베끼지 말고 이 질문·포지션에 맞게 소화해 쓰세요.\n"
+                f"{_n_cards}개 번호 문단을 마친 뒤에는 ②카드 간 상호작용(서로 강화·충돌하는 조합 2가지 "
+                f"이상을 짚어 두 문단) → ③종합(질문에 대한 답을 분명히 하는 문단) → ④구체적 조언(실행 "
+                f"순서가 있는 3~5가지) 순서로 풍부하게 마무리하세요. 전체 분량은 최소 {_min_chars}자 "
+                f"이상으로 충분히 자세히 쓰세요."
+            )
         msgs = [{"role": "system", "content": sys_content}, {"role": "user", "content": ucontent}]
         save_user: str | None = None
     else:
@@ -844,7 +909,8 @@ def _stream_message_inner(
         # 미정산 청구 등록 — 아래 방어분기를 벗어난 예외가 나면 래퍼(stream_message)가 이걸 보고 보상한다.
         if _receipt is not None and not is_explain:
             _receipt.update(bill=bill, pre_charged=_pre_charged)
-        sys_content = _compose_tarot_sys(TAROT_SYSTEM + TAROT_FOLLOWUP_HINT, dialect)
+        _base = (TAROT_SYSTEM_VI + TAROT_FOLLOWUP_HINT_VI) if locale == "vi" else (TAROT_SYSTEM + TAROT_FOLLOWUP_HINT)
+        sys_content = _compose_tarot_sys(_base, dialect, locale)
         msgs = [
             {"role": "system", "content": sys_content},
             {"role": "user", "content": brief},
@@ -858,9 +924,10 @@ def _stream_message_inner(
         settings_service.get_bool(db, "external_llm_enabled", True)
         and external_llm.is_enabled()
     )
-    do_qwen = (not is_preview) and s.deep_local_refine_enabled          # 1차 내부 보강(기본·심화)
-    # 심화 외부(미국) 보강은 국외이전 별도 동의(H4, 제28조의8) 회원만.
-    do_claude = depth == "deep" and (not is_preview) and _claude_avail and getattr(user, "overseas_transfer_opt_in", False)
+    # vi: 타로 보강 프롬프트(_tarot_refine_qwen/_tarot_claude_refine)는 '한국어로만' 강제라
+    # vi 초안을 한국어로 되돌려버린다 → vi 는 보강 단계를 건너뛰고 qwen3 초안을 그대로 사용.
+    do_qwen = (not is_preview) and s.deep_local_refine_enabled and locale != "vi"   # 1차 내부 보강(기본·심화)
+    do_claude = depth == "deep" and (not is_preview) and _claude_avail and locale != "vi"  # 심화 외부 보강
     will_refine = do_qwen or do_claude
 
     yield ("meta", {
@@ -882,7 +949,9 @@ def _stream_message_inner(
         try:
             # 해석(장문 풍부화)은 전역 num_predict(3072tok)에 잘리지 않게 확장 상한 사용
             _np = TAROT_EXPLAIN_NUM_PREDICT if is_explain else None
-            for tok in chat_service._stream_ollama(msgs, stop_event=stop_event, num_predict=_np):
+            for tok in chat_service._stream_ollama(
+                msgs, model=chat_service._draft_model(locale), stop_event=stop_event, num_predict=_np
+            ):
                 tok_q.put(tok)
         except Exception as e:  # noqa: BLE001
             _err["e"] = e
@@ -941,7 +1010,7 @@ def _stream_message_inner(
         if not is_preview:
             # 국외이전 게이트(H4, 제28조의8) — 전역 폴백 설정 ON + 회원 동의일 때만 전송(compat/tool 동일).
             fb = _tarot_generate_fallback(
-                question=_q_text, spread=brief, dialect_instruction=di or None,
+                question=_q_text, spread=brief, dialect_instruction=di or None, locale=locale,
                 allow_overseas=(settings_service.get_bool(db, "overseas_llm_fallback_enabled", False)
                                 and getattr(user, "overseas_transfer_opt_in", False)),
             )
@@ -963,46 +1032,6 @@ def _stream_message_inner(
 
     answer_full = "".join(parts)
     refined = False
-
-    # ---- 포지션 커버리지 가드(해석 최초 1회만) — 조기중단으로 빠진 포지션을 보완 ----
-    #   구조 강제 프롬프트로 대부분 N개 포지션을 다 다루지만, 드물게 뒤 포지션이 뭉개지면:
-    #    ① 전체 1회 재생성(같은 구조 프롬프트)으로 번호 구조를 중복 없이 깔끔히 복구 시도,
-    #    ② 그래도 남으면 누락 번호만 개별 생성해 코드가 'N. 포지션명' 헤더를 붙여 이어 붙여
-    #       커버 100% 를 결정적으로 보장한다(모델 번호 누락과 무관).
-    #   preview 는 refine 텍스트를 흘리지 않으므로(누출 방지) 저장본만 조용히 완성한다.
-    need_cov = len(row.cards_json or [])
-    if is_explain and answer_full.strip() and need_cov:
-        _pre = answer_full
-        if _missing_positions(answer_full, need_cov):
-            yield ("stage", {"phase": "completing"})
-            # ① 전체 재생성 1회 — 커버가 더 넓어질 때만 채택(중복 없는 깔끔한 복구)
-            regen = None
-            for ev in chat_service._bg_with_heartbeat(
-                    s, lambda: _regen_explain(sys_content, ucontent)):
-                if ev[0] == "result":
-                    regen = ev[1]
-                else:
-                    yield ev  # ping — preview 에서도 안전
-            if (regen and _tarot_text_ok(regen)
-                    and len(_covered_positions(regen, need_cov))
-                    > len(_covered_positions(answer_full, need_cov))):
-                answer_full = regen.strip()
-            # ② 그래도 누락이면 누락 번호만 결정적 보완(append)
-            _miss2 = _missing_positions(answer_full, need_cov)
-            if _miss2:
-                fill = None
-                for ev in chat_service._bg_with_heartbeat(
-                        s, lambda mm=_miss2: _fill_missing_positions(
-                            sys_content, brief, row.cards_json, mm, di or None)):
-                    if ev[0] == "result":
-                        fill = ev[1]
-                    else:
-                        yield ev
-                if fill:
-                    answer_full = answer_full.rstrip() + "\n\n" + fill
-            if answer_full != _pre and not is_preview:
-                refined = True
-                yield ("refine", {"text": answer_full, "reason": "누락 포지션 보완"})
 
     # ---- ① 내부 qwen 보강 (기본·심화 공통, 로컬 1차 정상) ----
     if do_qwen and local_ok and answer_full.strip():
@@ -1066,7 +1095,8 @@ def _stream_message_inner(
                 )
         except Exception:  # noqa: BLE001 — 검증 실패가 답변을 막지 않게
             pass
-        _scrubbed = _localize_card_names(_scrubbed)
+        if locale != "vi":
+            _scrubbed = _localize_card_names(_scrubbed)  # vi: 카드 한글명 주입 방지
         _scrubbed = _repair_question_terms(_scrubbed, row.question or "")  # 질문어 1글자 손상 복원(포인트)
         # 공용 정리 체인 — 종전엔 재열람(get_tarot)에만 걸려 있어 **처음 보는 화면**에는
         # '---' 구분선(포지션 사이 전부)과 중복 문장이 그대로 노출됐다(전수감사 실측).

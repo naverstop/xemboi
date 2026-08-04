@@ -8,7 +8,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
 from backend.app.core.db import get_db
-from backend.app.core.deps import get_current_user, get_optional_user
+from backend.app.core.deps import get_current_user, get_locale, get_optional_user
 from backend.app.domain.tool_dto import NamingRequest, SinnyeonRequest, TaekilRequest, ToolMessageRequest
 from backend.app.repositories.auth_models import User
 from backend.app.repositories.models import ToolSession
@@ -31,11 +31,13 @@ def create_naming(
     req: NamingRequest,
     db: Session = Depends(get_db),
     user: Optional[User] = Depends(get_optional_user),
+    locale: str = Depends(get_locale),
 ) -> dict[str, Any]:
     try:
         return tool_service.create_naming(
             db, req.kind, req.birth, req.surname, req.current_name, user=user, reading=req.reading,
             name_len=req.name_len, dollimja=req.dollimja, dollimja_pos=req.dollimja_pos,
+            locale=locale,
         )
     except ValueError as e:
         _quota_402(e)
@@ -46,10 +48,12 @@ def create_taekil(
     req: TaekilRequest,
     db: Session = Depends(get_db),
     user: Optional[User] = Depends(get_optional_user),
+    locale: str = Depends(get_locale),
 ) -> dict[str, Any]:
     try:
         return tool_service.create_taekil(
             db, req.birth, req.purpose, req.start_date, req.days, user=user, birth2=req.birth2,
+            locale=locale,
         )
     except ValueError as e:
         _quota_402(e)

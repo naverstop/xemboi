@@ -6,6 +6,7 @@ from typing import Optional
 from fastapi import Depends, Header, HTTPException, status
 from sqlalchemy.orm import Session
 
+from backend.app.core.config import get_settings
 from backend.app.core.db import get_db
 from backend.app.core.security import decode_token
 from backend.app.repositories.auth_models import User
@@ -25,38 +26,48 @@ def get_optional_user(
     authorization: Optional[str] = Header(default=None),
     db: Session = Depends(get_db),
 ) -> Optional[User]:
-    """토큰이 '없으면' None(익명 허용 경로). 단 토큰이 '실려 왔는데 만료·무효'면 401을 던진다.
-
-    과거엔 만료 토큰의 JWTError까지 삼켜 None(익명)으로 강등 → optional 라우트가 401 대신
-    200(익명 미리보기)을 반환했고, 프론트 강제로그아웃(notifySessionExpired)·무음갱신(refresh)은
-    모두 401에서만 발동하므로 '로그인 상태(캐시 잔액)인데 미리보기'로 새어나가는 사고가 반복됐다.
-    → '토큰 없음(진짜 비로그인)'과 '토큰 만료·무효'를 구분해, 후자는 401로 재로그인/무음갱신을 유도한다."""
+    """토큰이 없거나 잘못되어도 None 반환 (익명 허용 경로용)."""
     token = _extract_token(authorization)
     if not token:
-        return None  # 진짜 비로그인 — 익명 미리보기 허용(정상)
+        return None
     try:
         payload = decode_token(token)
     except Exception:
-        # 토큰이 실려 왔는데 만료·서명오류 → 조용한 익명 금지, 401로 재로그인/무음갱신 유도
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="세션이 만료됐어요. 다시 로그인해 주세요.",
-        )
+        return None
+    uid = payload.get("sub")
+    if uid is None:
+        return None
     try:
-        user_id = int(payload.get("sub"))
+        user_id = int(uid)
     except (TypeError, ValueError):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="세션이 만료됐어요. 다시 로그인해 주세요.",
-        )
-    user = get_user_by_id(db, user_id)
-    if user is None:
-        # 토큰 서명은 유효한데 사용자가 삭제됨 → 무효 세션
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="세션이 만료됐어요. 다시 로그인해 주세요.",
-        )
-    return user
+        return None
+    return get_user_by_id(db, user_id)
+
+
+_SUPPORTED_LOCALES = ("ko", "vi")
+
+
+def _first_lang(accept_language: Optional[str]) -> Optional[str]:
+    """Accept-Language 첫 언어 서브태그 2글자(예: 'vi-VN,vi;q=0.9' → 'vi')."""
+    if not accept_language:
+        return None
+    head = accept_language.split(",")[0].strip()      # 'vi-VN;q=0.9' → 'vi-VN;q=0.9'
+    return head.split(";")[0].strip()[:2].lower() or None
+
+
+def get_locale(
+    x_locale: Optional[str] = Header(default=None, alias="X-Locale"),
+    accept_language: Optional[str] = Header(default=None, alias="Accept-Language"),
+    user: Optional[User] = Depends(get_optional_user),
+) -> str:
+    """요청 로케일 해석. 우선순위: X-Locale(명시) → user.locale(로그인 선호) → Accept-Language → 'ko'.
+    지원 로케일(ko|vi) 밖은 무시하고 다음 후보로. 기본 'ko'(한국 서비스 불변)."""
+    for cand in (x_locale, getattr(user, "locale", None), _first_lang(accept_language)):
+        c = (cand or "").strip().lower()[:2]
+        if c in _SUPPORTED_LOCALES:
+            return c
+    dl = get_settings().default_locale     # 인스턴스 기본(ko=한국 / vi=VN)
+    return dl if dl in _SUPPORTED_LOCALES else "ko"
 
 
 def get_current_user(

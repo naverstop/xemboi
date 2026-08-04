@@ -11,6 +11,10 @@ import BirthFields, { type BirthValue } from "../components/BirthFields";
 import RememberBirthToggle, { useBirthMemory } from "../components/RememberBirth";
 import ConsultBanner from "../components/ConsultBanner";
 import { displayName } from "../lib/displayName";
+import { useTranslation, Trans } from "react-i18next";
+import { fmtNum } from "../lib/money";
+import { DEFAULT_LON } from "../lib/regions";
+import i18n from "../i18n";
 
 const PURPOSES = Object.keys(PURPOSE_LABELS) as TaekilPurpose[];
 
@@ -18,8 +22,8 @@ const PURPOSES = Object.keys(PURPOSE_LABELS) as TaekilPurpose[];
 function taekilPdfHeader(r: any): string {
   const best = (r?.best || []).slice(0, 8);
   if (!best.length) return "";
-  const lines = best.map((d: any) => `- ${d.date} (${d.ganzhi}) · ${d.score}점 · ${d.grade}`);
-  return "[추천 길일]\n" + lines.join("\n");
+  const lines = best.map((d: any) => i18n.t("taekil.pdf_line", { date: d.date, ganzhi: d.ganzhi, score: fmtNum(d.score), grade: d.grade }));
+  return i18n.t("taekil.pdf_header_title") + "\n" + lines.join("\n");
 }
 
 // 사람 입력 구간 라벨 — 아이콘 + 굵은 제목 + 잘 보이는 설명(작은 회색 라벨이 안 보인다는 운영자 지적 반영).
@@ -43,20 +47,15 @@ const PURPOSE_ICONS: Record<TaekilPurpose, string> = {
 // ※ 엔진은 황도흑도·사주(충형회피/출산은 궁합)·손없는날 3요소만 계산하고
 //    용도별로 '가중치'만 다름 → 설명은 가중치 강조점을 그대로 반영(과장 금지).
 const PURPOSE_DESC: Record<TaekilPurpose, string> = {
-  wedding: "혼례에 좋은 날 — 남자는 재(배우자)·일지, 여자는 관(배우자)·일지가 깨지지 않는 날을 중시하고, 천덕·월덕 길신일엔 가점, 황도길일·손없는날을 함께 봅니다. 아래에 상대(배우자) 명식을 입력하면 신랑·신부 양측을 동시에 보는 정밀 판정으로 바뀝니다(미입력 시 본인 명식만).",
-  birth: "그날 태어날 아이의 사주와 부모(입력자)의 궁합을 참고용으로 계산합니다. 출산일은 함부로 정할 수 없어, 추천일은 참고만 하시고 상담사 님과 1:1 상담으로 정하시길 권합니다.",
-  moving: "이사·입택에 좋은 날 — 재물(財)·일지(거주)·월지(환경)가 깨지지 않는 날을 중시하고, 그 달 자체가 흉월인지(월운)도 함께 보며, 천덕·월덕 길신일엔 가점, 손없는날·황도길일을 반영합니다.",
-  opening: "개업에 좋은 날 — 재물(財)·일지가 깨지지 않는 날을 보고, 돈(財)이 식상(활동)과 합(合)되는 날을 돈을 끌어오는 길일로 봅니다. 황도길일·손없는날도 함께 봅니다.",
-  contract: "계약·서명에 좋은 날 — 문서(인수)가 깨지지 않는 날을 보고, 그날의 기운이 문서(인수)와 합(合)되는 날을 계약 길일로 봅니다. 황도길일도 함께 봅니다.",
-  ceremony: "고사·제사에 좋은 날 — 황도길일을 가장 중시하고, 사주 조화를 함께 봅니다.",
-  surgery: "수술·시술에 좋은 날 — 본인 사주의 충·형 회피를 가장 중시하고, 황도길일을 함께 봅니다.",
-  travel: "여행·출행에 좋은 날 — 황도길일을 가장 중시하고, 사주 조화를 함께 봅니다.",
-  general: "일반 길일 — 황도길일·사주·손없는날을 고루 반영합니다.",
+  wedding: "taekil.desc_wedding", birth: "taekil.desc_birth", moving: "taekil.desc_moving",
+  opening: "taekil.desc_opening", contract: "taekil.desc_contract", ceremony: "taekil.desc_ceremony",
+  surgery: "taekil.desc_surgery", travel: "taekil.desc_travel", general: "taekil.desc_general",
 };
 
 export default function TaekilPage() {
-  const [b, setB] = useState<BirthValue>({ birth_date: "", birth_time: "", unknown_time: false, gender: "male", calendar: "solar", is_leap_month: false , apply_true_solar_time: true, birth_longitude: 126.98 });
-  const [b2, setB2] = useState<BirthValue>({ birth_date: "", birth_time: "", unknown_time: false, gender: "female", calendar: "solar", is_leap_month: false, apply_true_solar_time: true, birth_longitude: 126.98 });
+  const { t: tr } = useTranslation();
+  const [b, setB] = useState<BirthValue>({ birth_date: "", birth_time: "", unknown_time: false, gender: "male", calendar: "solar", is_leap_month: false , apply_true_solar_time: true, birth_longitude: DEFAULT_LON });
+  const [b2, setB2] = useState<BirthValue>({ birth_date: "", birth_time: "", unknown_time: false, gender: "female", calendar: "solar", is_leap_month: false, apply_true_solar_time: true, birth_longitude: DEFAULT_LON });
   const [purpose, setPurpose] = useState<TaekilPurpose>("wedding");
   const [startDate, setStartDate] = useState("");
   const [days, setDays] = useState(60);
@@ -121,7 +120,7 @@ export default function TaekilPage() {
       refreshMe();   // 입장료 차감 후 사이드바·FAB 잔액 즉시 반영(패턴 B)
       setTimeout(() => document.getElementById("tool-result")?.scrollIntoView({ behavior: "smooth" }), 80);
     } catch (e: any) {
-      setErr(e?.message || "택일에 실패했어요.");
+      setErr(e?.message || tr("taekil.fail"));
     } finally { setLoading(false); }
   }
 
@@ -136,28 +135,28 @@ export default function TaekilPage() {
         />
       )}
       <header className="compat-hero">
-        <div className="compat-hero-badge">擇日</div>
-        <h1>택일</h1>
-        <p>사주 조화(재·관·일지·월지)를 중심으로 황도흑도·건제십이신·이십팔수·생기복덕·손없는날을 <b>용도별 비중</b>으로 가중해 가립니다. 관법은 정답이 없어 <b>여러 관점</b>의 추천 1위도 함께 보여드려요.</p>
+        <div className="compat-hero-badge">{tr("taekil.hero_badge")}</div>
+        <h1>{tr("taekil.hero_title")}</h1>
+        <p><Trans i18nKey="taekil.hero_desc" components={{ b: <b /> }} /></p>
       </header>
 
       <div className="tool-form">
         <div className="bf-field">
-          <label>용도</label>
-          <div className="purpose-grid" role="radiogroup" aria-label="택일 용도">
+          <label>{tr("taekil.label_purpose")}</label>
+          <div className="purpose-grid" role="radiogroup" aria-label={tr("taekil.aria_purpose")}>
             {PURPOSES.map((p) => (
               <button key={p} type="button" role="radio" aria-checked={purpose === p}
                       className={`purpose-chip ${purpose === p ? "on" : ""}`}
                       onClick={() => setPurpose(p)}>
                 <span className="pp-icon">{PURPOSE_ICONS[p]}</span>
-                <span className="pp-label">{PURPOSE_LABELS[p]}</span>
+                <span className="pp-label">{tr(`taekil.purpose_${p}`)}</span>
               </button>
             ))}
           </div>
           <div className="pc-hint" style={{ marginTop: 8 }}>
             {purpose === "birth"
-              ? <>아래 입력하신 분(부모)을 기준으로, 그날 태어날 <b>아이의 사주와 부모의 궁합</b>이 좋은 날을 찾아드려요.</>
-              : PURPOSE_DESC[purpose]}
+              ? <Trans i18nKey="taekil.birth_hint" components={{ b: <b /> }} />
+              : tr(PURPOSE_DESC[purpose])}
           </div>
         </div>
         <EntryFeeNotice menu="taekil" />
@@ -180,11 +179,11 @@ export default function TaekilPage() {
           </>
         )}
         <div className="bf-field">
-          <label>검색 기간</label>
+          <label>{tr("taekil.label_period")}</label>
           <div className="bf-time">
             <input className="bf-input" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
             <select className="bf-input" style={{ flex: "0 0 110px" }} value={days} onChange={(e) => setDays(Number(e.target.value))}>
-              <option value={30}>30일</option><option value={60}>60일</option><option value={90}>90일</option>
+              <option value={30}>{tr("taekil.days_opt", { n: 30 })}</option><option value={60}>{tr("taekil.days_opt", { n: 60 })}</option><option value={90}>{tr("taekil.days_opt", { n: 90 })}</option>
             </select>
           </div>
         </div>
@@ -192,9 +191,9 @@ export default function TaekilPage() {
 
       <div className="compat-actions">
         <button className="compat-cta" disabled={!b.birth_date || loading} onClick={submit}>
-          {loading ? "분석 중…" : "📅 길일 찾기"}
+          {loading ? tr("taekil.analyzing") : tr("taekil.cta")}
         </button>
-        {!b.birth_date && <div className="cta-hint">{purpose === "birth" ? "부모 ① 생년월일을 입력해 주세요" : "생년월일을 입력해 주세요"}</div>}
+        {!b.birth_date && <div className="cta-hint">{tr("taekil.cta_hint")}</div>}
       </div>
       {err && <div className="compat-err">{err}</div>}
 
@@ -205,7 +204,7 @@ export default function TaekilPage() {
           )}
           <div className="cr-headline">
             <span className="cr-names">{res.result.purpose_label}</span>
-            <span className="cr-grade" style={{ background: "var(--brand-grad)" }}>{purpose === "birth" ? "부모" : "본인"} 일지 {res.result.user_day_branch}</span>
+            <span className="cr-grade" style={{ background: "var(--brand-grad)" }}>{tr("taekil.day_branch", { who: purpose === "birth" ? tr("taekil.parent") : tr("taekil.self"), branch: res.result.user_day_branch })}</span>
           </div>
           {res.result.rule_note && (
             <p style={{ fontSize: 13, lineHeight: 1.55, color: "var(--muted,#5b6472)",
@@ -248,8 +247,8 @@ export default function TaekilPage() {
                   <span className="dc-hwangdo">{d.hwangdo}</span>
                   {d.geonje && <span className="dc-geonje" title={d.geonje_note}>{d.geonje}</span>}
                   {d.su28 && <span className="dc-su28" title={d.su28_note}>{d.su28}</span>}
-                  {d.saenggi && <span className={`dc-saenggi ${["생기", "천의", "복덕"].includes(d.saenggi) ? "gil" : ["절체", "화해", "절명"].includes(d.saenggi) ? "hyung" : ""}`} title="생기복덕(본명괘 기준)">{d.saenggi}</span>}
-                  {d.sonless && <span className="dc-son">손없는날</span>}
+                  {d.saenggi && <span className={`dc-saenggi ${d.saenggi_gil === "gil" ? "gil" : d.saenggi_gil === "hyung" ? "hyung" : ""}`} title={tr("taekil.saenggi_title")}>{d.saenggi}</span>}
+                  {d.sonless && <span className="dc-son">{tr("taekil.sonless")}</span>}
                 </div>
                 <div className="dc-score">{d.score}점 · {d.grade}</div>
                 {(() => {
@@ -273,7 +272,7 @@ export default function TaekilPage() {
                   </div>
                 )}
                 {d.best_hours && d.best_hours.length > 0 && (
-                  <div className="dc-hours" title="아이-부모 궁합이 좋은 시(時)">
+                  <div className="dc-hours" title={tr("taekil.best_hours_title")}>
                     🕐 {d.best_hours.map((h: any) => `${h.sijin}(${h.ganzhi})`).join(" · ")}
                   </div>
                 )}
@@ -283,7 +282,7 @@ export default function TaekilPage() {
 
           {res.result.perspectives && (
             <div className="taekil-persp">
-              <div className="cr-sub">관법별 추천 1위 <span>(정답 없음 — 관점별 비교)</span></div>
+              <div className="cr-sub">{tr("taekil.persp_title")} <span>{tr("taekil.persp_sub")}</span></div>
               <div className="tp-chips">
                 {Object.values(res.result.perspectives).map((p: any) => (
                   <div key={p.label} className="tp-chip">
@@ -304,7 +303,7 @@ export default function TaekilPage() {
 
           {(res.result.avoid || []).length > 0 && (
             <div className="taekil-avoid">
-              <span className="cr-sub">피하면 좋은 날</span>
+              <span className="cr-sub">{tr("taekil.avoid_title")}</span>
               {res.result.avoid.map((d: any, i: number) => (
                 <span key={i} className="avoid-chip">{d.date} ({(d.warnings || []).join("/") || d.grade})</span>
               ))}
@@ -324,9 +323,9 @@ export default function TaekilPage() {
               return false;
             }}
             pdf={{
-              docTitle: `${who} 님이 확인한 택일`,
-              personLine: `${who} 님`,
-              item: `${res.result.purpose_label || PURPOSE_LABELS[purpose]} 택일`,
+              docTitle: tr("taekil.pdf_doc", { who }),
+              personLine: tr("taekil.pdf_person", { who }),
+              item: tr("taekil.pdf_item", { label: res.result.purpose_label || PURPOSE_LABELS[purpose] }),
             }}
             pdfHeader={taekilPdfHeader(res.result)}
             feedbackSource="tool"

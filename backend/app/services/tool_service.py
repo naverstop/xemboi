@@ -168,7 +168,8 @@ DREAM_SYSTEM = """당신은 전통 해몽(解夢)과 명리에 두루 밝은 상
 - 끝에 "꿈풀이는 전통 문화 콘텐츠로, 참고용이에요."를 덧붙입니다.""" + EASY_STYLE_RULE
 
 
-def _to_birth_input(b: BirthDTO) -> BirthInput:
+def _to_birth_input(b: BirthDTO, locale: str = "ko") -> BirthInput:
+    # locale 은 요청 로케일(get_locale) 단일 진실원 — vi 면 105°E·hongoc_duc 경로.
     return BirthInput(
         birth_date=b.birth_date, birth_time=b.birth_time, calendar=b.calendar,
         is_leap_month=b.is_leap_month, gender=b.gender,
@@ -176,6 +177,7 @@ def _to_birth_input(b: BirthDTO) -> BirthInput:
         birth_longitude=b.birth_longitude,
         apply_equation_of_time=b.apply_equation_of_time,
         night_zi_mode=b.night_zi_mode,
+        locale=locale,
     )
 
 
@@ -222,7 +224,7 @@ def _mask_preview_result(result: dict | None, mask_months: bool = True) -> dict 
 
 def _persist_and_bill(
     db: Session, tool: str, kind: str, birth: BirthDTO, chart, input_json: dict,
-    result_json: dict, user: User | None, depth: str,
+    result_json: dict, user: User | None, depth: str, locale: str = "ko",
 ) -> dict[str, Any]:
     """입장료 차감(생성=입장) + 세션 영속. tool_id/billing 반환.
 
@@ -243,6 +245,7 @@ def _persist_and_bill(
             balance_after = auth_service.get_balance(db, user.id)
     row = ToolSession(
         tool_id=tid, tool=tool, kind=kind, user_id=user.id if user else None,
+        locale=locale,
         birth_date=birth.birth_date, birth_time=birth.birth_time,
         calendar=birth.calendar.value if hasattr(birth.calendar, "value") else str(birth.calendar),
         is_leap_month=birth.is_leap_month,
@@ -292,9 +295,9 @@ def create_naming(
     db: Session, kind: str, birth: BirthDTO, surname: str | None,
     current_name: str | None, user: User | None = None, depth: str = "deep",
     reading: str | None = None, name_len: int = 2,
-    dollimja: str | None = None, dollimja_pos: str = "back",
+    dollimja: str | None = None, dollimja_pos: str = "back", locale: str = "ko",
 ) -> dict[str, Any]:
-    chart = build_chart(_to_birth_input(birth))
+    chart = build_chart(_to_birth_input(birth, locale=locale))
     # 오행 균형 펜타곤 — 프론트가 '사주(빨강) + 이름 보완(파랑)' 오각 차트를 그린다.
     # [2026-07-29 운영자 지적] 종전엔 팔자8(wuxing_eight_of, 지장간 제외)을 실었는데, 부족오행 판정
     #   (_deficient_elements)과 화면 명식표는 둘 다 chart.wuxing(full=천간+지지본기+지장간)을 쓴다.
@@ -352,7 +355,7 @@ def create_naming(
                   "dollimja": _fixed, "dollimja_pos": ("front" if _fpos == 0 else "back") if _fixed else None}
         input_json = {"surname": sur, "name_len": _cnt,
                       "dollimja": _fixed, "dollimja_pos": dollimja_pos if _fixed else None}
-    return _persist_and_bill(db, "naming", kind, birth, chart, input_json, result, user, depth)
+    return _persist_and_bill(db, "naming", kind, birth, chart, input_json, result, user, depth, locale)
 
 
 # ── 신년운세 월별 결정적 사실(운영자 지시 2026-07-16: 월별 풍부화·환각 철저 방지) ──
@@ -505,11 +508,12 @@ def create_sinnyeon(
 def create_taekil(
     db: Session, birth: BirthDTO, purpose: str, start: date_t, days: int,
     user: User | None = None, depth: str = "deep", birth2: BirthDTO | None = None,
+    locale: str = "ko",
 ) -> dict[str, Any]:
-    chart = build_chart(_to_birth_input(birth))
+    chart = build_chart(_to_birth_input(birth, locale=locale))
     # 출산=두 번째 부모(궁합), 결혼=상대 명식(③a 커플 정밀택일). 그 외 용도는 상대 명식 미사용.
-    chart2 = build_chart(_to_birth_input(birth2)) if (birth2 and purpose in ("birth", "wedding")) else None
-    res = taekil_engine.recommend_dates(chart, start, days=days, purpose=purpose, top=10, user_chart2=chart2)
+    chart2 = build_chart(_to_birth_input(birth2, locale=locale)) if (birth2 and purpose in ("birth", "wedding")) else None
+    res = taekil_engine.recommend_dates(chart, start, days=days, purpose=purpose, top=10, user_chart2=chart2, locale=locale)
     result = res.model_dump(mode="json")
     # 결혼: 결과(applied_rule)에 커플 여부만 반영, 상대 생년월일(PII)은 미저장(입장료·재열람에 불필요).
     # 출산: 부모② 명식을 영속 — 1:1 상담 연결 시 '양 부모 명식'을 상담사에게 전달(뽀 지시 2026-08-03:
@@ -524,7 +528,7 @@ def create_taekil(
         }
     input_json = {"purpose": purpose, "start_date": start.isoformat(), "days": days,
                   "has_partner": bool(chart2 is not None and purpose == "wedding")}
-    return _persist_and_bill(db, "taekil", purpose, birth, chart, input_json, result, user, depth)
+    return _persist_and_bill(db, "taekil", purpose, birth, chart, input_json, result, user, depth, locale)
 
 
 def list_user_tools(
@@ -1770,6 +1774,7 @@ def _stream_message_inner(
     _brief_has_sources = "[전통 해몽 자료" in brief
     dialect = (getattr(user, "answer_dialect", None) or "standard") if user else "standard"
     di = chat_service._dialect_instruction(dialect)
+    locale = getattr(row, "locale", "ko")   # 세션 확정 로케일 — 응답 언어·모델 선택(chat 미러)
     has_assistant = any(m.role == "assistant" for m in row.messages)
     is_explain = not has_assistant
 
@@ -1795,7 +1800,7 @@ def _stream_message_inner(
         use_free = use_daily = use_mem = False
         sys_content = chat_service._compose_sys_content(
             _system_for(row), dialect, explain_level,
-            has_sources=bool(rag_ctx or _brief_has_sources))
+            has_sources=bool(rag_ctx or _brief_has_sources), locale=locale)
         ucontent = brief if not rag_ctx else f"{brief}\n\n[참고자료]\n{rag_ctx}"
         # P1-4: 자료에 남의 명식이 섞여 와도 본인 명식으로 쓰지 않게(종전 chat 전용 가드를 이식).
         # 신년운세는 RAG 가 사용자 프롬프트의 38~40%, 무료 메뉴는 84~86%를 차지하는데 가드가 없었다.
@@ -1859,7 +1864,7 @@ def _stream_message_inner(
         sys_content = chat_service._compose_sys_content(
             _system_for(row), dialect, explain_level,
             question=message, is_followup=True,
-            has_sources=bool(rag_ctx or _brief_has_sources))
+            has_sources=bool(rag_ctx or _brief_has_sources), locale=locale)
         analysis = f"[분석]\n{brief}" + (f"\n\n[참고자료]\n{rag_ctx}" if rag_ctx else "")
         _cr = chat_service.chart_reconfirm_block(getattr(row, "chart_json", None))
         if rag_ctx and _cr:
@@ -1899,7 +1904,9 @@ def _stream_message_inner(
 
     def _produce():
         try:
-            for tok in chat_service._stream_ollama(msgs, stop_event=stop_event):
+            for tok in chat_service._stream_ollama(
+                msgs, model=chat_service._draft_model(locale), stop_event=stop_event
+            ):
                 tok_q.put(tok)
         except Exception as e:  # noqa: BLE001
             err["e"] = e
@@ -1967,7 +1974,7 @@ def _stream_message_inner(
             def _fb_call():
                 return chat_service.external_fallback_answer(
                     question=(message or "해설"), evidence=brief, rag_context=rag_ctx,
-                    dialect_instruction=di or None,
+                    dialect_instruction=di or None, locale=locale,
                     allow_overseas=(settings_service.get_bool(db, "overseas_llm_fallback_enabled", False)
                                     and getattr(user, "overseas_transfer_opt_in", False)),
                 )
@@ -2070,7 +2077,7 @@ def _stream_message_inner(
         qb = None
         for ev in chat_service._bg_with_heartbeat(s, lambda af=answer: chat_service._refine_with_qwen(
                 question=_q, draft=af, saju_summary=None, evidence=brief,
-                rag_context=rag_ctx, dialect_instruction=di or None)):
+                rag_context=rag_ctx, dialect_instruction=di or None, locale=locale)):
             if ev[0] == "result":
                 qb = ev[1]
             else:
@@ -2086,7 +2093,7 @@ def _stream_message_inner(
         cb = None
         for ev in chat_service._bg_with_heartbeat(s, lambda af=answer: chat_service._claude_boost(
                 question=_q, draft=af, saju_summary=None, evidence=brief,
-                rag_context=rag_ctx, dialect_instruction=di or None)):
+                rag_context=rag_ctx, dialect_instruction=di or None, locale=locale)):
             if ev[0] == "result":
                 cb = ev[1]
             else:

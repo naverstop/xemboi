@@ -25,6 +25,9 @@ from .constants import (
     branch_korean,
     compute_ten_god,
     stem_korean,
+    Locale,
+    branch_reading,
+    stem_reading,
 )
 from .engine import build_chart
 from .gwanbeop import STAR_GROUP
@@ -37,6 +40,13 @@ _SHIN = [
     ("금궤", "황"), ("천덕", "황"), ("백호", "흑"), ("옥당", "황"),
     ("천뢰", "흑"), ("현무", "흑"), ("사명", "황"), ("구진", "흑"),
 ]
+# 12신 이름 한월음(vi) — _SHIN 의 ko 이름 → Hán-Việt.
+_SHIN_VI = {
+    "청룡": "Thanh Long", "명당": "Minh Đường", "천형": "Thiên Hình", "주작": "Chu Tước",
+    "금궤": "Kim Quỹ", "천덕": "Thiên Đức", "백호": "Bạch Hổ", "옥당": "Ngọc Đường",
+    "천뢰": "Thiên Lao", "현무": "Huyền Vũ", "사명": "Tư Mệnh", "구진": "Câu Trần",
+    "미상": "Không rõ",
+}
 # 월지 → 청룡(시작) 일지
 _CHEONGYONG_START = {
     "寅": "子", "申": "子", "卯": "寅", "酉": "寅", "辰": "辰", "戌": "辰",
@@ -53,6 +63,11 @@ _GEONJE_KO = {
     "建": "건", "除": "제", "滿": "만", "平": "평", "定": "정", "執": "집",
     "破": "파", "危": "위", "成": "성", "收": "수", "開": "개", "閉": "폐",
 }
+# 건제12신 한월음(vi) — Hán-Việt.
+_GEONJE_VI = {
+    "建": "Kiến", "除": "Trừ", "滿": "Mãn", "平": "Bình", "定": "Định", "執": "Chấp",
+    "破": "Phá", "危": "Nguy", "成": "Thành", "收": "Thu", "開": "Khai", "閉": "Bế",
+}
 # (점수0~100, 한 줄 의미)
 _GEONJE_INFO: dict[str, tuple[int, str]] = {
     "成": (92, "이룸 — 혼인·개업·입학 등 만사 대길"),
@@ -68,6 +83,21 @@ _GEONJE_INFO: dict[str, tuple[int, str]] = {
     "閉": (28, "닫음 — 매장·둑막이 외 대체로 흉"),
     "破": (20, "깨짐 — 만사 대흉(파옥·치료만 길)"),
 }
+# 건제12신 한 줄 의미(vi).
+_GEONJE_NOTE_VI: dict[str, str] = {
+    "成": "Thành tựu — hôn nhân·khai trương·nhập học đều đại cát",
+    "開": "Khai mở — đại cát cho khai trương·nhập trạch·thông xe (tránh tang lễ)",
+    "定": "Ổn định — tốt cho cưới hỏi·ký kết·nhập trạch (kiện tụng·di chuyển thì xấu)",
+    "除": "Trừ bỏ cũ kỹ — tốt cho chữa bệnh·dọn dẹp·cúng tế",
+    "危": "Cát thần hoàng đạo — phần lớn tốt (leo núi·lên thuyền cần lưu ý)",
+    "執": "Nắm giữ — tốt cho cưới hỏi·xây dựng·ký kết (chuyển nhà·tiền tài thì xấu)",
+    "平": "Bằng phẳng — ổn (tốt cho đường sá·tường rào)",
+    "收": "Thu hoạch — tốt cho thu tiền·mua vào (tang lễ·khai trương thì xấu)",
+    "滿": "Đầy đủ — tốt cho kho·ao hồ nhưng uống thuốc·an táng thì xấu",
+    "建": "Dựng lập — khí đứng đầu nhưng động thổ·an táng thì xấu",
+    "閉": "Đóng lại — phần lớn xấu, trừ an táng·đắp đê",
+    "破": "Đổ vỡ — vạn sự đại hung (chỉ tốt cho phá dỡ·chữa bệnh)",
+}
 
 # ── 이십팔수(二十八宿) ──────────────────────────────────────────
 # 매일 1수씩 +1 순환(28일). 칠요(요일)와 위상이 고정 → 자가검증 가능.
@@ -77,6 +107,12 @@ _GEONJE_INFO: dict[str, tuple[int, str]] = {
 #   ※ 잔여: 한·일 위상 동일성(7/14/21일 어긋남)은 한국 만세력 1회 스팟확인 권장.
 _SU28 = "角亢氐房心尾箕斗牛女虛危室壁奎婁胃昴畢觜參井鬼柳星張翼軫"
 _SU28_KO = "각항저방심미기두우여허위실벽규루위묘필자삼정귀류성장익진"
+# 28수 한월음(vi) — _SU28 위치 병렬(角부터).
+_SU28_VI = (
+    "Giác", "Cang", "Đê", "Phòng", "Tâm", "Vĩ", "Cơ", "Đẩu", "Ngưu", "Nữ",
+    "Hư", "Nguy", "Thất", "Bích", "Khuê", "Lâu", "Vị", "Mão", "Tất", "Chủy",
+    "Sâm", "Tỉnh", "Quỷ", "Liễu", "Tinh", "Trương", "Dực", "Chẩn",
+)
 _SU28_ANCHOR_ORD = date(2026, 6, 9).toordinal()
 _SU28_ANCHOR_IDX = 12  # 室
 # 길흉 한 줄(출처: 歳事暦 saijigoyomi). good=True 길수 / False 흉 비중 큰 수.
@@ -95,6 +131,37 @@ _SU28_NOTE: dict[str, str] = {
     "鬼": "大吉 · 공적 식전 최고(혼인만 흉)", "柳": "혼인 흉, 장송 大凶 · 강맹사엔 길",
     "星": "혼인·축하 흉 · 운전·요양·파종엔 길", "張": "大吉 · 혼인·개업·파종·양잠(재단 흉)",
     "翼": "혼인 大凶(이혼) · 경작·식목엔 길", "軫": "길 · 혼인·상량·부동산(재단·여행 흉)",
+}
+# 28수 길흉 한 줄(vi).
+_SU28_NOTE_VI: dict[str, str] = {
+    "角": "Cát · cưới hỏi·xây dựng·khai trương (tang lễ xấu)",
+    "亢": "Cát · cưới hỏi·gieo trồng (xây dựng·chuyển nhà·du lịch xấu)",
+    "氐": "Cát · cưới hỏi·nông vụ·sửa nhà (gần nước xấu)",
+    "房": "Cát · cưới hỏi·du lịch·thượng lương (kiện tụng xấu)",
+    "心": "Cưới hỏi·tang lễ xấu · tốt cho cúng tế·chuyển nhà·du lịch",
+    "尾": "Cát · cưới hỏi·khai trương·du lịch (cắt may·tang lễ xấu)",
+    "箕": "Cưới hỏi·tang lễ xấu · tốt cho nấu ủ·mua vào",
+    "斗": "Cát · cưới hỏi·bất động sản·tạo tác",
+    "牛": "Đại cát · tốt cho vạn sự (tú cát tường)",
+    "女": "Tốt cho việc công·học nghệ (cưới hỏi·tang lễ·xây mới xấu)",
+    "虛": "Xây dựng·cưới hỏi xấu, thương lượng đại hung · tốt cho nhập học",
+    "危": "Cưới hỏi·chuyển nhà xấu, leo núi·lên cao đại hung",
+    "室": "Cát · cúng tế·cưới hỏi·tạo tác (tang lễ·đi xa xấu)",
+    "壁": "Cát · xây mới·cưới hỏi (tiến về hướng Nam xấu)",
+    "奎": "Cát · cưới hỏi·thượng lương·đốn gỗ (khai trương·kiện tụng xấu)",
+    "婁": "Đại cát · cưới hỏi·du lịch·cắt may (kiện tụng xấu)",
+    "胃": "Tốt cho xin việc·cưới hỏi (tang lễ đại hung)",
+    "昴": "Cát · cầu nguyện·chúc mừng·khai trương (cắt may xấu)",
+    "畢": "Cát · cúng tế·cưới hỏi·xây mới·bất động sản (đầu tư·thị phi xấu)",
+    "觜": "Ngày xấu cho cưới hỏi · tốt cho nhập học·xây dựng",
+    "參": "Cát · buôn bán·khai trương·cưới hỏi·xin việc (tang lễ·chuyển nhà xấu)",
+    "井": "Cát · cúng tế·cưới hỏi·xây dựng·bất động sản (tang lễ xấu)",
+    "鬼": "Đại cát · tốt nhất cho nghi lễ công (chỉ cưới hỏi xấu)",
+    "柳": "Cưới hỏi xấu, tang lễ đại hung · tốt cho việc mạnh mẽ cứng rắn",
+    "星": "Cưới hỏi·chúc mừng xấu · tốt cho lái xe·dưỡng bệnh·gieo trồng",
+    "張": "Đại cát · cưới hỏi·khai trương·gieo trồng·nuôi tằm (cắt may xấu)",
+    "翼": "Cưới hỏi đại hung (ly hôn) · tốt cho canh tác·trồng cây",
+    "軫": "Cát · cưới hỏi·thượng lương·bất động sản (cắt may·du lịch xấu)",
 }
 
 
@@ -126,10 +193,12 @@ def _su28_index(d: date) -> int:
     return idx
 
 
-def _su28(d: date) -> tuple[str, str, str]:
-    """(한자, 한글, 길흉 한 줄). 예: ('室','실','길 · 제사·혼인·조작…')."""
+def _su28(d: date, locale: Locale = "ko") -> tuple[str, str, str]:
+    """(한자, 독음, 길흉 한 줄). 예: ('室','실','길 · 제사·혼인·조작…') / ('室','Thất','Cát · …')."""
     i = _su28_index(d)
     ch = _SU28[i]
+    if locale == "vi":
+        return ch, _SU28_VI[i], _SU28_NOTE_VI.get(ch, "")
     return ch, _SU28_KO[i], _SU28_NOTE.get(ch, "")
 
 
@@ -138,6 +207,41 @@ PURPOSES = {
     "wedding": "혼인", "birth": "출산", "moving": "이사", "opening": "개업", "contract": "계약",
     "ceremony": "고사·제사", "surgery": "수술", "travel": "여행", "general": "일반",
 }
+# 용도 라벨(purpose_label) 로케일 표. ko 는 PURPOSES 와 동일.
+_PURPOSE_LABEL: dict[str, dict[str, str]] = {
+    "ko": PURPOSES,
+    "vi": {
+        "wedding": "Cưới hỏi", "birth": "Sinh con", "moving": "Chuyển nhà", "opening": "Khai trương",
+        "contract": "Ký kết", "ceremony": "Cúng tế", "surgery": "Phẫu thuật", "travel": "Du lịch",
+        "general": "Chung",
+    },
+}
+# 종합 등급: stable key(best|good|normal|bad) + 로케일 라벨.
+_GRADE_LABEL: dict[str, dict[str, str]] = {
+    "ko": {"best": "대길일", "good": "길일", "normal": "보통", "bad": "흉일"},
+    "vi": {"best": "Đại cát nhật", "good": "Cát nhật", "normal": "Bình thường", "bad": "Hung nhật"},
+}
+# 관법(P/H/B/M) 라벨 — PERSPECTIVES 키와 동기(P=뽀 본인사주 중시 신설).
+_PERSP_LABEL: dict[str, dict[str, str]] = {
+    "ko": {"P": "본인 사주 중시", "H": "황도·중단 중시", "B": "균형", "M": "민속(손없는날) 중시"},
+    "vi": {"P": "Trọng mệnh chủ (lá số bản thân)", "H": "Trọng hoàng đạo·trung đoạn", "B": "Cân bằng",
+           "M": "Trọng dân gian (ngày không sát chủ)"},
+}
+# 사주 회피/경고 배지 유형명(warnings). ko 는 항등, vi 만 치환.
+_WARN_VI: dict[str, str] = {"일지충": "Xung địa chi ngày", "원진": "Oán sân", "형": "Hình"}
+
+
+def _geonje_badge(ch: str, locale: Locale) -> str:
+    """건제신 배지 문자열 '성(成)' / 'Thành(成)'."""
+    return _GEONJE_VI[ch] if locale == "vi" else f"{_GEONJE_KO[ch]}({ch})"
+
+
+def _fmt_hwangdo(shin_ko: str, hb: str, locale: Locale) -> str:
+    """황도흑도 표시 '청룡(황도)' / 'Thanh Long (hoàng đạo)'."""
+    if locale == "vi":
+        hd = "hoàng đạo" if hb == "황" else "hắc đạo" if hb == "흑" else "?"
+        return f"{_SHIN_VI.get(shin_ko, shin_ko)} ({hd})"
+    return f"{shin_ko}({hb}도)"
 
 # 용도별 다관법 가중치(합 100): 황도흑도/사주조화/손없는날/건제십이신/이십팔수/생기복덕
 # ⑥ 뽀-정합 재조정(2026-07-30, 학파조사 wf_wqlmz9ssc 권고 P가중표, 델타검증 통과):
@@ -206,11 +310,13 @@ class DayScore(BaseModel):
     geonje_note: str = ""       # 건제신 한 줄 의미
     su28: str = ""              # 이십팔수 "실(室)"
     su28_note: str = ""         # 28수 길흉 한 줄
-    saenggi: str = ""           # 생기복덕 라벨(생기/복덕/절명…)
+    saenggi: str = ""           # 생기복덕 라벨(생기/복덕/절명… / Sinh khí…)
+    saenggi_gil: str = ""       # 로케일 무관 stable 길흉키: gil|ban|hyung (프론트 색상 분기용)
     reason: str = ""            # 사용자 설명 — 왜 좋은지/나쁜지 한 줄(뽀 관법 근거)
     best_hours: list[dict] = Field(default_factory=list)   # 출산: 추천 시(時)
     score: int                  # 용도 가중 종합
-    grade: str
+    grade: str                  # 로케일 표시 라벨
+    grade_key: str = ""         # 로케일 무관 stable key: best|good|normal|bad
 
 
 # 용도별 관법 안내(사용자 이해용 — 이 택일이 무엇을 보는지). 뽀 관법·문헌 근거.
@@ -247,11 +353,13 @@ def _bidx(b: str) -> int:
     return EARTHLY_BRANCHES.index(b)
 
 
-def _geonje(month_branch: str, day_branch: str) -> tuple[str, int, str]:
-    """건제십이신 (한자기호, 점수0~100, 의미). 월지와 같은 일지 = 建."""
+def _geonje(month_branch: str, day_branch: str, locale: Locale = "ko") -> tuple[str, int, str]:
+    """건제십이신 (한자기호, 점수0~100, 로케일 의미). 월지와 같은 일지 = 建."""
     idx = (_bidx(day_branch) - _bidx(month_branch)) % 12
     ch = _GEONJE_ORDER[idx]
     score, note = _GEONJE_INFO[ch]
+    if locale == "vi":
+        note = _GEONJE_NOTE_VI.get(ch, note)
     return ch, score, note
 
 
@@ -265,10 +373,10 @@ def _hwangdo(month_branch: str, day_branch: str) -> tuple[str, str, bool]:
     return (name, hb, hb == "황")
 
 
-def _compat_avg(parent_chart: SajuChart, baby_chart: SajuChart) -> tuple[int, list[str]]:
-    """아이-부모 궁합(5요소 A/B/C 평균)과 주의 신살."""
+def _compat_avg(parent_chart: SajuChart, baby_chart: SajuChart, locale: Locale = "ko") -> tuple[int, list[str]]:
+    """아이-부모 궁합(5요소 A/B/C 평균)과 주의 신살. penalty type 은 로케일화되어 반환."""
     from .compatibility import compute_compatibility
-    compat = compute_compatibility(parent_chart, baby_chart)
+    compat = compute_compatibility(parent_chart, baby_chart, locale=locale)
     score = round(sum(p.total for p in compat.perspectives.values()) / max(1, len(compat.perspectives)))
     return score, [p.type for p in compat.penalties[:3]]
 
@@ -279,18 +387,25 @@ _SIJIN = [("子", "00:30"), ("丑", "02:30"), ("寅", "04:30"), ("卯", "06:30")
           ("申", "16:30"), ("酉", "18:30"), ("戌", "20:30"), ("亥", "22:30")]
 
 
-def _best_hours(d: date, parent_chart: SajuChart, parent2_chart: SajuChart | None, top: int = 3) -> list[dict]:
+def _best_hours(d: date, parent_chart: SajuChart, parent2_chart: SajuChart | None,
+                top: int = 3, locale: Locale = "ko") -> list[dict]:
     """출산 후보일의 12시진별 아이-부모 궁합 → 추천 시(時) 상위."""
     from datetime import time as _time
+    vi = locale == "vi"
     out = []
     for branch, label in _SIJIN:
         hh, mm = int(label[:2]), int(label[3:])
         baby = build_chart(BirthInput(birth_date=d, birth_time=_time(hh, mm)), with_daewoon=False)
-        s1, _ = _compat_avg(parent_chart, baby)
-        score = s1 if parent2_chart is None else round((s1 + _compat_avg(parent2_chart, baby)[0]) / 2)
+        s1, _ = _compat_avg(parent_chart, baby, locale)
+        score = s1 if parent2_chart is None else round((s1 + _compat_avg(parent2_chart, baby, locale)[0]) / 2)
         hp = baby.pillars.hour
-        out.append({"sijin": f"{branch}시", "time": label,
-                    "ganzhi": f"{hp.stem}{hp.branch}" if hp else "", "score": score})
+        if vi:
+            sijin = f"Giờ {branch_reading(branch, locale)}"
+            ganzhi = f"{stem_reading(hp.stem, locale)} {branch_reading(hp.branch, locale)}" if hp else ""
+        else:
+            sijin = f"{branch}시"
+            ganzhi = f"{hp.stem}{hp.branch}" if hp else ""
+        out.append({"sijin": sijin, "time": label, "ganzhi": ganzhi, "score": score})
     out.sort(key=lambda x: x["score"], reverse=True)
     return out[:top]
 
@@ -575,7 +690,8 @@ def _ppo_saju(purpose: str, ch: SajuChart, next_ch: SajuChart | None,
 
 
 def _score_day(d: date, parent_chart: SajuChart, purpose: str, bonmyeong: str = "",
-               parent2_chart: SajuChart | None = None) -> DayScore:
+               parent2_chart: SajuChart | None = None, locale: Locale = "ko") -> DayScore:
+    vi = locale == "vi"
     ch = build_chart(BirthInput(birth_date=d), with_daewoon=False)
     mb = ch.pillars.month.branch
     db = ch.pillars.day.branch
@@ -593,10 +709,10 @@ def _score_day(d: date, parent_chart: SajuChart, purpose: str, bonmyeong: str = 
     _disq = False              # 재/관/일지/월지 깨짐 → 하드 배제
     _month_pen = 0             # ④ 월운(흉월) soft 감점
     if purpose == "birth":
-        # ② 출산: 그날 태어날 아이와 부모의 궁합. 양부모면 둘의 평균.
-        s1, w1 = _compat_avg(parent_chart, ch)
+        # ② 출산: 그날 태어날 아이와 부모의 궁합. 양부모면 둘의 평균. (warns 는 로케일화된 신살명)
+        s1, w1 = _compat_avg(parent_chart, ch, locale)
         if parent2_chart is not None:
-            s2, w2 = _compat_avg(parent2_chart, ch)
+            s2, w2 = _compat_avg(parent2_chart, ch, locale)
             f_saju = round((s1 + s2) / 2)
             warns = list(dict.fromkeys(w1 + w2))[:3]
         else:
@@ -635,17 +751,17 @@ def _score_day(d: date, parent_chart: SajuChart, purpose: str, bonmyeong: str = 
     f_sonless = 90 if sonless else 55
 
     # ④ 건제십이신 (중단 택일)
-    gj_ch, f_geonje, gj_note = _geonje(mb, db)
+    gj_ch, f_geonje, gj_note = _geonje(mb, db, locale)
     if f_geonje <= 28:  # 破·閉 = 大凶 → 경고 배지
-        warns.append(f"{_GEONJE_KO[gj_ch]}({gj_ch})")
+        warns.append(_geonje_badge(gj_ch, locale))
 
     # ⑤ 이십팔수(28수) 길흉 (歳事暦)
-    su_ch, su_ko, su_note = _su28(d)
+    su_ch, su_read, su_note = _su28(d, locale)
     f_su28 = _su28_score(su_ch, purpose)
 
-    # ⑥ 생기복덕 (본명괘 + 그날 일지 → 생기/복덕/절명…)
+    # ⑥ 생기복덕 (본명괘 + 그날 일지 → 생기/복덕/절명…). sb_key=gil|ban|hyung(로케일 무관)
     from .sinsal import saenggi_bokdeok
-    sb_label, sb_gil = saenggi_bokdeok(bonmyeong, db) if bonmyeong else ("", "")
+    sb_label, sb_gil, sb_key = saenggi_bokdeok(bonmyeong, db, locale) if bonmyeong else ("", "", "")
     f_saenggi = {"길": 85, "반": 55, "흉": 28}.get(sb_gil, 60)
     if sb_gil == "흉":
         warns.append(sb_label)
@@ -671,7 +787,8 @@ def _score_day(d: date, parent_chart: SajuChart, purpose: str, bonmyeong: str = 
         if _sibak_mode == "penalize":
             score -= _SIBAK_PENALTY
     score = max(0, min(100, score))
-    grade = "대길일" if score >= 80 else "길일" if score >= 65 else "보통" if score >= 50 else "흉일"
+    grade_key = "best" if score >= 80 else "good" if score >= 65 else "normal" if score >= 50 else "bad"
+    grade = _GRADE_LABEL[locale][grade_key]
     # ⑦ 설명(사용자 이해용) — 나쁜 이유가 있으면 그것, 없으면 좋은 근거 요약(결정적)
     if _bad:
         reason = "회피 — " + ", ".join(_bad[:3])
@@ -690,21 +807,26 @@ def _score_day(d: date, parent_chart: SajuChart, purpose: str, bonmyeong: str = 
         if _month_pen:
             reason += " · 단, 이 달은 월운 흉월이라 순위 하향"
 
+    sr, br = stem_reading(ds, locale), branch_reading(db, locale)
+    ganzhi = f"{sr} {br}" if vi else f"{sr}{br}({ds}{db})"
+
     return DayScore(
         date=d.isoformat(),
-        ganzhi=f"{stem_korean(ds)}{branch_korean(db)}({ds}{db})",
-        hwangdo=f"{shin}({hb}도)",
+        ganzhi=ganzhi,
+        hwangdo=_fmt_hwangdo(shin, hb, locale),
         sonless=sonless,
         warnings=warns,
         factors=factors,
-        geonje=f"{_GEONJE_KO[gj_ch]}({gj_ch})",
+        geonje=_geonje_badge(gj_ch, locale),
         geonje_note=gj_note,
-        su28=f"{su_ko}({su_ch})",
+        su28=su_read if vi else f"{su_read}({su_ch})",
         su28_note=su_note,
         saenggi=sb_label,
-        reason=reason,
+        saenggi_gil=sb_key,
         score=score,
         grade=grade,
+        grade_key=grade_key,
+        reason=reason,
     )
 
 
@@ -715,9 +837,11 @@ def recommend_dates(
     purpose: str = "general",
     top: int = 10,
     user_chart2: SajuChart | None = None,
+    locale: Locale = "ko",
 ) -> TaekilResult:
     """기간(start~start+days) 내 날짜 점수화 → 길일 top / 회피일.
-    user_chart2: 출산택일의 두 번째 부모(선택)."""
+    user_chart2: 출산택일의 두 번째 부모(선택).
+    locale='ko'(기본)은 한국 서비스와 동일. 'vi'는 라벨·간지·신살을 한월음 기반 베트남어로."""
     purpose = purpose if purpose in PURPOSES else "general"
     ub = user_chart.pillars.day.branch
     # 본명괘(구성 본명성, 생년·성별) → 생기복덕용. 출산은 부모 기준.
@@ -726,7 +850,7 @@ def recommend_dates(
     bonmyeong = bonmyeong_gwae(user_chart.input.birth_date.year, user_chart.input.gender == Gender.MALE)
     # 출산=두 번째 부모(궁합 평균), 결혼=상대 명식(③a 커플 정밀택일). 그 외 용도는 미사용.
     p2 = user_chart2 if purpose in ("birth", "wedding") else None
-    scored = [_score_day(start + timedelta(days=i), user_chart, purpose, bonmyeong, p2) for i in range(max(1, days))]
+    scored = [_score_day(start + timedelta(days=i), user_chart, purpose, bonmyeong, p2, locale) for i in range(max(1, days))]
 
     # ③a 결혼 커플 정밀택일 — 적용 관법 라벨(단정 회피). 상대 명식 유무 + 관리자 토글로 결정.
     applied_rule = ""
@@ -760,7 +884,7 @@ def recommend_dates(
     if purpose == "birth":
         from datetime import date as _d
         for ds_ in (best or alt):
-            ds_.best_hours = _best_hours(_d.fromisoformat(ds_.date), user_chart, p2)
+            ds_.best_hours = _best_hours(_d.fromisoformat(ds_.date), user_chart, p2, locale=locale)
 
     # 관법별 추천 1위(다관법 비교) — 같은 기간을 관법마다 다르게 가중해 1위가 갈림
     persp: dict[str, dict] = {}
@@ -771,7 +895,7 @@ def recommend_dates(
         )
         topday = ranked[0]
         persp[k] = {
-            "label": v["label"],
+            "label": _PERSP_LABEL[locale][k],
             "top_date": topday.date,
             "top_ganzhi": topday.ganzhi,
             "top_score": round(sum(topday.factors[fk] * w[fk] / 100 for fk in w)),
@@ -779,8 +903,8 @@ def recommend_dates(
 
     return TaekilResult(
         purpose=purpose,
-        purpose_label=PURPOSES[purpose],
-        user_day_branch=f"{branch_korean(ub)}({ub})",
+        purpose_label=_PURPOSE_LABEL[locale][purpose],
+        user_day_branch=(branch_reading(ub, locale) if locale == "vi" else f"{branch_reading(ub, locale)}({ub})"),
         rule_note=_RULE_NOTE.get(purpose, ""),
         applied_rule=applied_rule,
         sewoon_note=sewoon_note,

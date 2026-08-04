@@ -9,6 +9,8 @@ function fmtSlot(iso: string): string {
   const day = "일월화수목금토"[d.getDay()];
   return `${d.getMonth() + 1}/${d.getDate()}(${day}) ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 }
+import { useTranslation, Trans } from "react-i18next";
+import { fmtNum } from "../lib/money";
 import { useConsultation } from "./ConsultationProvider";
 
 /**
@@ -28,10 +30,11 @@ const CATS: { key: Cat; label: string; ic: string }[] = [
   { key: "tarot", label: "타로", ic: "🃏" },
 ];
 
-const PRESENCE: Record<string, { txt: string; cls: string }> = {
-  online: { txt: "상담가능", cls: "on" },
-  busy: { txt: "상담중", cls: "busy" },
-  offline: { txt: "오프라인", cls: "off" },
+// 접속 상태 → 배지 라벨 키(consult.*)·CSS 클래스. 라벨은 컴포넌트에서 tr 로 해석.
+const PRESENCE: Record<string, { key: string; cls: string }> = {
+  online: { key: "presence_online", cls: "on" },
+  busy: { key: "presence_busy", cls: "busy" },
+  offline: { key: "presence_offline", cls: "off" },
 };
 
 const SPEC: Record<string, { txt: string; cls: string }> = {
@@ -112,6 +115,7 @@ export default function ConsultationOverlay({
   /** A-1: 사주 명식/타로 카드를 상담사에게 자동 전달할 소스(사주·타로 화면 CTA 진입 시) */
   source?: ConsultSource | null;
 }) {
+  const { t: tr } = useTranslation();
   const { startRequest } = useConsultation();
   const me = useMe();
   const { openCharge } = useCharge();
@@ -205,7 +209,7 @@ export default function ConsultationOverlay({
     const eff = (srcCat as Cat | undefined) ?? cat;
     api.consultants(eff === "all" ? undefined : eff)
       .then((r) => { if (alive) setItems(r.items); })
-      .catch((e) => { if (alive) setErr(e?.message || "상담사 목록을 불러오지 못했어요."); })
+      .catch((e) => { if (alive) setErr(e?.message || tr("consult.err_list")); })
       .finally(() => { if (alive) setLoading(false); });
     return () => { alive = false; };
   }, [cat, open, source?.kind]);
@@ -236,7 +240,7 @@ export default function ConsultationOverlay({
       setPending(null);
       onClose(); // 진입 오버레이 닫고 채팅 오버레이로 전환
     } catch (e: any) {
-      setErr(e?.message || "상담 신청에 실패했어요.");
+      setErr(e?.message || tr("consult.err_request"));
     } finally {
       setSubmitting(false);
     }
@@ -272,9 +276,9 @@ export default function ConsultationOverlay({
   if (!open) return null;
 
   return (
-    <div className="pwa-overlay csl-ov" role="dialog" aria-modal="true" aria-label="1:1 상담" onClick={onClose}>
+    <div className="pwa-overlay csl-ov" role="dialog" aria-modal="true" aria-label={tr("consult.dialog_aria")} onClick={onClose}>
       <div className="pwa-modal csl-modal" onClick={(e) => e.stopPropagation()}>
-        <button className="csl-x" onClick={onClose} aria-label="닫기">×</button>
+        <button className="csl-x" onClick={onClose} aria-label={tr("consult.close")}>×</button>
 
         <div className="csl-head2">
           <h3 className="csl-title">1:1 상담</h3>
@@ -391,12 +395,18 @@ export default function ConsultationOverlay({
           <div className="csl-consent" onClick={(e) => e.stopPropagation()}>
             <h4>{pending.business_name}</h4>
             <p className="csl-consent-price">
-              {pending.price_p.toLocaleString()}P · {pending.duration_min}분 (신청 시 수락 후 차감)
+              {tr("consult.consent_price", {
+                price: `${fmtNum(pending.price_p)}${tr("pay.pt")}`,
+                min: fmtNum(pending.duration_min),
+              })}
             </p>
             {balanceGate(pending.price_p, `1:1 상담에는 ${pending.price_p.toLocaleString()}P가 필요해요. 충전하면 바로 신청할 수 있어요.`)}
             <p className="csl-consent-note">
-              원활한 상담과 <b>상담서 발급</b>을 위해 대화 내용이 서버에 저장되며,
-              <b> {cfg?.retention_days ?? 7}일 후 자동·완전 파기</b>됩니다. 동의하셔야 상담이 시작돼요.
+              <Trans
+                i18nKey="consult.consent_note"
+                values={{ days: cfg?.retention_days ?? 7 }}
+                components={{ b: <b /> }}
+              />
             </p>
             {source && (
               <p className="csl-consent-note csl-consent-source">
@@ -407,10 +417,10 @@ export default function ConsultationOverlay({
             )}
             {err && <p className="csl-consent-err">{err}</p>}
             <div className="csl-consent-actions">
-              <button className="csl-consent-ok" onClick={confirmRequest} disabled={submitting || payBlocked(pending.price_p)}>
-                {submitting ? "신청 중…" : payBlocked(pending.price_p) ? (me ? "포인트 부족" : "로그인 필요") : "동의하고 상담 신청"}
+              <button className="csl-consent-ok" onClick={confirmRequest} disabled={submitting}>
+                {submitting ? tr("consult.consent_submitting") : tr("consult.consent_submit")}
               </button>
-              <button className="csl-consent-cancel" onClick={() => setPending(null)} disabled={submitting}>취소</button>
+              <button className="csl-consent-cancel" onClick={() => setPending(null)} disabled={submitting}>{tr("consult.consent_cancel")}</button>
             </div>
           </div>
         </div>
@@ -497,6 +507,7 @@ function Stars({ avg }: { avg: number }) {
 }
 
 function ConsultantCard({ c, onStart, onReserve }: { c: ConsultantPublic; onStart: () => void; onReserve: () => void }) {
+  const { t: tr } = useTranslation();
   const p = PRESENCE[c.presence] || PRESENCE.offline;
   const spec = SPEC[c.specialty] || SPEC.saju;
   const isComing = c.status === "coming_soon";
@@ -512,7 +523,7 @@ function ConsultantCard({ c, onStart, onReserve }: { c: ConsultantPublic; onStar
           <span className="csl-sign-ph" aria-hidden>🪧</span>
         )}
         <span className={`csl-spec-badge ${spec.cls}`}>{spec.txt}</span>
-        {!isComing && <span className={`csl-badge ${p.cls}`}>{p.txt}</span>}
+        {!isComing && <span className={`csl-badge ${p.cls}`}>{tr(`consult.${p.key}`)}</span>}
         {isComing && (
           <div className="csl-coming" aria-label="입점예정">
             <span className="csl-coming-ic" aria-hidden>⏳</span>
@@ -523,6 +534,7 @@ function ConsultantCard({ c, onStart, onReserve }: { c: ConsultantPublic; onStar
       <div className="csl-info">
         <div className="csl-card-top">
           <span className="csl-nm">{c.business_name}</span>
+          <span className={`csl-badge ${p.cls}`}>{tr(`consult.${p.key}`)}</span>
         </div>
         {c.intro && <p className="csl-intro">{c.intro}</p>}
         {c.keywords && c.keywords.length > 0 && (
@@ -534,16 +546,16 @@ function ConsultantCard({ c, onStart, onReserve }: { c: ConsultantPublic; onStar
         )}
         <div className="csl-rating">
           {c.rating_avg != null ? (
-            <span className="csl-stars" title={`만족도 ${c.rating_avg}/5 · ${c.rating_count}명 평가`}>
+            <span className="csl-stars" title={tr("consult.rating_title", { avg: c.rating_avg, count: fmtNum(c.rating_count) })}>
               <Stars avg={c.rating_avg} />
               <b>{c.rating_avg.toFixed(1)}</b>
               <span className="csl-rc">({c.rating_count})</span>
             </span>
           ) : (
-            <span className="csl-norate">평가 없음</span>
+            <span className="csl-norate">{tr("consult.no_rating")}</span>
           )}
           <span className="csl-dot" aria-hidden>·</span>
-          <span className="csl-scount">상담 {c.session_count.toLocaleString()}건</span>
+          <span className="csl-scount">{tr("consult.session_count", { count: fmtNum(c.session_count) })}</span>
         </div>
         {biz && (
           <div className={`csl-bizhours ${biz.open ? "open" : "closed"}`}>

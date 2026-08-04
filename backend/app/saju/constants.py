@@ -2,6 +2,10 @@
 from __future__ import annotations
 
 import re
+from typing import Literal
+
+# 로케일 축(ko=한국어/한글 독음, vi=베트남어/한월음 라틴). 기본은 ko(한국 서비스 불변).
+Locale = Literal["ko", "vi"]
 
 # ============================================================
 # 천간 (天干) — 10개
@@ -11,6 +15,10 @@ HEAVENLY_STEMS: tuple[str, ...] = (
 )
 STEM_KOREAN: tuple[str, ...] = (
     "갑", "을", "병", "정", "무", "기", "경", "신", "임", "계",
+)
+# 天干 한월음(Hán-Việt) — 베트남 로케일 독음. HEAVENLY_STEMS 와 위치 병렬.
+STEM_VI: tuple[str, ...] = (
+    "Giáp", "Ất", "Bính", "Đinh", "Mậu", "Kỷ", "Canh", "Tân", "Nhâm", "Quý",
 )
 
 # 천간 → 오행
@@ -42,6 +50,14 @@ BRANCH_KOREAN: tuple[str, ...] = (
 )
 BRANCH_ZODIAC: tuple[str, ...] = (
     "쥐", "소", "호랑이", "토끼", "용", "뱀", "말", "양", "원숭이", "닭", "개", "돼지",
+)
+# 地支 한월음 — 卯 정칙 "Mão"(남부 변이 "Mẹo"). EARTHLY_BRANCHES 위치 병렬.
+BRANCH_VI: tuple[str, ...] = (
+    "Tý", "Sửu", "Dần", "Mão", "Thìn", "Tỵ", "Ngọ", "Mùi", "Thân", "Dậu", "Tuất", "Hợi",
+)
+# 十二生肖(베트남) — 丑=Trâu(물소, not 소), 卯=Mèo(고양이, not 토끼), 未=Dê(염소). ★한국과 갈림.
+BRANCH_ZODIAC_VI: tuple[str, ...] = (
+    "Chuột", "Trâu", "Hổ", "Mèo", "Rồng", "Rắn", "Ngựa", "Dê", "Khỉ", "Gà", "Chó", "Lợn",
 )
 
 # 지지 → 오행
@@ -84,6 +100,10 @@ WUXING_LIST: tuple[str, ...] = ("木", "火", "土", "金", "水")
 WUXING_KOREAN: dict[str, str] = {
     "木": "목", "火": "화", "土": "토", "金": "금", "水": "수",
 }
+# 五行 한월음
+WUXING_VI: dict[str, str] = {
+    "木": "Mộc", "火": "Hỏa", "土": "Thổ", "金": "Kim", "水": "Thủy",
+}
 
 # 상생 (生): 어떤 오행이 어떤 오행을 생하는가
 WUXING_GENERATES: dict[str, str] = {
@@ -109,6 +129,14 @@ TEN_GODS_KO: dict[str, str] = {
     "偏財": "편재", "正財": "정재",
     "偏官": "편관", "正官": "정관",  # 偏官=七殺
     "偏印": "편인", "正印": "정인",
+}
+# 十神 한월음(Thập Thần) — VN Bát Tự 관용 라벨. 偏官=七殺 Thất sát.
+TEN_GODS_VI: dict[str, str] = {
+    "比肩": "Tỷ kiên", "劫財": "Kiếp tài",
+    "食神": "Thực thần", "傷官": "Thương quan",
+    "偏財": "Thiên tài", "正財": "Chính tài",
+    "偏官": "Thiên quan", "正官": "Chính quan",
+    "偏印": "Thiên ấn", "正印": "Chính ấn",
 }
 
 # 십성(十星) → 육친(六親)·인생영역. 성격·가족/인연 해석의 근거.
@@ -836,32 +864,7 @@ def _fix_ganji_reading(text: str) -> str:
             return f"{head}{tail}({fixed_hanja})"  # 한글 유효('무술') → 한자 교정 戊辰→戊戌
         return f"{head}{expected}({hanja})"        # 한글 무효('귀사') → 독음 교정 귀사→계사
 
-    return _fix_branch_unit_hanja(_GANJI_PAREN_RE.sub(_sub, text))
-
-
-# ── 지지+시간단위 병기 교정 ('축월(子月)'→'축월(丑月)') ─────────────
-# 실측(택일): 지지 한글 '축'은 맞는데 한자를 子로 오표기(丑月이 정답). 위 _fix_ganji_reading은
-# 괄호에 月(간지 아님)이 섞여 불개입한다. '지지한글+월/일/시/년(지지한자+月/日/時/年)' 병기에서
-# 한글 지지(결정적 헤드라인 — 예: 축 일지 대상의 '축월/축일' 추천)를 기준으로 한자 지지·단위를
-# 교정한다. 한글·한자가 일치하면 불개입(정상 '축일(丑日)' 보존).
-_BRANCH_KO_TO_HJ: dict[str, str] = dict(zip(BRANCH_KOREAN, EARTHLY_BRANCHES))
-_UNIT_KO_TO_HJ: dict[str, str] = {"월": "月", "일": "日", "시": "時", "년": "年", "연": "年"}
-_BRANCH_UNIT_RE = re.compile(
-    r"([자축인묘진사오미신유술해])(월|일|시|년|연)\s*\(\s*"
-    r"([子丑寅卯辰巳午未申酉戌亥])\s*([月日時年])\s*\)"
-)
-
-
-def _fix_branch_unit_hanja(text: str) -> str:
-    def _sub(m: "re.Match[str]") -> str:
-        ko_br, ko_unit, ha_br, ha_unit = m.groups()
-        want_br = _BRANCH_KO_TO_HJ[ko_br]
-        want_unit = _UNIT_KO_TO_HJ[ko_unit]
-        if ha_br == want_br and ha_unit == want_unit:
-            return m.group(0)  # 일치 → 보존
-        return f"{ko_br}{ko_unit}({want_br}{want_unit})"  # 한글 지지 기준 한자 교정
-
-    return _BRANCH_UNIT_RE.sub(_sub, text)
+    return _GANJI_PAREN_RE.sub(_sub, text)
 
 
 def compute_ten_god(day_stem: str, other_stem: str) -> str:
@@ -994,8 +997,7 @@ BRANCH_PUNISH: tuple[frozenset[str], ...] = (
 # 자형(自刑): 같은 글자가 만날 때(frozenset은 동일원소 중복불가라 별도 집합).
 BRANCH_SELF_PUNISH: frozenset[str] = frozenset({"辰", "午", "酉", "亥"})
 
-# 도화(桃花/咸池): 삼합국 장생지의 다음 글자(목욕지). 자기 삼합 그룹 → 도화 글자.
-#   (⚠️ 왕지 아님 — 왕지로 '교정'하면 子午卯酉 그대로가 되어 전 결과가 깨진다. 값은 정답.)
+# 도화(桃花/咸池): 삼합국의 왕지. 자기 삼합 그룹 → 도화 글자.
 #   상대 일지가 내 도화 글자이면 '도화 작용'(이성적 끌림, 길흉 양면).
 DOHWA_BY_TRINE: dict[frozenset[str], str] = {
     frozenset({"申", "子", "辰"}): "酉",
@@ -1022,6 +1024,41 @@ def stem_korean(s: str) -> str:
 
 def branch_korean(b: str) -> str:
     return BRANCH_KOREAN[EARTHLY_BRANCHES.index(b)]
+
+
+# ── 로케일별 독음 셀렉터 ─────────────────────────────────────────
+# ko=한글 독음 / vi=한월음(Hán-Việt). stem_korean·branch_korean 은 ko 전용 래퍼로 보존
+# (기존 호출부 무파손). 신규 코드는 아래 *_reading(x, locale) 을 쓴다.
+_STEM_READING: dict[str, tuple[str, ...]] = {"ko": STEM_KOREAN, "vi": STEM_VI}
+_BRANCH_READING: dict[str, tuple[str, ...]] = {"ko": BRANCH_KOREAN, "vi": BRANCH_VI}
+_ZODIAC_READING: dict[str, tuple[str, ...]] = {"ko": BRANCH_ZODIAC, "vi": BRANCH_ZODIAC_VI}
+_WUXING_READING: dict[str, dict[str, str]] = {"ko": WUXING_KOREAN, "vi": WUXING_VI}
+_TEN_GODS_READING: dict[str, dict[str, str]] = {"ko": TEN_GODS_KO, "vi": TEN_GODS_VI}
+
+
+def stem_reading(s: str, locale: Locale = "ko") -> str:
+    """天干 한 글자 → 로케일 독음(ko 한글 / vi 한월음)."""
+    return _STEM_READING[locale][HEAVENLY_STEMS.index(s)]
+
+
+def branch_reading(b: str, locale: Locale = "ko") -> str:
+    """地支 한 글자 → 로케일 독음."""
+    return _BRANCH_READING[locale][EARTHLY_BRANCHES.index(b)]
+
+
+def zodiac_reading(b: str, locale: Locale = "ko") -> str:
+    """地支 → 십이지 동물명(ko 토끼 / vi Mèo=고양이 등). ★卯·丑 로케일 갈림."""
+    return _ZODIAC_READING[locale][EARTHLY_BRANCHES.index(b)]
+
+
+def wuxing_reading(w: str, locale: Locale = "ko") -> str:
+    """五行 한자 → 로케일 독음(木→목 / Mộc)."""
+    return _WUXING_READING[locale][w]
+
+
+def ten_god_reading(hanja: str, locale: Locale = "ko") -> str:
+    """十神 한자 → 로케일 독음(比肩→비견 / Tỷ kiên)."""
+    return _TEN_GODS_READING[locale][hanja]
 
 
 def ganji_allowed_elements(stem: str, branch: str) -> set[str]:

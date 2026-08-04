@@ -142,20 +142,34 @@ _SAENGGI_MASK = {  # 라벨 → (본명괘에 XOR할 마스크, 길흉)
     "유혼": (0b101, "반"), "화해": (0b001, "흉"), "복덕": (0b011, "길"),
     "절명": (0b010, "흉"), "귀혼": (0b000, "반"),
 }
+# 생기복덕 8라벨 한월음(Hán-Việt) — vi 로케일 표시용.
+_SAENGGI_VI = {
+    "생기": "Sinh khí", "천의": "Thiên y", "절체": "Tuyệt thể", "유혼": "Du hồn",
+    "화해": "Họa hại", "복덕": "Phúc đức", "절명": "Tuyệt mệnh", "귀혼": "Quy hồn",
+}
+# 길흉(길/반/흉) → 로케일 무관 stable key(프론트 색상 분기용).
+_SAENGGI_GIL_KEY = {"길": "gil", "반": "ban", "흉": "hyung"}
 
 
-def saenggi_bokdeok(bonmyeong_gwae: str, day_branch: str) -> tuple[str, str]:
-    """본명괘 + 그날 지지 → (생기복덕 라벨, 길흉). 본명괘 불명이면 ('','')."""
+def saenggi_bokdeok(
+    bonmyeong_gwae: str, day_branch: str, locale: str = "ko"
+) -> tuple[str, str, str]:
+    """본명괘 + 그날 지지 → (생기복덕 라벨, 길흉, stable 길흉키).
+
+    locale='ko'(기본)은 한글 라벨(생기/복덕/절명…), 'vi'는 한월음(Sinh khí…).
+    3번째 값은 로케일 무관 gil|ban|hyung 키. 본명괘 불명이면 ('','','').
+    """
     bm = _GWAE_BITS.get(bonmyeong_gwae)
     g = _BRANCH_GWAE.get(day_branch)
     if bm is None or g is None:
-        return ("", "")
+        return ("", "", "")
     target = _GWAE_BITS[g]
     mask = target ^ bm
     for label, (m, gil) in _SAENGGI_MASK.items():
         if m == mask:
-            return (label, gil)
-    return ("", "")
+            disp = _SAENGGI_VI[label] if locale == "vi" else label
+            return (disp, gil, _SAENGGI_GIL_KEY.get(gil, ""))
+    return ("", "", "")
 
 
 # 본명괘 = 구성(九星) 본명성(생년·성별 기준). 공개값 검증: 1990년생 남자=坎.

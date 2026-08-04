@@ -109,7 +109,7 @@ def test_birth_persists_parent2():
 
     captured = {}
 
-    def _fake_persist(db, tool, kind, birth, chart, input_json, result_json, user, depth):
+    def _fake_persist(db, tool, kind, birth, chart, input_json, result_json, user, depth, locale="ko"):
         captured.update(tool=tool, kind=kind, input_json=input_json, result_json=result_json)
         return {"tool_id": "t", "result": result_json}
 

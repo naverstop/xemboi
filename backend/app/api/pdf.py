@@ -23,7 +23,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from backend.app.core.db import get_db
-from backend.app.core.deps import get_current_user, get_optional_user
+from backend.app.core.deps import get_current_user, get_locale, get_optional_user
 from backend.app.repositories.auth_models import User
 from backend.app.services.pdf_service import generate_consultation_pdf
 
@@ -233,6 +233,8 @@ class ConsultationReportReq(BaseModel):
     topic: str = Field("사주 상담", max_length=40)
     when: Optional[str] = None
     session_id: Optional[str] = Field(None, max_length=64)  # 사주 세션 — 있으면 명식 패널 포함
+    # 내부 호출(consultation.session_report)은 세션 로케일을 여기로 전달. 없으면 요청 헤더(get_locale).
+    locale: Optional[str] = Field(None, max_length=2)
 
 
 @router.post("/consultation-report", response_model=ConsultationPdfResp)
@@ -240,17 +242,22 @@ def create_consultation_report(
     req: ConsultationReportReq,
     db: Session = Depends(get_db),
     user: Optional[User] = Depends(get_optional_user),
+    locale: str = Depends(get_locale),
 ) -> ConsultationPdfResp:
     """여러 질문·답변(상담 전체)을 로컬 LLM으로 하나의 '종합 감정서'로 재구성→상장양식 PDF."""
     from backend.app.services import chat_service
+    loc = (req.locale or locale or "ko").strip().lower()[:2]
+    if loc not in ("ko", "vi"):
+        loc = "ko"
     convo = [
         {"role": ("user" if (m or {}).get("role") == "user" else "assistant"),
          "content": str((m or {}).get("content") or "")[:8000]}
         for m in req.conversation[:40]
     ]
-    body = chat_service.synthesize_consultation(convo, topic=req.topic)
+    body = chat_service.synthesize_consultation(convo, topic=req.topic, locale=loc)
     if not body.strip():
-        raise HTTPException(status_code=400, detail="요약할 상담 내용이 없습니다.")
+        detail = "Không có nội dung tư vấn để tóm tắt." if loc == "vi" else "요약할 상담 내용이 없습니다."
+        raise HTTPException(status_code=400, detail=detail)
     chart, caption, consult_date = _session_chart(db, req.session_id, user)
     try:
         pdf = generate_consultation_pdf(
@@ -352,14 +359,17 @@ def email_consultation_pdf(
 
 
 @router.get("/{token}")
-def get_pdf(token: str, download: int = Query(0)) -> FileResponse:
+def get_pdf(
+    token: str, download: int = Query(0), locale: str = Depends(get_locale)
+) -> FileResponse:
     if not _TOKEN_RE.match(token):
         raise HTTPException(status_code=404, detail="not found")
     path = _PDF_DIR / f"{token}.pdf"
     if not path.is_file():
         raise HTTPException(status_code=404, detail="not found")
     name_path = _PDF_DIR / f"{token}.name"
-    filename = "상담서.pdf"
+    # 저장된 .name(제목 기반)이 우선. 없을 때만 로케일 기본 파일명 폴백.
+    filename = "Bản tư vấn.pdf" if locale == "vi" else "상담서.pdf"
     if name_path.is_file():
         try:
             filename = name_path.read_text(encoding="utf-8").strip() or filename

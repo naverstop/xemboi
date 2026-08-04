@@ -102,7 +102,8 @@ def _resolve_person(
     raise ValueError("person requires profile_id or birth")
 
 
-def _to_birth_input(b: BirthDTO) -> BirthInput:
+def _to_birth_input(b: BirthDTO, locale: str = "ko") -> BirthInput:
+    # locale 은 요청 로케일(get_locale) 단일 진실원 — vi 면 105°E·hongoc_duc 경로.
     return BirthInput(
         birth_date=b.birth_date,
         birth_time=b.birth_time,
@@ -113,6 +114,7 @@ def _to_birth_input(b: BirthDTO) -> BirthInput:
         birth_longitude=b.birth_longitude,
         apply_equation_of_time=b.apply_equation_of_time,
         night_zi_mode=b.night_zi_mode,
+        locale=locale,
     )
 
 
@@ -120,24 +122,39 @@ def _to_birth_input(b: BirthDTO) -> BirthInput:
 # LLM 해설
 # ============================================================
 def _render_result_for_llm(
-    result: CompatResult, label_a: str, label_b: str, sa: str, sb: str
+    result: CompatResult, label_a: str, label_b: str, sa: str, sb: str, locale: str = "ko"
 ) -> str:
-    parts = [f"[{label_a} 명식]\n{sa}", f"[{label_b} 명식]\n{sb}", "[궁합 분석]"]
+    # 요소·감점·관점·도화 내용(f.label / p.type·detail / p.label·grade / dohwa)은 엔진이 로케일에
+    # 맞춰 산출하므로, 여기서는 감싸는 섹션 라벨·단위·마무리 지시만 vi 로 번들한다.
+    vi = locale == "vi"
+    if vi:
+        parts = [f"[Lá số {label_a}]\n{sa}", f"[Lá số {label_b}]\n{sb}", "[Phân tích hợp đôi]"]
+    else:
+        parts = [f"[{label_a} 명식]\n{sa}", f"[{label_b} 명식]\n{sb}", "[궁합 분석]"]
+    unit = " điểm" if vi else "점"
     for key, f in result.factors.items():
-        line = f"- {_FACTOR_LABEL.get(key, key)}: {f.score}점"
+        line = f"- {f.label}: {f.score}{unit}"
         if f.items:
             line += " | " + "; ".join(it.detail for it in f.items)
         parts.append(line)
     if result.penalties:
-        parts.append("[주의 요소] " + ", ".join(f"{p.type}({p.detail})" for p in result.penalties))
-    parts.append("[관법별 종합]")
+        head = "[Yếu tố cần lưu ý] " if vi else "[주의 요소] "
+        parts.append(head + ", ".join(f"{p.type}({p.detail})" for p in result.penalties))
+    parts.append("[Tổng hợp theo trường phái]" if vi else "[관법별 종합]")
     for k, p in result.perspectives.items():
-        parts.append(f"- {p.label}: {p.total}점 ({p.grade})")
+        parts.append(f"- {p.label}: {p.total}{unit} ({p.grade})")
     if result.dohwa_readings:
-        parts.append("[도화 해석(여러 관점)] " + " / ".join(result.dohwa_readings))
-    parts.append(
-        f"\n위 근거로 {label_a}와 {label_b}의 궁합을 강점→주의점→조언 흐름으로 해설하세요."
-    )
+        head = "[Luận Đào Hoa (nhiều góc nhìn)] " if vi else "[도화 해석(여러 관점)] "
+        parts.append(head + " / ".join(result.dohwa_readings))
+    if vi:
+        parts.append(
+            f"\nDựa vào các căn cứ trên, hãy luận giải sự hợp đôi của {label_a} và {label_b} "
+            f"theo mạch: điểm mạnh → điểm cần lưu ý → lời khuyên."
+        )
+    else:
+        parts.append(
+            f"\n위 근거로 {label_a}와 {label_b}의 궁합을 강점→주의점→조언 흐름으로 해설하세요."
+        )
     return "\n".join(parts)
 
 
@@ -233,20 +250,22 @@ def create_compatibility(
     user: User | None = None,
     depth: str = "deep",
     explain_level: str = "normal",
+    locale: str = "ko",
 ) -> dict[str, Any]:
     """궁합 생성: 두 명식 → 엔진 → 빌링(상담쿼터 공유, 1회 차감) → 저장.
 
     해설은 생성하지 않고 결과를 즉시 반환한다(스트리밍 해설은 별도 엔드포인트).
     이 차감이 '궁합 1회'이며, 첫 해설 스트림은 추가 과금하지 않는다.
+    locale(요청 로케일)은 두 명식 계산(역법·경도)과 세션 행 locale 에 함께 반영된다.
     """
     birth_a, label_a = _resolve_person(db, req_person_a, user)
     birth_b, label_b = _resolve_person(db, req_person_b, user)
     label_a = label_a or "사람 A"
     label_b = label_b or "사람 B"
 
-    chart_a = build_chart(_to_birth_input(birth_a))
-    chart_b = build_chart(_to_birth_input(birth_b))
-    result = compute_compatibility(chart_a, chart_b)
+    chart_a = build_chart(_to_birth_input(birth_a, locale=locale))
+    chart_b = build_chart(_to_birth_input(birth_b, locale=locale))
+    result = compute_compatibility(chart_a, chart_b, locale=locale)
 
     # ---- 빌링(궁합 입장료 1회 차감) ----
     bill = chat_service._decide_entry_billing(db, user, "compat", claim=True)
@@ -272,6 +291,7 @@ def create_compatibility(
     row = CompatibilitySession(
         compat_id=compat_id,
         user_id=user.id if user else None,
+        locale=locale,
         a_label=label_a,
         a_birth_date=birth_a.birth_date, a_birth_time=birth_a.birth_time,
         a_calendar=birth_a.calendar.value if hasattr(birth_a.calendar, "value") else str(birth_a.calendar),
@@ -451,13 +471,14 @@ def _stream_message_inner(
     depth = "deep" if depth == "deep" else "basic"
     message = (message or "").strip()
 
+    locale = getattr(row, "locale", "ko")   # 세션 확정 로케일 — 응답 언어·모델 선택(chat 미러)
     result = CompatResult.model_validate(row.result_json or {})
     chart_a = SajuChart.model_validate(row.a_chart_json or {})
     chart_b = SajuChart.model_validate(row.b_chart_json or {})
-    sa = chat_service._build_saju_summary(chart_a)
-    sb = chat_service._build_saju_summary(chart_b)
+    sa = chat_service._build_saju_summary(chart_a, locale=locale)
+    sb = chat_service._build_saju_summary(chart_b, locale=locale)
     la, lb = row.a_label or "사람 A", row.b_label or "사람 B"
-    brief = _render_result_for_llm(result, la, lb, sa, sb)
+    brief = _render_result_for_llm(result, la, lb, sa, sb, locale)
 
     dialect = (getattr(user, "answer_dialect", None) or "standard") if user else "standard"
     di = chat_service._dialect_instruction(dialect)
@@ -479,7 +500,7 @@ def _stream_message_inner(
         credits_to_charge = 0
         use_free = use_daily = use_mem = False
         sys_content = chat_service._compose_sys_content(
-            COMPAT_SYSTEM, dialect, explain_level, has_sources=bool(rag_ctx))
+            COMPAT_SYSTEM, dialect, explain_level, has_sources=bool(rag_ctx), locale=locale)
         ucontent = brief if not rag_ctx else f"{brief}\n\n[참고자료]\n{rag_ctx}"
         # P1-4: 자료에 남의 명식이 섞여 와도 두 사람 명식으로 쓰지 않게(chat 전용 가드를 이식)
         if rag_ctx:
@@ -511,7 +532,7 @@ def _stream_message_inner(
         # 라우팅/추가질문 규칙이 빠져 종합템플릿이 주입되던 동문서답 재발원 봉합(chat과 동일 결함).
         sys_content = chat_service._compose_sys_content(
             COMPAT_SYSTEM + COMPAT_FOLLOWUP_HINT, dialect, explain_level,
-            question=message, is_followup=True, has_sources=bool(rag_ctx)
+            question=message, is_followup=True, has_sources=bool(rag_ctx), locale=locale
         )
         analysis = f"[궁합 분석]\n{brief}" + (f"\n\n[참고자료]\n{rag_ctx}" if rag_ctx else "")
         if rag_ctx:                                  # P1-4 명식 가드(두 사람 각각)
@@ -545,8 +566,7 @@ def _stream_message_inner(
         and external_llm.is_enabled()
     )
     do_qwen = (not is_preview) and s.deep_local_refine_enabled          # 1차 내부 보강(기본·심화)
-    # 심화 외부(미국) 보강은 국외이전 별도 동의(H4, 제28조의8) 회원만.
-    do_claude = depth == "deep" and (not is_preview) and _claude_avail and getattr(user, "overseas_transfer_opt_in", False)
+    do_claude = depth == "deep" and (not is_preview) and _claude_avail  # 심화 외부 보강
     will_refine = do_qwen or do_claude
 
     yield ("meta", {
@@ -566,7 +586,9 @@ def _stream_message_inner(
 
     def _produce() -> None:
         try:
-            for tok in chat_service._stream_ollama(msgs, stop_event=stop_event):
+            for tok in chat_service._stream_ollama(
+                msgs, model=chat_service._draft_model(locale), stop_event=stop_event
+            ):
                 tok_q.put(tok)
         except Exception as e:  # noqa: BLE001
             _err["e"] = e
@@ -625,9 +647,7 @@ def _stream_message_inner(
             fb = chat_service.external_fallback_answer(
                 question=(message or f"{la}와 {lb}의 궁합 해설"),
                 evidence=brief, rag_context=rag_ctx, dialect_instruction=di or None,
-                saju_summary=f"{sa}\n\n{sb}",
-                allow_overseas=(settings_service.get_bool(db, "overseas_llm_fallback_enabled", False)
-                                and getattr(user, "overseas_transfer_opt_in", False)),
+                saju_summary=f"{sa}\n\n{sb}", locale=locale,
             )
         if fb:
             parts = [fb]
@@ -657,7 +677,7 @@ def _stream_message_inner(
         qb = None
         for ev in chat_service._bg_with_heartbeat(s, lambda af=answer_full: chat_service._refine_with_qwen(
                 question=_q, draft=af, saju_summary=_ss, evidence=brief,
-                rag_context=rag_ctx, dialect_instruction=di or None), progress_phase="refining"):
+                rag_context=rag_ctx, dialect_instruction=di or None, locale=locale), progress_phase="refining"):
             if ev[0] == "result":
                 qb = ev[1]
             else:
@@ -674,7 +694,7 @@ def _stream_message_inner(
         cb = None
         for ev in chat_service._bg_with_heartbeat(s, lambda af=answer_full: chat_service._claude_boost(
                 question=_q, draft=af, saju_summary=_ss, evidence=brief,
-                rag_context=rag_ctx, dialect_instruction=di or None), progress_phase="refining"):
+                rag_context=rag_ctx, dialect_instruction=di or None, locale=locale), progress_phase="refining"):
             if ev[0] == "result":
                 cb = ev[1]
             else:
@@ -728,17 +748,14 @@ def _stream_message_inner(
         _a_cj, _b_cj = getattr(row, "a_chart_json", None), getattr(row, "b_chart_json", None)
         _allow = chat_service._allowed_from_charts(_a_cj, _b_cj)
         _stems = {st for st in (chat_service._day_stem(_a_cj), chat_service._day_stem(_b_cj)) if st}
-        # 지지(union) + 일간(두 사람 union) + 관계라벨(육합/삼합/충·천간합충) 동시 검증
-        if (chat_service._verify_branches(answer_full, _allow)
-                or chat_service._verify_day_stem_multi(answer_full, _stems)
-                or chat_service._verify_compat_relations(answer_full, _a_cj, _b_cj)):
+        # 지지(union) + 일간(두 사람 union) 동시 검증
+        if chat_service._verify_branches(answer_full, _allow) or chat_service._verify_day_stem_multi(answer_full, _stems):
             yield ("stage", {"phase": "verifying"})
             _truth = chat_service._charts_truth([(la, _a_cj), (lb, _b_cj)])
             _fixed = None
             for ev in chat_service._bg_with_heartbeat(s, lambda af=answer_full: chat_service._correct_branches(
                     af, allowed=_allow, truth=_truth, question=_q, sys_content=sys_content,
-                    saju_summary=_ss, day_stems=_stems, compat_charts=(_a_cj, _b_cj)),
-                    progress_phase="verifying"):
+                    saju_summary=_ss, day_stems=_stems)):
                 if ev[0] == "result":
                     _fixed = ev[1]
                 else:

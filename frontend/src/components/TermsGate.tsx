@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation, Trans } from "react-i18next";
 import { Link } from "react-router-dom";
 import { api, setCachedMe } from "../api";
 
@@ -8,6 +9,7 @@ import { api, setCachedMe } from "../api";
  * 로그인 직후 이 차단 게이트로 필수 동의를 받는다. 동의 시각·버전을 서버에 기록(법적효력).
  */
 export default function TermsGate() {
+  const { t: tr } = useTranslation();
   const [agreeTerms, setAgreeTerms] = useState(false);
   const [agreePrivacy, setAgreePrivacy] = useState(false);
   const [agreeRefund, setAgreeRefund] = useState(false);
@@ -23,7 +25,7 @@ export default function TermsGate() {
 
   async function agree() {
     if (!allRequired) {
-      setErr("필수 약관 3개에 모두 동의해야 합니다.");
+      setErr(tr("misc.terms_err_required"));
       return;
     }
     setBusy(true);
@@ -37,46 +39,44 @@ export default function TermsGate() {
       });
       setCachedMe(me);
     } catch (e: any) {
-      setErr(e?.message || "동의 처리에 실패했습니다. 다시 시도해 주세요.");
+      setErr(e?.message || tr("misc.gate_fail"));
       setBusy(false);
     }
   }
 
   return (
-    <div className="pwa-overlay" role="alertdialog" aria-modal="true" aria-label="약관 동의">
+    <div className="pwa-overlay" role="alertdialog" aria-modal="true" aria-label={tr("misc.terms_aria")}>
       <div className="pwa-modal disclaimer-modal">
-        <h3>📋 서비스 이용 약관 동의</h3>
-        <p className="disclaimer-sub">
-          서비스 이용을 위해 약관 동의가 필요합니다. 필수 항목에 동의해 주세요.
-        </p>
+        <h3>{tr("misc.terms_title")}</h3>
+        <p className="disclaimer-sub">{tr("misc.terms_sub")}</p>
         <div className="auth-agree">
           <label className="agree-all">
             <input type="checkbox" checked={allChecked} onChange={(e) => setAll(e.target.checked)} />
-            <span><b>전체 동의</b> <em>(필수 및 선택 항목 모두 포함)</em></span>
+            <span><b>{tr("auth.agree_all")}</b> <em>{tr("auth.agree_all_sub")}</em></span>
           </label>
           <div className="agree-list">
             <label>
               <input type="checkbox" checked={agreeTerms} onChange={(e) => setAgreeTerms(e.target.checked)} />
-              <span><i className="req">필수</i> <Link to="/legal/terms" target="_blank">이용약관</Link>에 동의합니다.</span>
+              <span><i className="req">{tr("auth.req")}</i> <Trans i18nKey="auth.agree_terms" components={{ a: <Link to="/legal/terms" target="_blank" /> }} /></span>
             </label>
             <label>
               <input type="checkbox" checked={agreePrivacy} onChange={(e) => setAgreePrivacy(e.target.checked)} />
-              <span><i className="req">필수</i> <Link to="/legal/privacy" target="_blank">개인정보 수집·이용</Link>에 동의합니다.</span>
+              <span><i className="req">{tr("auth.req")}</i> <Trans i18nKey="auth.agree_privacy" components={{ a: <Link to="/legal/privacy" target="_blank" /> }} /></span>
             </label>
             <label>
               <input type="checkbox" checked={agreeRefund} onChange={(e) => setAgreeRefund(e.target.checked)} />
-              <span><i className="req">필수</i> <Link to="/legal/refund" target="_blank">환불정책</Link>에 동의합니다.</span>
+              <span><i className="req">{tr("auth.req")}</i> <Trans i18nKey="misc.agree_refund" components={{ a: <Link to="/legal/refund" target="_blank" /> }} /></span>
             </label>
             <label>
               <input type="checkbox" checked={marketing} onChange={(e) => setMarketing(e.target.checked)} />
-              <span><i className="opt">선택</i> 마케팅 정보 수신에 동의합니다.</span>
+              <span><i className="opt">{tr("auth.opt")}</i> {tr("misc.agree_marketing")}</span>
             </label>
           </div>
         </div>
         {err && <p className="disclaimer-err">{err}</p>}
         <div className="pwa-actions">
           <button onClick={agree} disabled={busy || !allRequired}>
-            {busy ? "처리 중…" : "동의하고 시작하기"}
+            {busy ? tr("misc.processing") : tr("misc.agree_start")}
           </button>
         </div>
       </div>

@@ -39,6 +39,7 @@ from backend.app.saju.constants import (
     ganji_allowed_elements,
 )
 from backend.app.saju.engine import build_chart
+from backend.app.saju.lang_guard import clean_guard, response_language_rule
 from backend.app.saju.types import BirthInput, CalendarType, SajuChart
 # 팔자8(천간+지지본기) 오행 개수 — 화면 명식표와 같은 기준. 옛 chart_json 도 pillars 로 자동 재계산.
 from backend.app.saju.wuxing import wuxing_eight_of as _wuxing_eight_of
@@ -57,6 +58,20 @@ SYSTEM_PROMPT = """당신은 수십 년 경력의 대한민국 최고 사주명�
 4. 길흉 단정은 피하고, 가능성과 흐름으로 설명하세요.
 5. 응답은 풍부하게 — 최소 1,500자(대략 1,800~2,500자, 15~24문장) 분량으로, 큰 주제마다 단락을 나눠 근거→해석→조언 흐름으로 구체적으로 설명하세요. 항목만 나열하고 내용이 빈약해지지 않게 하세요. 근거로는 그 주제와 가장 관련 깊은 간지·십성 1~2가지만 짚고, 용어를 쓴 뒤에는 곧바로 그것이 생활에서 뜻하는 바를 쉬운 말로 이어서 풀어 주세요. 풍부함은 용어의 개수가 아니라 생활 밀착형 해석과 조언의 깊이로 만드세요.
 6. 첫 문장은 '~살펴보겠습니다/풀어드리겠습니다' 같은 인사말·예고가 아니라, 이 사주(또는 고민)의 핵심을 규정하는 '한 줄 판정'으로 시작하세요(특징+시사점 압축). 초안에 상담자 호칭(○○님)이 있으면 그대로 유지하세요.
+"""
+
+
+# 베트남어(vi) 시스템 프롬프트 — ko 룰블록(한글(한자) 관습)을 vi 에 주입하면 충돌하므로 별도.
+# 핵심 규칙(사실근거·전문가화법·가능성표현·마크다운금지·라틴 한월음)을 vi 로 번들.
+SYSTEM_PROMPT_VI = """Bạn là một chuyên gia tư vấn Tứ Trụ (Bát Tự) bậc thầy với hàng chục năm kinh nghiệm.
+
+Nguyên tắc:
+1. Chỉ luận giải dựa trên lá số đã cho (Thiên Can, Địa Chi, Ngũ Hành, Thập Thần, Đại Vận). TUYỆT ĐỐI không bịa ra can chi, thần sát, đại vận không có trong lá số.
+2. Không nhắc đến "tài liệu/nguồn"; hãy tự tin luận giải như chính chuyên gia.
+3. Chỉ viết bằng tiếng Việt (chữ Quốc ngữ có dấu thanh). Thuật ngữ dùng Hán-Việt Latinh (Giáp Tý, Chính quan, Dụng thần, Ngũ hành). TUYỆT ĐỐI không dùng chữ Hán / tiếng Trung (giản thể/phồn thể).
+4. Tránh khẳng định hung cát tuyệt đối; diễn đạt theo khả năng và xu hướng.
+5. Không dùng markdown (#, **, -, bảng); viết thành đoạn văn tự nhiên như đang ngồi tư vấn trực tiếp.
+6. Trả lời đủ dài (tối thiểu khoảng 1.200 ký tự), theo mạch: căn cứ → luận giải → lời khuyên.
 """
 
 
@@ -474,14 +489,22 @@ def _lead_verdict_rule(name: str) -> str:
 def _compose_sys_content(sys_prompt: str, dialect: str | None, explain_level: str,
                          question: str | None = None, person_name: str = "",
                          is_followup: bool = False, has_sources: bool = True,
-                         depth: str = "basic") -> str:
+                         depth: str = "basic", locale: str = "ko") -> str:
     """시스템 프롬프트 + 방언 + 명식표기 규칙(항상) + 쉬운풀이(선택).
 
     question이 특정 주제(이직·연애·건강 등)를 콕 집으면 종합 템플릿(ANSWER_BASE_RULE) 대신
     '집중 답변 규칙'을 주입해 동문서답(주제 무시하고 성격·육친·건강 나열)을 결정적으로 차단한다.
     is_followup(추가질문)이면 기본을 집중 답변으로 — 전체/월별 운세를 다시 나열하지 않는다.
     has_sources: [참고자료]가 실제로 붙는지(P3-E1). False면 '자료 우선' 문구를 빼고
-    '자료 없음 — 문헌명을 지어내지 말라'로 바꾼다. 기본 True 는 기존 호출부 호환."""
+    '자료 없음 — 문헌명을 지어내지 말라'로 바꾼다. 기본 True 는 기존 호출부 호환.
+    locale='vi' 면 ko 룰블록 대신 vi 전용 프롬프트(SYSTEM_PROMPT_VI)만 사용."""
+    if locale == "vi":
+        # vi 는 한글(한자) 관습의 ko 룰블록을 주입하면 언어 충돌 → vi 전용 프롬프트만 사용.
+        parts = [SYSTEM_PROMPT_VI]
+        if explain_level == "brief":
+            parts.append("[Ngắn gọn] Chỉ trả lời trọng tâm trong khoảng 100 từ, không dài dòng.")
+        return "\n\n".join(parts)
+
     parts = [sys_prompt]
     di = _dialect_instruction(dialect)
     if di:
@@ -587,7 +610,9 @@ def warmup_models() -> None:
             log.warning("[warmup] LLM 워밍업 실패(%s): %s", model, e)
 
 
-def _to_birth_input(b: BirthDTO) -> BirthInput:
+def _to_birth_input(b: BirthDTO, locale: str = "ko") -> BirthInput:
+    # locale 은 요청 로케일(get_locale)이 단일 진실원 — BirthDTO.locale(기본 ko)이 아니라
+    # 이 인자를 신뢰한다. vi 면 pillars 가 105°E·hongoc_duc 경로를 탄다.
     return BirthInput(
         birth_date=b.birth_date,
         birth_time=b.birth_time,
@@ -598,6 +623,7 @@ def _to_birth_input(b: BirthDTO) -> BirthInput:
         birth_longitude=b.birth_longitude,
         apply_equation_of_time=b.apply_equation_of_time,
         night_zi_mode=b.night_zi_mode,
+        locale=locale,
     )
 
 
@@ -845,7 +871,230 @@ def _life_stage_ko(age: int) -> str:
     return "건강·가족·여가·자산관리·자녀손주(취업/직장운 아님)"
 
 
-def _build_saju_summary(chart: SajuChart, birth: BirthInput | None = None) -> str:
+# ============================================================
+# vi(베트남어) 명식 요약 — LLM 컨텍스트를 한월음(Hán-Việt)·베트남어 라벨로 그라운딩.
+# ko 경로(_build_saju_summary)는 byte-identical 유지; vi 세션만 아래 경로를 탄다.
+# 한자·한글 미노출(SYSTEM_PROMPT_VI 의 '한자 절대 금지' 원칙과 일관).
+# ============================================================
+def _gz_vi(p) -> str:
+    """간지 → 한월음(예: Giáp Tý). 시주 없으면 호출 안 함."""
+    from backend.app.saju.constants import branch_reading, stem_reading
+    return f"{stem_reading(p.stem, 'vi')} {branch_reading(p.branch, 'vi')}"
+
+
+# 십성→육친(성별 반영) vi — constants.TEN_GODS_YUKCHIN_G 의 vi 미러(공통, 남성관계, 여성관계).
+_YUKCHIN_VI_G: dict[str, tuple[str, str, str]] = {
+    "比肩": ("anh em·đồng sự·đối thủ (tự tôn·độc lập)", "", ""),
+    "劫財": ("anh em·bạn bè·hợp tác (cạnh tranh·hao tán tài lộc)", "", ""),
+    "食神": ("biểu đạt·ăn mặc·thư thái·lạc quan", "mẹ vợ·cháu (không phải con)", "con cái"),
+    "傷官": ("tài năng·biểu đạt·phản biện", "bà·cháu gái (không phải con)", "con cái"),
+    "偏財": ("tài lộc lưu động·khéo kinh doanh·cha", "người yêu·khác giới", "cha·nhà chồng"),
+    "正財": ("tài lộc cố định·chăm chỉ·tiết kiệm", "vợ", "cha·nhà chồng"),
+    "偏官": ("thử thách·thúc đẩy·danh dự (áp lực)", "con cái", "người yêu·tình nhân"),
+    "正官": ("công việc·danh dự·quy củ·trách nhiệm", "con cái", "chồng"),
+    "偏印": ("học vấn·văn thư·hậu thuẫn (nghề phụ·nhanh trí)·mẹ (kế mẫu)", "", ""),
+    "正印": ("học vấn·văn thư·hậu thuẫn (chính thống·đức độ)·mẹ", "", ""),
+}
+
+
+def _yukchin_meaning_vi(hanja: str, is_male: bool | None) -> str:
+    """십성(한자) → 성별 반영 육친 의미(vi). yukchin_meaning 의 vi 미러."""
+    t = _YUKCHIN_VI_G.get(hanja)
+    if not t:
+        return ""
+    common, male_rel, fem_rel = t
+    if is_male is None:
+        return common
+    rel = male_rel if is_male else fem_rel
+    return f"{common} · {rel}" if rel else common
+
+
+def _sipsin_yukchin_lines_vi(chart: SajuChart, birth: BirthInput | None) -> list[str]:
+    """십성·육친 vi — _sipsin_yukchin_lines 의 vi 미러(한월음 라벨)."""
+    from backend.app.saju.constants import ten_god_reading
+    from backend.app.saju.types import Gender
+    tg = chart.ten_gods
+    is_male = None if birth is None else (birth.gender == Gender.MALE)
+
+    def vi(x: str | None) -> str:
+        return ten_god_reading(x, "vi") if x else "—"
+
+    pos = [
+        ("Can năm", tg.year_stem), ("Can tháng", tg.month_stem), ("Can giờ", tg.hour_stem),
+        ("Chi năm", tg.year_branch), ("Chi tháng", tg.month_branch),
+        ("Chi ngày", tg.day_branch), ("Chi giờ", tg.hour_branch),
+    ]
+    cells = ", ".join(f"{name} {vi(v)}" for name, v in pos if v)
+    seen: list[str] = []
+    for _name, v in pos:
+        if v and v not in seen:
+            seen.append(v)
+    legend = [f"    · {vi(v)} = {_yukchin_meaning_vi(v, is_male)}" for v in seen]
+    lines = [
+        "[Thập Thần · Lục Thân] — căn cứ quyết định để luận tính cách·gia đình·nhân duyên "
+        "(chỉ dùng các giá trị dưới đây, cấm tự tạo). Nhật chủ = bản thân.",
+        f"  Thập thần theo vị trí: {cells}",
+        "  Ý nghĩa Thập Thần → Lục Thân (đã xác định theo giới tính):",
+        *legend,
+    ]
+    if is_male is not None:
+        g = "nam" if is_male else "nữ"
+        lines.append(
+            f"  ※ Lục thân trên đã xác định theo giới tính bản thân ({g}). Con cái của nam = Quan tinh "
+            "(Chính quan·Thiên quan), con cái của nữ = Thực Thương (Thực thần·Thương quan)."
+        )
+    return lines
+
+
+def _yongsin_lines_vi(chart: SajuChart) -> list[str]:
+    """억부 방향 + 조후용신 vi — _yongsin_lines 의 vi 미러. jy.note(한글/한자)는 미사용,
+    계절값으로 vi 근거를 재구성해 한자 유출을 막는다."""
+    from backend.app.saju.constants import (
+        WUXING_GENERATES,
+        WUXING_OVERCOMES,
+        stem_reading,
+        wuxing_reading,
+    )
+    out: list[str] = []
+    dm_elem = chart.day_master_element
+
+    def _wk(el: str) -> str:
+        return wuxing_reading(el, "vi")
+
+    gen_me = {v: k for k, v in WUXING_GENERATES.items()}[dm_elem]   # 인성
+    my_gen = WUXING_GENERATES[dm_elem]                              # 식상
+    my_over = WUXING_OVERCOMES[dm_elem]                             # 재성
+    over_me = {v: k for k, v in WUXING_OVERCOMES.items()}[dm_elem]  # 관성
+    st = chart.day_master_strength
+    if st == "strong":
+        eokbu = (f"Thân cường nên ức phù theo hướng tiết giảm — Thực Thương {_wk(my_gen)}·"
+                 f"Tài tinh {_wk(my_over)}·Quan tinh {_wk(over_me)}")
+    elif st == "weak":
+        eokbu = (f"Thân nhược nên ức phù theo hướng bồi bổ — Ấn tinh {_wk(gen_me)}·"
+                 f"Tỷ Kiếp {_wk(dm_elem)}")
+    else:
+        eokbu = "Gần trung hòa nên xét cả điều hậu·cách cục cùng với ức phù"
+    out.append(f"  Hướng ức phù (theo cường nhược): {eokbu}")
+
+    jy = chart.johu_yongsin
+    if jy:
+        sup = ("·".join(stem_reading(s, "vi") for s in jy.supporting)) if jy.supporting else ""
+        sup_str = f" / phụ trợ {sup}" if sup else ""
+        prio = " [sinh mùa Đông·Hạ → ưu tiên điều hậu]" if jy.is_climate_priority else ""
+        season_vi = {"봄": "Xuân", "여름": "Hạ", "가을": "Thu", "겨울": "Đông"}.get(jy.season, jy.season)
+        out.append(
+            f"  Dụng thần điều hậu (Cùng Thông Bảo Giám): {stem_reading(jy.primary, 'vi')}{sup_str}{prio}"
+            f" — điều tiết hàn·noãn của mùa {season_vi}"
+        )
+    return out
+
+
+def _life_stage_vi(age: int) -> str:
+    """현재 나이 → 생애단계 라벨 vi — _life_stage_ko 의 vi 미러."""
+    if age < 8:
+        return "chưa đi học·nhi đồng"
+    if age < 14:
+        return "tiểu học — học tập·bạn bè"
+    if age < 17:
+        return "trung học cơ sở — học tập·tìm hướng đi"
+    if age < 20:
+        return "trung học phổ thông — học tập·thi cử·hướng nghiệp"
+    if age < 27:
+        return "đại học·mới đi làm — hoàn tất học tập·chuẩn bị việc làm·tình cảm"
+    if age < 35:
+        return "thanh niên — việc làm·sự nghiệp đầu·yêu·kết hôn"
+    if age < 50:
+        return "trung niên — nghề nghiệp·kinh doanh·tài lộc·gia đình"
+    if age < 65:
+        return "tráng niên — ổn định nghề·tài sản·con cái·quản lý sức khỏe"
+    return "lão niên — sức khỏe·gia đình·nghỉ ngơi·quản lý tài sản·con cháu (không phải vận việc làm)"
+
+
+def _build_calc_basis_vi(birth: BirthInput) -> str:
+    """계산 기준 vi — _build_calc_basis 의 vi 미러(핵심 항목만; 한국 표준시 역사보정은 vi 무관)."""
+    from backend.app.saju.types import CalendarType
+    parts = ["Âm lịch" if birth.calendar == CalendarType.LUNAR else "Dương lịch"]
+    if birth.apply_true_solar_time:
+        lon = f"{birth.birth_longitude}°E" if birth.birth_longitude is not None else "kinh tuyến chuẩn khu vực"
+        eot = "có quân sai" if birth.apply_equation_of_time else "không quân sai"
+        parts.append(f"hiệu chỉnh giờ mặt trời thật ({lon}·{eot})")
+    else:
+        parts.append("không áp dụng giờ mặt trời thật (giữ nguyên giờ đồng hồ)")
+    parts.append(
+        "dạ Tý thời (23–24h: trụ ngày = ngày hôm đó, can trụ giờ theo can ngày hôm sau)"
+        if birth.night_zi_mode == "yaja"
+        else "chính Tý thời (từ 23h: trụ ngày·trụ giờ đều theo ngày hôm sau)"
+    )
+    return "  Cơ sở tính toán: " + ", ".join(parts)
+
+
+def _build_saju_summary_vi(chart: SajuChart, birth: BirthInput | None = None) -> str:
+    """명식 요약 vi — _build_saju_summary 의 vi 미러(라벨=베트남어, 독음=한월음)."""
+    from backend.app.saju.constants import (
+        BRANCH_TO_WUXING,
+        STEM_IS_YANG,
+        STEM_TO_WUXING,
+        stem_reading,
+        wuxing_reading,
+    )
+    fp = chart.pillars
+    day_stem = fp.day.stem
+    day_yy = "dương" if STEM_IS_YANG[day_stem] else "âm"
+    hour_str = _gz_vi(fp.hour) if fp.hour else "không rõ giờ"
+
+    def _pil_elem(p) -> str:
+        return f"{wuxing_reading(STEM_TO_WUXING[p.stem], 'vi')}·{wuxing_reading(BRANCH_TO_WUXING[p.branch], 'vi')}"
+
+    pe = [f"Trụ năm {_gz_vi(fp.year)}={_pil_elem(fp.year)}",
+          f"Trụ tháng {_gz_vi(fp.month)}={_pil_elem(fp.month)}",
+          f"Trụ ngày {_gz_vi(fp.day)}={_pil_elem(fp.day)}"] + (
+        [f"Trụ giờ {_gz_vi(fp.hour)}={_pil_elem(fp.hour)}"] if fp.hour else [])
+    st = chart.day_master_strength
+    st_vi = {"strong": "vượng (thân cường)", "weak": "nhược (thân nhược)"}.get(st, "trung hòa")
+    w = chart.wuxing
+    wx_vi = {"Mộc": w.wood, "Hỏa": w.fire, "Thổ": w.earth, "Kim": w.metal, "Thủy": w.water}
+    lines = [
+        "[Lá số Tứ Trụ]",
+        f"  Trụ năm {_gz_vi(fp.year)}  Trụ tháng {_gz_vi(fp.month)}  Trụ ngày {_gz_vi(fp.day)}  Trụ giờ {hour_str}",
+        f"  Ngũ hành các trụ: {', '.join(pe)} — khí ngũ hành của mỗi can chi chỉ nói theo bảng này, "
+        f"không gán ngũ hành ngoài bảng cho can chi đó",
+        f"  Nhật chủ (bản thân): {stem_reading(day_stem, 'vi')} — {wuxing_reading(STEM_TO_WUXING[day_stem], 'vi')}, âm dương: {day_yy}",
+        f"  Cường nhược nhật chủ: {st_vi} (đã xét đắc lệnh nguyệt lệnh)",
+        f"  Phân bố ngũ hành: {wx_vi}",
+    ]
+    lines += _sipsin_yukchin_lines_vi(chart, birth)   # 십성·육친
+    lines += _yongsin_lines_vi(chart)                 # 억부 방향 + 조후용신
+    if chart.daewoon:
+        dw = chart.daewoon
+        dir_vi = "thuận hành" if dw.direction == "forward" else "nghịch hành"
+        lines.append(f"  Đại vận: {dir_vi}, khởi vận {dw.start_age:.1f} tuổi (trích nguyên danh sách dưới, cấm tự tạo)")
+        es = dw.entries or []
+        for i, e in enumerate(es):
+            end = (es[i + 1].start_age - 1) if i + 1 < len(es) else None
+            rng = f"{e.start_age}~{end} tuổi" if end is not None else f"{e.start_age} tuổi trở đi"
+            lines.append(f"    · {rng}: {_gz_vi(e.pillar)}")
+        if birth is not None and es:
+            from datetime import date as _today_d
+            age = (_today_d.today() - birth.birth_date).days / 365.25
+            ci = max((i for i, en in enumerate(es) if en.start_age <= age), default=0)
+            ce = es[ci]
+            cend = (es[ci + 1].start_age - 1) if ci + 1 < len(es) else None
+            crng = f"{ce.start_age}~{cend} tuổi" if cend is not None else f"{ce.start_age} tuổi trở đi"
+            nxt = (f", đại vận kế {_gz_vi(es[ci + 1].pillar)} ({es[ci + 1].start_age} tuổi trở đi)"
+                   if ci + 1 < len(es) else "")
+            lines.append(
+                f"  ※ Hiện khoảng {int(age)} tuổi ({_life_stage_vi(int(age))}) → đại vận hiện tại: {_gz_vi(ce.pillar)} ({crng}){nxt}. "
+                f"Luận theo đại vận hiện tại·tuế vận năm nay và về sau (tương lai), chỉ theo mối quan tâm hợp lứa tuổi·giai đoạn đời này, "
+                f"không thuật lại đại vận·năm đã qua."
+            )
+    if birth is not None:
+        lines.append(_build_calc_basis_vi(birth))
+    return "\n".join(lines)
+
+
+def _build_saju_summary(chart: SajuChart, birth: BirthInput | None = None, locale: str = "ko") -> str:
+    if locale == "vi":
+        return _build_saju_summary_vi(chart, birth)
     from backend.app.saju.constants import stem_korean
     fp = chart.pillars
     day_stem = fp.day.stem
@@ -1152,43 +1401,12 @@ def _verify_day_stem_multi(answer: str, stems: set[str]) -> list[tuple[str, str,
     return []
 
 
-# 대운·기둥 간지 정규식 공용 조각(한글 '갑자' 또는 한자 '甲子'). 아래 여러 검증기가 참조.
+# 대운(大運) 검증 — '대운'에 직접 붙은 간지가 명식 대운 목록에 없으면 환각(결정적 계산값).
+# LLM이 특정 나이대 대운 간지를 지어내면 화면 명식과 어긋남(실측: '현재 대운 (갑자, 15~24세)').
 _DW_GANJI = (
     r"(?:[갑을병정무기경신임계][자축인묘진사오미신유술해]"
     r"|[甲乙丙丁戊己庚辛壬癸][子丑寅卯辰巳午未申酉戌亥])"
 )
-
-
-# 4주(柱) 간지 재서술 검증 (전수감사 케이스 #8) — _verify_branches는 '월지/일지' 위치어만 앵커해
-# '일주 신미'·'월주 병신'처럼 柱어에 붙은 '간지 통짜' 재서술을 100% 놓친다(실측: 명식 재서술의
-# 지배적 화법). 柱어 직후 간지가 명식 해당 기둥과 다르면 플래그(정방향 앵커라 오탐 극소).
-_PILLAR_WORD = {"년주": "year", "연주": "year", "월주": "month", "일주": "day", "시주": "hour"}
-_PILLAR_NEAR_RE = re.compile(rf"(년주|연주|월주|일주|시주)[은는이가:\s·,()（）]*({_DW_GANJI})")
-
-
-def _verify_pillar_ganji(answer: str, chart_json: dict | None) -> list[tuple[str, str, str]]:
-    """'일주 신미'처럼 柱어 직후 간지가 명식 그 기둥의 간지와 다르면 불일치. 빈 결과 = 일치."""
-    if not answer or not chart_json:
-        return []
-    from backend.app.saju.constants import branch_korean, stem_korean
-    pil = (chart_json or {}).get("pillars") or {}
-    truth: dict[str, set[str]] = {}
-    for key in ("year", "month", "day", "hour"):
-        p = pil.get(key) or {}
-        st, br = p.get("stem"), p.get("branch")
-        if st and br:
-            truth[key] = {stem_korean(st) + branch_korean(br), f"{st}{br}"}
-    for m in _PILLAR_NEAR_RE.finditer(answer):
-        key = _PILLAR_WORD[m.group(1)]
-        allow = truth.get(key)
-        if allow and m.group(2) not in allow:
-            return [(m.group(1), m.group(2), "·".join(sorted(allow)))]
-    return []
-
-
-# 대운(大運) 검증 — '대운'에 직접 붙은 간지가 명식 대운 목록에 없으면 환각(결정적 계산값).
-# LLM이 특정 나이대 대운 간지를 지어내면 화면 명식과 어긋남(실측: '현재 대운 (갑자, 15~24세)').
-# (_DW_GANJI 는 위 4주 검증에서 함께 쓰려 앞서 정의됨)
 _DAEWOON_NEAR_RE = re.compile(
     rf"대운[은는이가의\s:·,，\(\)（）]*({_DW_GANJI})"      # 대운 → 간지(정방향)
     rf"|({_DW_GANJI})\s*(?:\([一-鿿]{{1,2}}\))?\s*대운"     # 간지 → 대운(역방향)
@@ -1966,10 +2184,9 @@ def _verify_whole_chart(answer: str, chart_json: dict | None) -> list[tuple[str,
 
 
 def _verify_myeongsik(answer: str, chart_json: dict | None) -> list[tuple[str, str, str]]:
-    """단일 명식 일간(천간)+4주 지지+조후용신+간지오행+월운매핑 검증(사주 상담·작명 등). 빈 결과 = 일치."""
+    """단일 명식 일간(천간)+4주 지지+조후용신+간지오행 검증(사주 상담·작명 등). 빈 결과 = 일치."""
     return (
         _verify_branches(answer, _allowed_from_charts(chart_json))
-        + _verify_pillar_ganji(answer, chart_json)
         + _verify_day_stem(answer, chart_json)
         + _verify_yongsin(answer, chart_json)
         + _verify_ganji_element(answer)
@@ -2195,21 +2412,6 @@ def _myeongsik_truth(chart_json: dict | None) -> str:
         ]
         if seq:
             out.append("대운목록=" + "·".join(seq))
-        # 나이구간·현재대운 명시(케이스 #6·#7 교정 강화)
-        ranges = _daewoon_ranges(chart_json)
-        if ranges:
-            rng_s = "·".join(
-                f"{s}~{end}세 {ko}" if end is not None else f"{s}세~ {ko}"
-                for (s, end, ko, _han) in ranges
-            )
-            out.append("대운나이구간=" + rng_s)
-            bd = _chart_birth_date(chart_json)
-            if bd:
-                from datetime import date as _date
-                age = (_date.today() - bd).days / 365.25
-                cur = next((r for r in reversed(ranges) if r[0] <= age), ranges[0])
-                crng = f"{cur[0]}~{cur[1]}세" if cur[1] is not None else f"{cur[0]}세~"
-                out.append(f"현재대운={cur[2]}({crng})")
     return ", ".join(out)
 
 
@@ -2259,8 +2461,6 @@ def _correct_branches(
     def _bad(txt: str) -> list[tuple[str, str, str]]:
         b = _verify_branches(txt, allowed, exclude_date_ctx=exclude_date_ctx)
         b = b + _verify_ganji_element(txt)  # 간지→오행 속성 환각(명식 불요·전 메뉴)
-        b = b + _verify_month_ganji(txt)    # 월번호↔간지 밀림 환각(케이스 #5, 명식 불요)
-        b = b + _verify_year_ganji(txt)     # 특정연도↔세운 간지(P1, 명식 불요)
         if chart_json is not None:
             b = (b + _verify_pillar_ganji(txt, chart_json) + _verify_day_stem(txt, chart_json)
                  + _verify_yongsin(txt, chart_json) + _verify_daewoon(txt, chart_json)
@@ -2272,10 +2472,6 @@ def _correct_branches(
                  + _verify_future_daewoon(txt, chart_json))       # [Patch G] 과거 대운 오인 차단
         if day_stems:
             b = b + _verify_day_stem_multi(txt, day_stems)
-        if compat_charts:
-            b = b + _verify_compat_relations(txt, compat_charts[0], compat_charts[1])
-        for vf in (extra_verifiers or []):   # 메뉴별 검증기(택일 황도·개명 수리 등) 주입
-            b = b + vf(txt)
         return b
 
     bad = initial_bad if initial_bad is not None else _bad(answer)
@@ -3043,16 +3239,19 @@ def external_fallback_answer(
     *, question: str, evidence: str | None, rag_context: str | None,
     dialect_instruction: str | None, saju_summary: str | None = None,
     allow_overseas: bool = False,
+    locale: str = "ko",
 ) -> str | None:
     """로컬 Ollama 전체 다운 시 외부(Claude)로 본문 생성 폴백. 실패/비활성/미동의 시 None.
 
-    allow_overseas: 국외이전 동의 게이트(H4) — 전역 폴백 설정 ON + 회원 동의일 때만 True. False면 전송 안 함."""
+    allow_overseas: 국외이전 동의 게이트(H4) — 전역 폴백 설정 ON + 회원 동의일 때만 True. False면 전송 안 함.
+    locale='vi' 면 외부 생성도 베트남어."""
     if not allow_overseas:
         return None
     try:
         out = external_llm.generate_answer(
             question=question, saju_summary=saju_summary, evidence=evidence,
             rag_context=rag_context, dialect_instruction=dialect_instruction,
+            locale=locale,
         )
         return out.strip() if out and out.strip() else None
     except Exception:  # noqa: BLE001
@@ -3092,8 +3291,11 @@ def create_session(
     birth: BirthDTO,
     top_k: int | None,
     user: User | None = None,
+    locale: str = "ko",
 ) -> tuple[str, str, SajuChart]:
-    """채팅 세션 생성. birth 필수. DB에 영속. user가 있으면 소유자로 연결."""
+    """채팅 세션 생성. birth 필수. DB에 영속. user가 있으면 소유자로 연결.
+
+    locale(요청 로케일)은 BirthInput 계산(역법·경도)과 세션 행 locale 에 함께 반영된다."""
     if birth is None:
         raise ValueError("birth is required: 채팅 시작 전 생년월일(시) 정보가 필요합니다.")
     s = get_settings()
@@ -3109,9 +3311,9 @@ def create_session(
             )
     sid = uuid.uuid4().hex
     k = max(1, min(top_k or s.rag_top_k_default, s.rag_max_top_k))
-    bi = _to_birth_input(birth)
+    bi = _to_birth_input(birth, locale=locale)
     chart = build_chart(bi)
-    saju_summary = _build_saju_summary(chart, bi)
+    saju_summary = _build_saju_summary(chart, bi, locale=locale)
     chat_repo.create_session(
         db,
         session_id=sid,
@@ -3120,6 +3322,7 @@ def create_session(
         saju_summary=saju_summary,
         chart_json=chart.model_dump(mode="json"),
         user_id=user.id if user else None,
+        locale=locale,
     )
     return sid, saju_summary, chart
 
@@ -3690,6 +3893,17 @@ def _ollama_extra_kwargs(model: str | None) -> dict:
     think 파라미터를 보내면 Ollama가 400을 반환하므로 모델명에 qwen3가 있을 때만 부착."""
     return {"think": False} if "qwen3" in (model or "").lower() else {}
 
+def _draft_model(locale: str = "ko") -> str:
+    """1차 초안 로컬 모델 — ko=exaone3.5 / vi=Qwen3(공용 Ollama GPU1의 qwen3:14b)."""
+    s = get_settings()
+    return s.ollama_model_vi if locale == "vi" else s.ollama_model
+
+
+def _refine_model(locale: str = "ko") -> str:
+    """2차 보강 로컬 모델 — ko=qwen2.5 / vi=Qwen3."""
+    s = get_settings()
+    return s.ollama_refine_model_vi if locale == "vi" else s.ollama_refine_model
+
 
 def _call_ollama(
     messages: list[dict], model: str | None = None, temperature: float | None = None,
@@ -3782,15 +3996,19 @@ def suggestions_from_convo(convo: str, n: int, *, topic: str, fallback: list[str
     return qs[:n] if qs else fallback[:n]
 
 
-def synthesize_consultation(conversation: list[dict], *, topic: str = "사주 상담") -> str:
+def synthesize_consultation(
+    conversation: list[dict], *, topic: str = "사주 상담", locale: str = "ko"
+) -> str:
     """여러 질문·답변(상담 전체)을 하나의 매끄러운 '종합 감정서' 본문으로 재구성(로컬 LLM, 무과금).
 
     연속 질문으로 단편화된 답변을 중복 제거·주제별 단락으로 묶어 하나의 글로 정리한다.
     마크다운/기호는 쓰지 않게 강제(_compose 규칙 + pdf 단계 _strip_md 이중 안전망).
     LLM 실패 시 어시스턴트 답변을 단순 연결해 폴백(항상 무언가 생성).
+    locale='vi' 면 베트남어 프롬프트·vi 모델(_draft_model)로 생성(ko 룰블록/한국어 강제 미주입).
     """
+    q_lab, a_lab = ("Câu hỏi", "Trả lời") if locale == "vi" else ("질문", "답변")
     convo = "\n\n".join(
-        f"[{'질문' if m.get('role') == 'user' else '답변'}] {(m.get('content') or '').strip()}"
+        f"[{q_lab if m.get('role') == 'user' else a_lab}] {(m.get('content') or '').strip()}"
         for m in conversation if (m.get('content') or '').strip()
     )
     fallback = "\n\n".join(
@@ -3799,21 +4017,38 @@ def synthesize_consultation(conversation: list[dict], *, topic: str = "사주 �
     )
     if not convo.strip():
         return fallback
-    sys_msg = (
-        f"당신은 한국 {topic}을(를) 정리하는 전문 감정사입니다. "
-        "아래 상담 전체 대화를 하나의 매끄러운 '종합 감정서'로 재구성하세요.\n"
-        + CONSULTANT_STYLE_RULE
-    )
-    user_msg = (
-        f"{convo}\n\n"
-        "위 상담 전체를 인사말·중복 없이 주제별로 자연스럽게 묶어, 상담가가 정리해 주듯 "
-        "하나의 종합 감정서로 작성하세요. 도입(요지) → 주제별 해설 → 종합 결론·조언 흐름으로, "
-        "한국어 줄글로 충분히(최소 1,000자) 정리하세요."
-    )
+    if locale == "vi":
+        # vi: 한글(한자) 관습의 ko 룰블록은 언어 충돌 → 넣지 않고, 마크다운 금지만 베트남어로 강제.
+        sys_msg = (
+            f"Bạn là chuyên gia thẩm định đang tổng hợp buổi {topic}. "
+            "Hãy tái cấu trúc toàn bộ cuộc trò chuyện tư vấn dưới đây thành một bản luận giải tổng hợp mạch lạc. "
+            "TUYỆT ĐỐI không dùng markdown (#, **, -, bảng); chỉ viết thành đoạn văn tự nhiên như đang ngồi tư vấn trực tiếp."
+        )
+        user_msg = (
+            f"{convo}\n\n"
+            "Hãy gộp toàn bộ buổi tư vấn trên theo chủ đề (bỏ lời chào và nội dung trùng lặp), "
+            "viết thành một bản luận giải tổng hợp tự nhiên như một chuyên gia đúc kết. "
+            "Theo mạch: dẫn nhập (tóm ý) → luận giải theo chủ đề → kết luận và lời khuyên tổng hợp, "
+            "viết bằng tiếng Việt thành đoạn văn đầy đủ (tối thiểu khoảng 800 ký tự)."
+        )
+        model = _draft_model("vi")
+    else:
+        sys_msg = (
+            f"당신은 한국 {topic}을(를) 정리하는 전문 감정사입니다. "
+            "아래 상담 전체 대화를 하나의 매끄러운 '종합 감정서'로 재구성하세요.\n"
+            + CONSULTANT_STYLE_RULE
+        )
+        user_msg = (
+            f"{convo}\n\n"
+            "위 상담 전체를 인사말·중복 없이 주제별로 자연스럽게 묶어, 상담가가 정리해 주듯 "
+            "하나의 종합 감정서로 작성하세요. 도입(요지) → 주제별 해설 → 종합 결론·조언 흐름으로, "
+            "한국어 줄글로 충분히(최소 1,000자) 정리하세요."
+        )
+        model = None  # ko 기본 모델(_call_ollama 기본값)
     try:
         out = _call_ollama(
             [{"role": "system", "content": sys_msg}, {"role": "user", "content": user_msg}],
-            temperature=0.4,
+            model=model, temperature=0.4,
         )
     except Exception:  # noqa: BLE001
         return fix_term_hanja(fallback)
@@ -3997,6 +4232,25 @@ _QWEN_REFINE_SYSTEM = (
     "11. [끝맺음] 답변은 반드시 완결된 문장으로 끝내세요. 분량이 부족해도 문장을 중간에 끊지 말고, "
     "마무리 조언 한 문단으로 자연스럽게 닫으세요.\n"
 )
+
+# vi 2차 보강 시스템 — ko _QWEN_REFINE_SYSTEM 의 의도(사실검증·근거보강·마크다운금지·본문만)를 vi 로.
+_VN_REFINE_SYSTEM = (
+    "Bạn là chuyên gia thẩm định Tứ Trụ (Bát Tự). Hãy kiểm chứng và bổ sung bản nháp dựa trên lá số và tư liệu.\n"
+    "Chỉ viết bằng tiếng Việt (chữ Quốc ngữ có dấu); thuật ngữ dùng Hán-Việt Latinh (Giáp Tý, Chính quan). "
+    "TUYỆT ĐỐI không dùng chữ Hán / tiếng Trung.\n"
+    "Nguyên tắc:\n"
+    "1. Sửa hoặc làm dịu các khẳng định vô căn cứ.\n"
+    "2. Bám sát lá số (nhật can vượng/nhược, ngũ hành, thập thần, đại vận) và tư liệu tham khảo.\n"
+    "3. Tránh khẳng định hung cát tuyệt đối; diễn đạt theo khả năng/xu hướng.\n"
+    "4. Không dùng markdown; viết thành đoạn văn tự nhiên như đang tư vấn trực tiếp.\n"
+    "5. Không nhắc đến 'tài liệu/nguồn'; luận giải bằng giọng chuyên gia.\n"
+    "6. Không bịa ra can chi/thần sát/đại vận không có trong lá số.\n"
+    "7. Chỉ xuất ra phần trả lời hoàn chỉnh bằng tiếng Việt, không lời dẫn/meta/khối mã.\n"
+)
+
+
+def _qwen_refine_system(locale: str = "ko") -> str:
+    return _VN_REFINE_SYSTEM if locale == "vi" else _QWEN_REFINE_SYSTEM
 
 
 # 간체(중국) 전용 글자 — 한국은 정자(繁體)만 써서 이 글자가 나오면 중국어 드리프트로 확정.
@@ -4424,6 +4678,12 @@ def _safe_replace(original: str, candidate: str | None, *, min_ratio: float = 0.
         pass
     return c
 
+def _strip_think(text: str) -> str:
+    """Qwen3 등 추론모델의 <think>...</think> 블록 제거(본문만). ko 모델은 미출력이라 no-op."""
+    if not text or "<think>" not in text:
+        return text
+    return re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL).strip()
+
 
 def _refine_with_qwen(
     *,
@@ -4433,9 +4693,11 @@ def _refine_with_qwen(
     evidence: str | None,
     rag_context: str | None,
     dialect_instruction: str | None,
+    locale: str = "ko",
 ) -> str | None:
-    """심화 2차 보강을 로컬 qwen으로 수행. 한국어 가드 통과 시에만 반환, 아니면 None.
+    """심화 2차 보강을 로컬 모델로 수행(ko=qwen2.5 / vi=Qwen3). 로케일 언어가드 통과 시에만 반환, 아니면 None.
 
+    vi 는 Qwen3 저온도 반복을 피해 temp↑, <think> 누출 제거, 라틴 전용 가드 적용.
     [교체 안전 게이트] 결과가 잘린 모양이거나 초안보다 크게 짧으면 None(초안 유지)."""
     s = get_settings()
     if not s.deep_local_refine_enabled:
@@ -4444,42 +4706,39 @@ def _refine_with_qwen(
     block = _build_refine_block(
         question=question, draft=draft, saju_summary=saju_summary,
         evidence=evidence, rag_context=rag_context,
-        dialect_instruction=dialect_instruction,
+        dialect_instruction=(None if locale == "vi" else dialect_instruction),
     )
-    # qwen2.5는 한자 많은 컨텍스트에서 간헐적으로 중국어로 드리프트한다.
-    # 저온도(0.2)로 1차 시도 → 가드 탈락 시 '한국어 강제' 못을 더 박아 1회 재시도.
-    base_msgs = [
-        {"role": "system", "content": refine_system_for(_QWEN_REFINE_SYSTEM, rag_context)},
-        {"role": "user", "content": block},
-    ]
-    attempts = [
-        (base_msgs, 0.2),
-        (
-            [
-                {"role": "system", "content": refine_system_for(_QWEN_REFINE_SYSTEM, rag_context)},
-                {
-                    "role": "user",
-                    "content": block
-                    + "\n\n[필수] 위 작업을 반드시 한국어 문장으로만 다시 작성하세요. "
-                    "중국어(간체/번체) 단어·문장을 한 글자도 쓰지 마세요.",
-                },
-            ],
-            0.1,
-        ),
-    ]
-    # 보강본이 초안보다 짧게 잘리지 않게 초안 길이 기반 동적 상한(한국어 ~1자≈1tok 근사, 과대추정 무해).
-    # 실측(2026-07-21): 신년운세 장문이 전역 3072에서 5월 부근 중간 잘림 — qwen 보강이 재작성하며 절단.
+    # 로케일 시스템 + [참고자료] 인지(rag_context) 결합. ko/vi 각자 드리프트 가드·온도 전략.
+    sys_content = refine_system_for(_qwen_refine_system(locale), rag_context)
+    if locale == "vi":
+        nudge = ("\n\n[Bắt buộc] Viết lại HOÀN TOÀN bằng tiếng Việt (có dấu). "
+                 "Không dùng một chữ Hán / tiếng Trung nào.")
+        attempts = [
+            ([{"role": "system", "content": sys_content}, {"role": "user", "content": block}], 0.6),
+            ([{"role": "system", "content": sys_content}, {"role": "user", "content": block + nudge}], 0.4),
+        ]
+    else:
+        # qwen2.5는 한자 많은 컨텍스트에서 간헐적으로 중국어로 드리프트 → 저온도 + 재시도 시 한국어 강제.
+        nudge = ("\n\n[필수] 위 작업을 반드시 한국어 문장으로만 다시 작성하세요. "
+                 "중국어(간체/번체) 단어·문장을 한 글자도 쓰지 마세요.")
+        attempts = [
+            ([{"role": "system", "content": sys_content}, {"role": "user", "content": block}], 0.2),
+            ([{"role": "system", "content": sys_content}, {"role": "user", "content": block + nudge}], 0.1),
+        ]
+    guard = clean_guard(locale)
+    model = _refine_model(locale)
+    # 보강본이 초안보다 짧게 잘리지 않게 초안 길이 기반 동적 상한(실측: 전역 3072 절단 사고).
     _np = max(s.ollama_num_predict, min(8192, len(draft) + 1024))
     for msgs, temp in attempts:
         try:
-            out = _call_ollama(msgs, model=s.ollama_refine_model, temperature=temp, num_predict=_np)
+            out = _call_ollama(msgs, model=model, temperature=temp, num_predict=_np)
         except ServiceUnavailableError:
             return None
-        out = (out or "").strip()
-        if _looks_korean_clean(out):
+        out = _strip_think((out or "").strip()).strip()
+        if guard(out):
             # 교체 안전 게이트 — 잘린 모양/과단축이면 폐기(초안 유지). 실측: 보강본 절단 교체 사고.
-            return _safe_replace(draft, out, min_ratio=0.9, hard_floor=True)  # 보강은 줄이면 안 됨(0.9·짧은 원본도 완화 없음)
-    # 재시도까지 중국어 드리프트/깨짐 → 보강 폐기(초안 유지 또는 Claude 폴백)
+            return _safe_replace(draft, out, min_ratio=0.9, hard_floor=True)
+    # 재시도까지 드리프트/깨짐 → 보강 폐기(초안 유지 또는 Claude 폴백)
     return None
 
 
@@ -4491,6 +4750,7 @@ def _deep_refine(
     evidence: str | None,
     rag_context: str | None,
     dialect_instruction: str | None,
+    locale: str = "ko",
 ) -> tuple[str | None, str | None]:
     """심화 2차 보강 해석: 로컬 qwen 우선 → 실패/깨짐 시 Claude 폴백.
 
@@ -4500,7 +4760,7 @@ def _deep_refine(
     out = _refine_with_qwen(
         question=question, draft=draft, saju_summary=saju_summary,
         evidence=evidence, rag_context=rag_context,
-        dialect_instruction=dialect_instruction,
+        dialect_instruction=dialect_instruction, locale=locale,
     )
     if out:
         return out, "qwen"
@@ -4509,7 +4769,7 @@ def _deep_refine(
         c = external_llm.refine_answer(
             question=question, draft=draft, saju_summary=saju_summary,
             evidence=evidence, rag_context=rag_context,
-            dialect_instruction=dialect_instruction,
+            dialect_instruction=dialect_instruction, locale=locale,
         )
         c2 = _safe_replace(draft, c, min_ratio=0.9, hard_floor=True)   # 보강은 줄이면 안 됨(0.9) — 잘린/과단축 폐기
         if c2:
@@ -4519,12 +4779,13 @@ def _deep_refine(
 
 def _claude_boost(
     *, question: str, draft: str, saju_summary: str | None, evidence: str | None,
-    rag_context: str | None, dialect_instruction: str | None,
+    rag_context: str | None, dialect_instruction: str | None, locale: str = "ko",
 ) -> str | None:
     """심화 '외부' 보강 — Claude로 1차 답변(qwen3:14b)을 추가 검증·보강.
 
     설계: 심화는 [1차 답변] 다음에 Claude를 '연결'(보강)한다. 비활성/실패 시 None
     (직전 답변 유지). 폴백이 아니라 deep 전용 추가 단계.
+    locale='vi' 면 외부 보강도 베트남어(ko 는 기존 한국어 그대로).
     """
     if not external_llm.is_enabled():
         return None
@@ -4533,6 +4794,7 @@ def _claude_boost(
         c = external_llm.refine_answer(
             question=question, draft=draft, saju_summary=saju_summary,
             evidence=evidence, rag_context=rag_context, dialect_instruction=dialect_instruction,
+            locale=locale,
         )
     except Exception:  # noqa: BLE001
         return None
@@ -4904,12 +5166,13 @@ def post_message(
 
     sys_prompt = template_service.get_active_prompt(db)
     dialect = (getattr(user, "answer_dialect", None) or "standard") if user else "standard"
+    locale = getattr(row, "locale", "ko")
     _is_followup = any(getattr(m, "role", None) == "assistant" for m in (row.messages or []))
     # 집중 주제·단일 후속(요점만) — 1차 생성 여지·바닥을 낮춰 패딩·반복 억제(종합은 풍부하게 유지).
     _is_narrow = bool(_focused_topic_labels(message or "")) or (_is_followup and not _wants_comprehensive(message or ""))
     sys_content = _compose_sys_content(sys_prompt, dialect, explain_level, question=message,
                                        person_name=_display_name(user), is_followup=_is_followup,
-                                       has_sources=bool(chunks), depth=depth)
+                                       has_sources=bool(chunks), depth=depth, locale=locale)
     msgs: list[dict] = [{"role": "system", "content": sys_content}]
     msgs.extend(_history_msgs(row))   # 최근 6턴(이전 답변 발췌) — 잘림·반복 완화
     user_prompt = _build_user_prompt(message, chunks, row.saju_summary,
@@ -4923,7 +5186,8 @@ def post_message(
     local_alive = True
     try:
         # 집중·후속은 여지를 줄여(6144→3072) 1차 생성 늘어짐·반복 억제. 종합은 전역(풍부).
-        answer_full = _call_ollama(msgs, num_predict=(_FOCUSED_NUM_PREDICT if _is_narrow else None))
+        answer_full = _call_ollama(msgs, model=_draft_model(locale),
+                                   num_predict=(_FOCUSED_NUM_PREDICT if _is_narrow else None))
     except ServiceUnavailableError:
         local_alive = False
         # 국외이전 미동의 폴백 차단(H4) — 전역 설정 OFF 또는 회원 미동의면 외부(미국) 전송 안 함.
@@ -4938,7 +5202,7 @@ def post_message(
         fb = external_llm.generate_answer(
             question=message, saju_summary=row.saju_summary,
             evidence=evidence_text, rag_context=rag_context,
-            dialect_instruction=di or None,
+            dialect_instruction=di or None, locale=locale,
         )
         if not fb:
             raise  # 로컬·외부 모두 불가 → 원래 503 전파
@@ -4971,7 +5235,7 @@ def post_message(
                 {"role": "user", "content": boost},
             ]
             try:
-                _boosted = _call_ollama(boost_msgs)
+                _boosted = _call_ollama(boost_msgs, model=_draft_model(locale))
             except Exception:
                 break
             # 교체 안전 게이트 — 보강본이 잘렸거나 오히려 짧으면 버리고 원본 유지(무조건 대입 금지).
@@ -4993,6 +5257,7 @@ def post_message(
         qb = _refine_with_qwen(
             question=message, draft=answer_full, saju_summary=row.saju_summary,
             evidence=evidence_text, rag_context=rag_context, dialect_instruction=di or None,
+            locale=locale,
         )
         if qb:
             answer_full = qb
@@ -5001,6 +5266,7 @@ def post_message(
         cb = _claude_boost(
             question=message, draft=answer_full, saju_summary=row.saju_summary,
             evidence=evidence_text, rag_context=rag_context, dialect_instruction=di or None,
+            locale=locale,
         )
         if cb:
             answer_full = cb
@@ -5242,12 +5508,13 @@ def _post_message_stream_inner(
     # ---- 동적 시스템 프롬프트(답변양식 L) + 말투(방언 P) ----
     sys_prompt = template_service.get_active_prompt(db)
     dialect = (getattr(user, "answer_dialect", None) or "standard") if user else "standard"
+    locale = getattr(row, "locale", "ko")
     _is_followup = any(getattr(m, "role", None) == "assistant" for m in (row.messages or []))
     # 집중 주제·단일 후속(요점만) — 1차 생성 여지·바닥을 낮춰 패딩·반복 억제(종합은 풍부하게 유지).
     _is_narrow = bool(_focused_topic_labels(message or "")) or (_is_followup and not _wants_comprehensive(message or ""))
     sys_content = _compose_sys_content(sys_prompt, dialect, explain_level, question=message,
                                        person_name=_display_name(user), is_followup=_is_followup,
-                                       has_sources=bool(chunks), depth=depth)
+                                       has_sources=bool(chunks), depth=depth, locale=locale)
 
     msgs: list[dict] = [{"role": "system", "content": sys_content}]
     msgs.extend(_history_msgs(row))   # 최근 6턴(이전 답변 발췌) — 잘림·반복 완화
@@ -5298,7 +5565,7 @@ def _post_message_stream_inner(
     def _produce() -> None:
         try:
             # 집중·후속은 여지를 줄여(6144→3072) 1차 생성 늘어짐·반복 억제. 종합은 전역(풍부).
-            for tok in _stream_ollama(msgs, stop_event=stop_event,
+            for tok in _stream_ollama(msgs, model=_draft_model(locale), stop_event=stop_event,
                                       num_predict=(_FOCUSED_NUM_PREDICT if _is_narrow else None)):
                 tok_q.put(tok)
         except Exception as e:  # noqa: BLE001
@@ -5366,7 +5633,7 @@ def _post_message_stream_inner(
             fb = external_llm.generate_answer(
                 question=message, saju_summary=row.saju_summary,
                 evidence=evidence_fb, rag_context=rag_context_fb,
-                dialect_instruction=di or None,
+                dialect_instruction=di or None, locale=locale,
             ) if _fb_allowed else None
         except Exception:  # noqa: BLE001
             fb = None
@@ -5450,7 +5717,8 @@ def _post_message_stream_inner(
         qb = None
         for ev in _bg_with_heartbeat(s, lambda af=answer_full: _refine_with_qwen(
                 question=message, draft=af, saju_summary=row.saju_summary,
-                evidence=evidence_text, rag_context=rag_context, dialect_instruction=di or None)):
+                evidence=evidence_text, rag_context=rag_context, dialect_instruction=di or None,
+                locale=locale)):
             if ev[0] == "result":
                 qb = ev[1]
             else:
@@ -5467,7 +5735,8 @@ def _post_message_stream_inner(
         cb = None
         for ev in _bg_with_heartbeat(s, lambda af=answer_full: _claude_boost(
                 question=message, draft=af, saju_summary=row.saju_summary,
-                evidence=evidence_text, rag_context=rag_context, dialect_instruction=di or None)):
+                evidence=evidence_text, rag_context=rag_context, dialect_instruction=di or None,
+                locale=locale)):
             if ev[0] == "result":
                 cb = ev[1]
             else:

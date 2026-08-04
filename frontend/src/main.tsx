@@ -6,6 +6,7 @@ import { ChargeProvider } from "./components/ChargeModal";
 import { ConsultationProvider } from "./components/ConsultationProvider";
 import "pretendard/dist/web/variable/pretendardvariable-dynamic-subset.css";
 import "@fontsource-variable/noto-serif-kr";
+import "./fonts-vi.css";
 import "./styles.css";
 
 // 초기 테마 적용(FOUC 방지) — useTheme 마운트 전에 data-theme 세팅

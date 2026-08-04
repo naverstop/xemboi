@@ -29,6 +29,10 @@ import FollowupBilling from "../components/FollowupBilling";
 import ConsultationReportButton, { type ReportReq } from "../components/ConsultationReportButton";
 import { renderRich, stripMarkdown } from "../lib/format";
 import { displayName } from "../lib/displayName";
+import { useTranslation, Trans } from "react-i18next";
+import { fmtNum } from "../lib/money";
+import { DEFAULT_LON } from "../lib/regions";
+import i18n from "../i18n";
 
 // 상담서 PDF 본문 상단 요약 — 종합 등급 + 관법별 점수
 function compatPdfHeader(res: CompatResponse): string {
@@ -36,8 +40,8 @@ function compatPdfHeader(res: CompatResponse): string {
   const persp = ["A", "B", "C"].map((k) => r.perspectives[k]).filter(Boolean);
   const head = persp.find((p) => p.key === "B") || persp[0];
   const lines: string[] = [];
-  if (head) lines.push(`[종합] ${head.grade} · ${head.total}점`);
-  persp.forEach((p) => lines.push(`- ${p.label}: ${p.grade} ${p.total}점`));
+  if (head) lines.push(i18n.t("compat.pdf_overall", { grade: head.grade, total: head.total }));
+  persp.forEach((p) => lines.push(i18n.t("compat.pdf_persp", { label: p.label, grade: p.grade, total: p.total })));
   return lines.join("\n");
 }
 
@@ -95,7 +99,7 @@ async function streamCompat(
       } else if (event === "done" && data) {
         try { h.onDone?.(JSON.parse(data)); } catch {}
       } else if (event === "error" && data) {
-        try { throw new Error(JSON.parse(data).detail || "스트림 오류"); } catch (e) { throw e; }
+        try { throw new Error(JSON.parse(data).detail || i18n.t("compat.stream_err")); } catch (e) { throw e; }
       }
     }
   }
@@ -127,7 +131,7 @@ const blankPerson = (label: string): PState => ({
   gender: "male",
   is_leap_month: false,
   apply_true_solar_time: true,
-  birth_longitude: 126.98,
+  birth_longitude: DEFAULT_LON,
   apply_equation_of_time: false,
   night_zi_mode: "yaja",
 });
@@ -152,12 +156,14 @@ function toReq(p: PState): CompatPersonReq {
   };
 }
 
+// 등급 색상 — 로케일 무관 stable key(grade_key)로 키잉. 백엔드가 grade_key
+// (soulmate|good|fair|effort|caution)를 제공하므로 한국어 문자열 매칭에 의존하지 않는다.
 const GRADE_TONE: Record<string, string> = {
-  천생연분: "var(--grad-success)",
-  "좋은 궁합": "var(--brand-grad)",
-  "무난한 궁합": "var(--grad-info)",
-  "노력 필요": "var(--grad-warning)",
-  신중히: "linear-gradient(135deg,#e57373,#c62828)",
+  soulmate: "var(--grad-success)",
+  good: "var(--brand-grad)",
+  fair: "var(--grad-info)",
+  effort: "var(--grad-warning)",
+  caution: "linear-gradient(135deg,#e57373,#c62828)",
 };
 
 // ===================== 펜타곤(레이더) =====================
@@ -178,6 +184,7 @@ function Pentagon({
   couple: number[];
   average: number[] | null;
 }) {
+  const { t: tr } = useTranslation();
   const S = 320, cx = 160, cy = 160, R = 108, LR = 130;
   const rings = [0.25, 0.5, 0.75, 1];
   const axisPt = (i: number, r: number) => {
@@ -185,14 +192,14 @@ function Pentagon({
     return [cx + r * Math.cos(ang), cy + r * Math.sin(ang)];
   };
   return (
-    <svg viewBox={`0 0 ${S} ${S}`} className="pentagon" role="img" aria-label="궁합 요소 펜타곤">
+    <svg viewBox={`0 0 ${S} ${S}`} className="pentagon" role="img" aria-label={tr("compat.pentagon_aria")}>
       <defs>
         <radialGradient id="penFill" cx="50%" cy="45%" r="65%">
-          <stop offset="0%" stopColor="#22b8f0" stopOpacity="0.40" />
-          <stop offset="100%" stopColor="#0496d8" stopOpacity="0.16" />
+          <stop offset="0%" stopColor="#1fbfa8" stopOpacity="0.40" />
+          <stop offset="100%" stopColor="#0d9488" stopOpacity="0.16" />
         </radialGradient>
         <filter id="penGlow" x="-30%" y="-30%" width="160%" height="160%">
-          <feDropShadow dx="0" dy="2" stdDeviation="4" floodColor="#0496d8" floodOpacity="0.35" />
+          <feDropShadow dx="0" dy="2" stdDeviation="4" floodColor="#0d9488" floodOpacity="0.35" />
         </filter>
       </defs>
 
@@ -233,7 +240,7 @@ function Pentagon({
         const anchor = Math.abs(x - cx) < 6 ? "middle" : x > cx ? "start" : "end";
         return (
           <text key={ax.key} x={x} y={y} textAnchor={anchor as any} className="pen-label">
-            <tspan>{ax.label}</tspan>
+            <tspan>{tr(ax.tkey)}</tspan>
             <tspan x={x} dy="13" className="pen-label-score">{couple[i]}</tspan>
           </text>
         );
@@ -247,28 +254,31 @@ function Gauge({
   label,
   total,
   grade,
+  gradeKey,
   avg,
 }: {
   label: string;
   total: number;
   grade: string;
+  gradeKey: string;
   avg: number | null;
 }) {
+  const { t: tr } = useTranslation();
   return (
     <div className="compat-gauge">
       <div className="cg-head">
         <span className="cg-label">{label}</span>
-        <span className="cg-grade" style={{ background: GRADE_TONE[grade] || "var(--brand-grad)" }}>
+        <span className="cg-grade" style={{ background: GRADE_TONE[gradeKey] || "var(--brand-grad)" }}>
           {grade}
         </span>
       </div>
       <div className="cg-bar">
         <div className="cg-fill" style={{ width: `${total}%` }} />
-        {avg != null && <div className="cg-avg" style={{ left: `${avg}%` }} title={`전체 평균 ${avg}`} />}
+        {avg != null && <div className="cg-avg" style={{ left: `${avg}%` }} title={tr("compat.gauge_avg_title", { avg })} />}
       </div>
       <div className="cg-foot">
-        <strong className="cg-total">{total}점</strong>
-        {avg != null && <span className="cg-avg-text">평균 {avg}</span>}
+        <strong className="cg-total">{tr("compat.score", { n: total })}</strong>
+        {avg != null && <span className="cg-avg-text">{tr("compat.gauge_avg_text", { avg })}</span>}
       </div>
     </div>
   );
@@ -293,6 +303,7 @@ function ScoreRing({ score }: { score: number }) {
 
 export default function CompatibilityPage() {
   const me = useMe();
+  const { t: tr } = useTranslation();
   const ensureEntry = useEnsureEntry();
   const { openCharge } = useCharge();
   const memberName = displayName(me, "본인");  // ⚠️ 호칭=이메일 아이디 고정(운영자 결정) — lib/displayName.ts
@@ -462,8 +473,8 @@ export default function CompatibilityPage() {
       }, ac.signal);
     } catch (e: any) {
       if (e?.name === "AbortError") { /* 이탈 취소 — 조용히 무시 */ }
-      else if (e?.message === "PAYWALL") { upd({ content: "" }); openCharge("추가 질문 포인트가 부족해요. 충전하면 작성 내용 그대로 이어집니다."); }
-      else upd({ content: "답변 생성에 실패했어요. 잠시 후 다시 시도해 주세요." });
+      else if (e?.message === "PAYWALL") { upd({ content: "" }); openCharge(tr("compat.need_points")); }
+      else upd({ content: tr("compat.answer_fail") });
     } finally {
       setQStreaming(false);
       setRefineStage(null);
@@ -473,8 +484,8 @@ export default function CompatibilityPage() {
 
   const okPerson = (p: PState) => (p.mode === "profile" ? !!p.profile_id : !!p.birth_date);
   const canSubmit = useMemo(() => okPerson(a) && okPerson(b) && !loading, [a, b, loading]);
-  const reason = !okPerson(a) ? "첫 번째 사람의 생년월일(또는 프로필)을 입력해 주세요"
-    : !okPerson(b) ? "두 번째 사람의 생년월일(또는 프로필)을 입력해 주세요"
+  const reason = !okPerson(a) ? tr("compat.reason_a")
+    : !okPerson(b) ? tr("compat.reason_b")
     : null;
 
   async function submit() {
@@ -499,7 +510,7 @@ export default function CompatibilityPage() {
       api.compatibilityAverage().then(setAvg).catch(() => {});
       setTimeout(() => document.getElementById("compat-result")?.scrollIntoView({ behavior: "smooth" }), 80);
     } catch (e: any) {
-      setErr(e?.message || "궁합 분석에 실패했어요.");
+      setErr(e?.message || tr("compat.fail"));
     } finally {
       setLoading(false);
     }
@@ -516,9 +527,9 @@ export default function CompatibilityPage() {
         />
       )}
       <header className="compat-hero">
-        <div className="compat-hero-badge">宮合</div>
-        <h1>궁합</h1>
-        <p>두 사람의 사주를 합·충·오행·십성·신살로 비교합니다. 관법은 정답이 없기에 <b>세 관점</b>을 함께 보여드려요.</p>
+        <div className="compat-hero-badge">{tr("compat.hero_badge")}</div>
+        <h1>{tr("compat.hero_title")}</h1>
+        <p><Trans i18nKey="compat.hero_desc" components={{ b: <b /> }} /></p>
       </header>
 
       <ReviewStrip source="compat" title="이용자 후기" limit={8} />
@@ -529,11 +540,9 @@ export default function CompatibilityPage() {
         </div>
       )}
       <div className="compat-input-grid">
-        <PersonForm title="첫 번째 사람" accent="a" p={a} setP={setA} profiles={profiles} loggedIn={!!me}
-                    remembered={remember}
-                    rememberSlot={<RememberBirthToggle remember={remember} onToggle={toggleRemember} />} />
+        <PersonForm title={tr("compat.person1")} accent="a" p={a} setP={setA} profiles={profiles} loggedIn={!!me} />
         <div className="compat-link" aria-hidden>💞</div>
-        <PersonForm title="두 번째 사람" accent="b" p={b} setP={setB} profiles={profiles} loggedIn={!!me} />
+        <PersonForm title={tr("compat.person2")} accent="b" p={b} setP={setB} profiles={profiles} loggedIn={!!me} />
       </div>
 
       {/* B-10 상대 초대(바이럴) — 상대 생일을 모를 때 링크로 입력 부탁 */}
@@ -554,10 +563,10 @@ export default function CompatibilityPage() {
       <div className="compat-actions">
         <label className="compat-depth">
           <input type="checkbox" checked={depth === "deep"} onChange={(e) => setDepth(e.target.checked ? "deep" : "basic")} />
-          심화 해설
+          {tr("compat.depth_deep")}
         </label>
         <button className="compat-cta" disabled={!canSubmit} onClick={submit}>
-          {loading ? "분석 중…" : "💞 궁합 보기"}
+          {loading ? tr("compat.analyzing") : tr("compat.cta")}
         </button>
       {!canSubmit && !loading && reason && <div className="cta-hint">{reason}</div>}
       </div>
@@ -568,7 +577,7 @@ export default function CompatibilityPage() {
         <div className="cr-explain">
           <div className="explain-body">
             <button className="explain-cta" onClick={() => startExplain(res.compat_id)}>
-              🔮 자세히 설명해 드릴까요? <span className="free-tag included">입장료 포함</span>
+              {tr("compat.explain_cta")}
             </button>
           </div>
         </div>
@@ -637,10 +646,11 @@ function CompatExplainPanel({
   qDepth: "basic" | "deep";
   setQDepth: (d: "basic" | "deep") => void;
 }) {
-  const stageText = refineStage === "refining" ? "보강 중…" : null;
+  const { t: tr } = useTranslation();
+  const stageText = refineStage === "refining" ? tr("compat.refining") : null;
   return (
     <div className="cr-explain">
-      <div className="cr-sub">해설 {refineStage && <span className="cr-refine-tag">{stageText}</span>}</div>
+      <div className="cr-sub">{tr("compat.explain_label")} {refineStage && <span className="cr-refine-tag">{stageText}</span>}</div>
       <div className="explain-body">
         {explainText ? renderRich(explainText) : (
           explainFailed ? (
@@ -672,7 +682,7 @@ function CompatExplainPanel({
 
       {/* 추가질문 채팅 */}
       <div className="compat-qa">
-        <div className="cr-sub">추가 질문</div>
+        <div className="cr-sub">{tr("compat.qa_title")}</div>
         {qaTurns.map((t, i) => (
           <div key={i} className={`qa-turn qa-${t.role}`}>
             <div className="qa-bubble">
@@ -681,7 +691,7 @@ function CompatExplainPanel({
               )}
               {t.refined && <span className="qa-refined">✨ 보강됨</span>}
               {t.role === "assistant" && typeof t.charged === "number" && t.charged > 0 && (
-                <span className="qa-charged">✓ {t.charged.toLocaleString()}P 차감됨</span>
+                <span className="qa-charged">{tr("compat.qa_charged", { n: fmtNum(t.charged) })}</span>
               )}
             </div>
             {/* 추가질문 답변에도 공유/복사/PDF·피드백 — 전 메뉴 표준. 미리보기·스트리밍 중 미노출 */}
@@ -700,7 +710,7 @@ function CompatExplainPanel({
         ))}
         {suggests && suggests.length > 0 && !qStreaming && (
           <div className="suggest-chips followup">
-            <div className="suggest-label">💡 이어서 물어보세요</div>
+            <div className="suggest-label">{tr("compat.followup_label")}</div>
             {suggests.map((sg) => (
               <button key={sg} className="chip" disabled={qStreaming} onClick={() => askFollowup(sg)}>
                 {sg}
@@ -712,14 +722,14 @@ function CompatExplainPanel({
         <div className="qa-input-row">
           <input
             className="qa-input"
-            placeholder="이 궁합에 대해 더 물어보세요. 예) 결혼하면 어떤 점을 조심해야 하나요?"
+            placeholder={tr("compat.qa_ph")}
             value={qInput}
             disabled={qStreaming}
             onChange={(e) => setQInput(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter") askFollowup(); }}
           />
           <button className="qa-send" disabled={qStreaming || !qInput.trim()} onClick={() => askFollowup()}>
-            {qStreaming ? "…" : explainStreaming ? "대기" : "질문"}
+            {qStreaming ? "…" : explainStreaming ? tr("compat.qa_wait") : tr("compat.qa_ask")}
           </button>
         </div>
         {pdf && explainText && qaTurns.some((t) => t.role === "assistant" && t.content) && !qStreaming && (
@@ -731,15 +741,15 @@ function CompatExplainPanel({
                   ...qaTurns.filter((t) => t.content).map((t) => ({ role: t.role, content: stripMarkdown(t.content) })),
                 ];
                 return {
-                  doc_title: `${pdf.docTitle} 종합 감정서`,
+                  doc_title: tr("compat.report_doc_suffix", { title: pdf.docTitle }),
                   person_line: pdf.personLine,
-                  item: pdf.item || "종합 감정",
+                  item: pdf.item || tr("compat.report_item"),
                   conversation,
-                  topic: "궁합 상담",
+                  topic: tr("compat.report_topic"),
                 };
               }}
             />
-            <span className="report-hint">여러 질문·답변을 하나의 감정서로 정리해 PDF로 만듭니다.</span>
+            <span className="report-hint">{tr("compat.report_hint")}</span>
           </div>
         )}
       </div>
@@ -760,20 +770,21 @@ function PersonForm({
   rememberSlot?: ReactNode;   // 첫 번째 사람(본인) 전용 '기억하기' 토글
   remembered?: boolean;       // 첫 번째 사람(본인)만 — 기억된 정보 강조 카드
 }) {
+  const { t: tr } = useTranslation();
   const up = (patch: Partial<PState>) => setP({ ...p, ...patch });
   return (
     <div className={`person-card pc-${accent}`}>
       <div className="pc-title">{title}</div>
       <input
         className="pc-name"
-        placeholder="이름/호칭 (선택)"
+        placeholder={tr("compat.name_ph")}
         value={p.label}
         onChange={(e) => up({ label: e.target.value })}
       />
       {loggedIn && profiles.length > 0 && (
         <div className="pc-mode">
-          <button className={p.mode === "manual" ? "on" : ""} onClick={() => up({ mode: "manual" })}>직접 입력</button>
-          <button className={p.mode === "profile" ? "on" : ""} onClick={() => up({ mode: "profile" })}>프로필 선택</button>
+          <button className={p.mode === "manual" ? "on" : ""} onClick={() => up({ mode: "manual" })}>{tr("compat.mode_manual")}</button>
+          <button className={p.mode === "profile" ? "on" : ""} onClick={() => up({ mode: "profile" })}>{tr("compat.mode_profile")}</button>
         </div>
       )}
       {p.mode === "profile" ? (
@@ -782,7 +793,7 @@ function PersonForm({
           value={p.profile_id || ""}
           onChange={(e) => up({ profile_id: Number(e.target.value) || undefined })}
         >
-          <option value="">프로필 선택…</option>
+          <option value="">{tr("compat.profile_select")}</option>
           {profiles.map((pr) => (
             <option key={pr.id} value={pr.id}>
               {pr.label} · {pr.birth_date}
@@ -801,6 +812,7 @@ function PersonForm({
 
 // ===================== 결과 =====================
 function Result({ res, avg }: { res: CompatResponse; avg: CompatAverage | null }) {
+  const { t: tr } = useTranslation();
   const r = res.result;
   const coupleVals = COMPAT_AXES.map((ax) => r.factors[ax.key]?.score ?? 0);
   const avgFactors = avg?.average?.factors || null;
@@ -818,8 +830,8 @@ function Result({ res, avg }: { res: CompatResponse; avg: CompatAverage | null }
         <span className="cr-heart">💞</span>
         <span className="cr-names">{res.person_b.label}</span>
         {headline && (
-          <span className="cr-grade" style={{ background: GRADE_TONE[headline.grade] || "var(--brand-grad)" }}>
-            {headline.grade} · {headline.total}점
+          <span className="cr-grade" style={{ background: GRADE_TONE[headline.grade_key || ""] || "var(--brand-grad)" }}>
+            {headline.grade} · {tr("compat.score", { n: headline.total })}
           </span>
         )}
       </div>
@@ -828,23 +840,24 @@ function Result({ res, avg }: { res: CompatResponse; avg: CompatAverage | null }
         <section className="cr-pentagon-card">
           <Pentagon couple={coupleVals} average={avgVals} />
           <div className="pen-legend">
-            <span className="pl-couple">이 커플</span>
+            <span className="pl-couple">{tr("compat.legend_couple")}</span>
             {avgVals ? (
-              <span className="pl-avg">전체 평균 ({avg?.count.toLocaleString()}쌍)</span>
+              <span className="pl-avg">{tr("compat.legend_avg", { n: fmtNum(avg?.count ?? 0) })}</span>
             ) : (
-              <span className="pl-none">평균은 데이터 {avg?.min_samples ?? 5}쌍부터 표시</span>
+              <span className="pl-none">{tr("compat.legend_none", { n: avg?.min_samples ?? 5 })}</span>
             )}
           </div>
         </section>
 
         <section className="cr-gauges">
-          <div className="cr-sub">관법별 종합 <span>(정답 없음 — 세 관점)</span></div>
+          <div className="cr-sub">{tr("compat.gauges_title")} <span>{tr("compat.gauges_sub")}</span></div>
           {persp.map((p) => (
             <Gauge
               key={p.key}
               label={p.label}
               total={p.total}
               grade={p.grade}
+              gradeKey={p.grade_key || ""}
               avg={avg?.average?.totals?.[p.key] ?? null}
             />
           ))}
@@ -881,7 +894,7 @@ function Result({ res, avg }: { res: CompatResponse; avg: CompatAverage | null }
 
       {r.dohwa_readings.length > 0 && (
         <div className="cr-dohwa">
-          <div className="cr-sub">🌸 도화(桃花) — 해석이 갈리는 항목</div>
+          <div className="cr-sub">{tr("compat.dohwa_title")}</div>
           <div className="dohwa-grid">
             {r.dohwa_readings.map((d, i) => (
               <div key={i} className="dohwa-card">{d}</div>

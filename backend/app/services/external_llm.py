@@ -40,13 +40,6 @@ except Exception:  # noqa: BLE001
 # ============================================================
 # 공통: 보강 시스템 프롬프트
 # ============================================================
-def _sys_for(base: str, rag_context: str | None) -> str:
-    """[교차검증 2026-07-22] 자료 0건이면 '참고자료에 비추어 검증하라'가 유령 지시가 된다.
-    chat 쪽 P3-E1(expert_voice_rule)과 같은 취지를 외부 LLM 경로에도 적용한다."""
-    from backend.app.services.chat_service import refine_system_for  # 지연 임포트(순환 회피)
-    return refine_system_for(base, rag_context)
-
-
 _REFINE_SYSTEM = (
     "당신은 한국 명리학(사주팔자) 전문 감수자입니다. "
     "주어진 1차 답변을 사주명식 근거와 참고자료에 비추어 검증·보강하세요.\n"
@@ -55,9 +48,8 @@ _REFINE_SYSTEM = (
     "2. 사주명식 근거(일간 강약·오행·십성·대운)와 참고자료에 부합하도록 보강합니다.\n"
     "3. 길흉 단정은 피하고 흐름/가능성으로 설명합니다.\n"
     "4. 한국어로, 한자 술어는 한글(한자) 형식으로 표기합니다.\n"
-    "5. [작성 형식 — CONSULTANT_STYLE_RULE(chat_service.py)과 동기 유지] 큰 주제마다 '### 소제목' 줄을 "
-    "두고 핵심 간지·십성·시기·결론 단어는 **굵게** 강조하며, 나열이 자연스러운 곳은 '- ' 불릿을 쓰세요. "
-    "1차 답변의 소제목·강조·불릿 구조는 그대로 유지·보강하고, 표(마크다운 표)만 쓰지 마세요.\n"
+    "5. 마크다운(헤더 #/##/###, 굵게 **, 목록 -·*, 번호 1., 표)을 쓰지 말고, 상담가가 말하듯 "
+    "자연스러운 줄글 문단으로만 쓰세요. 1차 답변에 마크다운이 있으면 줄글로 풀어 고치세요.\n"
     "6. [현재 질문 집중] 반드시 지금의 [사용자 질문] 주제에 답하세요. 1차 답변이나 직전 대화가 다른 "
     "주제(예: 취업·재물)였더라도, 지금 질문이 다른 주제(예: 연애·결혼·이성운)이면 그 주제로 새로 풀이하고 "
     "이전 주제로 흘러가지 마세요.\n"
@@ -66,10 +58,34 @@ _REFINE_SYSTEM = (
     "중심으로 답하세요. 제공 안 된 연도의 간지·한자를 지어내지 말고, 간지의 한글과 한자는 반드시 "
     "일치시키세요(예: 계묘=癸卯, 병오=丙午).\n"
     "8. 최종 '완성된 답변 본문'만 출력하세요. 메타설명·머리말·코드블록 없이 본문만.\n"
-    "9. [도입 — 판정부터 바로] 첫 문장은 '~살펴보겠습니다/분석해보겠습니다/풀어드리겠습니다' 같은 예고·인사 "
-    "문장이 아니라, (요즘 고민이 함께 제시됐으면 그 고민에 대한) 핵심 판정 한 문장으로 곧바로 시작하세요. "
-    "1차 답변에 상담자 호칭('○○님')이 있으면 그대로 유지하되, '한 줄 판정' 같은 제목·라벨은 붙이지 마세요.\n"
 )
+
+# vi 보강 시스템 — ko _REFINE_SYSTEM 의 의도(사실검증·근거보강·현재질문집중·간지인용·마크다운금지·본문만)를 vi 로.
+# ko 는 '한국어로만/한글(한자)'을 강제하지만 vi 는 자연스러운 베트남어 + Hán-Việt 라틴 표기(Giáp/Ất, Tý/Sửu/Mão).
+_REFINE_SYSTEM_VI = (
+    "Bạn là chuyên gia thẩm định Tứ Trụ (Bát Tự). "
+    "Hãy kiểm chứng và bổ sung bản luận giải sơ bộ dựa trên lá số và tư liệu tham khảo.\n"
+    "Chỉ viết bằng tiếng Việt (chữ Quốc ngữ có dấu); thuật ngữ dùng Hán-Việt Latinh "
+    "(Giáp/Ất, Tý/Sửu/Mão, Chính quan...). TUYỆT ĐỐI không dùng chữ Hán / tiếng Trung.\n"
+    "Nguyên tắc:\n"
+    "1. Sửa hoặc làm dịu những khẳng định sai sự thật hoặc vô căn cứ.\n"
+    "2. Bám sát lá số (nhật can vượng/nhược, ngũ hành, thập thần, đại vận) và tư liệu tham khảo.\n"
+    "3. Tránh khẳng định hung/cát tuyệt đối; diễn đạt theo xu hướng/khả năng.\n"
+    "4. Không dùng markdown (tiêu đề #/##/###, in đậm **, danh sách -·*, đánh số 1., bảng); "
+    "chỉ viết thành đoạn văn tự nhiên như đang tư vấn trực tiếp. Nếu bản nháp có markdown thì gỡ bỏ.\n"
+    "5. [Tập trung câu hỏi hiện tại] Nhất định phải trả lời đúng chủ đề của [Câu hỏi] hiện tại. Dù bản "
+    "nháp hay hội thoại trước đó nói về chủ đề khác (ví dụ công việc·tài lộc), nếu câu hỏi hiện tại là "
+    "chủ đề khác (ví dụ tình duyên·hôn nhân), hãy luận giải lại theo chủ đề đó, không trôi về chủ đề cũ.\n"
+    "6. [Ngày·Can Chi] Không tự tính hay đoán can chi (lưu niên·nguyệt vận·nhật thần) của năm/ngày cụ thể; "
+    "chỉ trích dẫn đúng lưu niên năm nay được cung cấp ở '[Can Chi thời điểm hiện tại]'. Không hồi tưởng "
+    "các năm đã qua; tập trung vào năm nay và tương lai. Không bịa can chi cho năm không được cung cấp.\n"
+    "7. Chỉ xuất ra phần 'trả lời hoàn chỉnh', không lời dẫn/meta/khối mã.\n"
+)
+
+
+def _refine_system(locale: str = "ko") -> str:
+    """보강 시스템 프롬프트 선택 — vi 는 베트남어, 그 외(ko)는 기존 한국어 원문 그대로."""
+    return _REFINE_SYSTEM_VI if locale == "vi" else _REFINE_SYSTEM
 
 
 def _build_user_block(
@@ -92,24 +108,7 @@ def _build_user_block(
     parts.append(f"[1차 답변(보강 대상)]\n{draft}")
     if dialect_instruction:
         parts.append(dialect_instruction)
-    # 국외전송 최소화·가명처리(⑰/제3조·제28조의2) — 국외(미국)로 나가는 페이로드의 정확한 나이를 연령대로 일반화.
-    # 로컬 답변에는 영향 없음(이 함수는 외부 전송 전용). 세기/세대·1자리수는 제외해 의미 훼손 방지.
-    return _pseudonymize_for_transfer("\n\n".join(parts))
-
-
-_AGE_RE = re.compile(r"(?<!\d)(\d{2,3})\s*(세|살)(?![기대])")
-
-
-def _pseudonymize_for_transfer(s: str) -> str:
-    """국외 전송 페이로드 가명처리 — '34세/34살'→'30대'(정확 나이 일반화). 외부 전송에만 적용."""
-    if not s:
-        return s
-
-    def _band(m: "re.Match[str]") -> str:
-        n = int(m.group(1))
-        return f"{n // 10 * 10}대" if n >= 10 else m.group(0)
-
-    return _AGE_RE.sub(_band, s)
+    return "\n\n".join(parts)
 
 
 # ============================================================
@@ -183,7 +182,7 @@ def resolve_claude_model() -> str:
     return name or _CLAUDE_FALLBACK
 
 
-def _refine_claude(user_block: str) -> str | None:
+def _refine_claude(user_block: str, locale: str = "ko") -> str | None:
     s = get_settings()
     try:
         # 긴 본문(2,000자+) 보강 생성은 실측 55~80초 — 기본 25s 타임아웃이면 항상 실패(조용히 폴백)
@@ -197,7 +196,7 @@ def _refine_claude(user_block: str) -> str | None:
         resp = client.messages.create(
             model=resolve_claude_model(),
             max_tokens=8000,
-            system=_sys_for(_REFINE_SYSTEM, rag_context),
+            system=_refine_system(locale),
             messages=[{"role": "user", "content": user_block}],
         )
         text = "".join(
@@ -339,13 +338,13 @@ def resolve_gemini_model() -> str:
     return name or _GEMINI_FALLBACK
 
 
-def _refine_gemini(user_block: str) -> str | None:
+def _refine_gemini(user_block: str, locale: str = "ko") -> str | None:
     s = get_settings()
     try:
         genai.configure(api_key=s.google_api_key)  # type: ignore[union-attr]
         model = genai.GenerativeModel(  # type: ignore[union-attr]
             model_name=resolve_gemini_model(),
-            system_instruction=_sys_for(_REFINE_SYSTEM, rag_context),
+            system_instruction=_refine_system(locale),
         )
         resp = model.generate_content(
             user_block,
@@ -370,11 +369,30 @@ _GENERATE_SYSTEM = (
     "2. 참고자료에 근거하고, 자료가 부족하면 솔직히 밝힙니다.\n"
     "3. 길흉 단정은 피하고 흐름/가능성으로 설명합니다.\n"
     "4. 근거→해석→조언 흐름으로 단락을 나눠 충분히(최소 1,200자) 설명합니다.\n"
-    "5. [작성 형식 — CONSULTANT_STYLE_RULE(chat_service.py)과 동기 유지] 큰 주제마다 '### 소제목' 줄을 "
-    "두고 핵심 간지·십성·시기·결론 단어는 **굵게** 강조하며, 나열이 자연스러운 곳은 '- ' 불릿을 쓰세요. "
-    "표(마크다운 표)는 쓰지 마세요.\n"
+    "5. 마크다운(헤더 #/##/###, 굵게 **, 목록 -·*, 번호 1., 표)을 쓰지 말고, 상담가가 말하듯 "
+    "자연스러운 줄글 문단으로만 작성하세요.\n"
     "6. 최종 답변 본문만 출력하세요. 머리말·메타설명·코드블록 없이.\n"
 )
+
+# vi 생성 시스템 — ko _GENERATE_SYSTEM 의 의도(근거기반·흐름·분량·마크다운금지·본문만)를 vi 로.
+_GENERATE_SYSTEM_VI = (
+    "Bạn là chuyên gia tư vấn Tứ Trụ (Bát Tự). "
+    "Hãy trả lời câu hỏi của người dùng dựa trên lá số và tư liệu tham khảo.\n"
+    "Nguyên tắc:\n"
+    "1. Chỉ viết bằng tiếng Việt (chữ Quốc ngữ có dấu); thuật ngữ dùng Hán-Việt Latinh "
+    "(Giáp/Ất, Tý/Sửu/Mão, Chính quan...). TUYỆT ĐỐI không dùng chữ Hán / tiếng Trung.\n"
+    "2. Dựa trên tư liệu tham khảo; nếu tư liệu thiếu thì nói thẳng.\n"
+    "3. Tránh khẳng định hung/cát tuyệt đối; diễn đạt theo xu hướng/khả năng.\n"
+    "4. Trình bày theo mạch căn cứ → luận giải → lời khuyên, chia đoạn đầy đủ (tối thiểu khoảng 1.200 ký tự).\n"
+    "5. Không dùng markdown (tiêu đề #/##/###, in đậm **, danh sách -·*, đánh số 1., bảng); "
+    "chỉ viết thành đoạn văn tự nhiên như đang tư vấn trực tiếp.\n"
+    "6. Chỉ xuất ra phần trả lời hoàn chỉnh, không lời dẫn/meta/khối mã.\n"
+)
+
+
+def _generate_system(locale: str = "ko") -> str:
+    """생성 시스템 프롬프트 선택 — vi 는 베트남어, 그 외(ko)는 기존 한국어 원문 그대로."""
+    return _GENERATE_SYSTEM_VI if locale == "vi" else _GENERATE_SYSTEM
 
 
 def _build_generate_block(
@@ -395,8 +413,7 @@ def _build_generate_block(
     parts.append(f"[사용자 질문]\n{question}")
     if dialect_instruction:
         parts.append(dialect_instruction)
-    # 국외전송 가명화(D8) — refine 경로와 동일하게 폴백 generate 페이로드의 정확 나이도 연령대로 일반화.
-    return _pseudonymize_for_transfer("\n\n".join(parts))
+    return "\n\n".join(parts)
 
 
 def generate_answer(
@@ -406,9 +423,11 @@ def generate_answer(
     evidence: str | None,
     rag_context: str | None,
     dialect_instruction: str | None = None,
+    locale: str = "ko",
 ) -> str | None:
     """로컬 엔진(qwen3:14b) 전체 다운 시 외부 LLM으로 본문을 '처음부터' 생성하는 폴백.
 
+    locale='vi' 면 베트남어 시스템 프롬프트로 생성(ko 는 기존 한국어 원문 그대로).
     성공 시 본문(str), 비활성/실패 시 None."""
     if not is_enabled():
         return None
@@ -416,6 +435,7 @@ def generate_answer(
         question=question, saju_summary=saju_summary, evidence=evidence,
         rag_context=rag_context, dialect_instruction=dialect_instruction,
     )
+    system = _generate_system(locale)
     prov = _provider()
     try:
         if prov == "claude":
@@ -425,7 +445,7 @@ def generate_answer(
             )
             resp = client.messages.create(
                 model=resolve_claude_model(), max_tokens=8000,
-                system=_sys_for(_GENERATE_SYSTEM, rag_context),
+                system=system,
                 messages=[{"role": "user", "content": user_block}],
             )
             text = "".join(
@@ -436,8 +456,7 @@ def generate_answer(
             s = get_settings()
             genai.configure(api_key=s.google_api_key)  # type: ignore[union-attr]
             model = genai.GenerativeModel(  # type: ignore[union-attr]
-                model_name=resolve_gemini_model(),
-                system_instruction=_sys_for(_GENERATE_SYSTEM, rag_context),
+                model_name=resolve_gemini_model(), system_instruction=system,
             )
             resp = model.generate_content(
                 user_block, request_options={"timeout": s.external_llm_timeout_sec},
@@ -456,9 +475,11 @@ def refine_answer(
     evidence: str | None,
     rag_context: str | None,
     dialect_instruction: str | None = None,
+    locale: str = "ko",
 ) -> str | None:
     """1차 답변을 외부 LLM으로 보강. 성공 시 최종 본문(str), 실패 시 None.
 
+    locale='vi' 면 베트남어 시스템 프롬프트로 보강(ko 는 기존 한국어 원문 그대로).
     프로바이더는 config(`external_llm_provider`)에 따라 Claude/Gemini로 분기."""
     if not is_enabled():
         return None
@@ -472,7 +493,7 @@ def refine_answer(
     )
     prov = _provider()
     if prov == "claude":
-        return _refine_claude(user_block)
+        return _refine_claude(user_block, locale)
     if prov == "gemini":
-        return _refine_gemini(user_block)
+        return _refine_gemini(user_block, locale)
     return None

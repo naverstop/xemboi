@@ -1,3 +1,4 @@
+import { fmtMoney, fmtNum } from "../lib/money";
 import { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { api, useMe, setCachedMe, type PassInfo, type CreditTxn, type CreditSummary } from "../api";
@@ -24,6 +25,7 @@ function txnLabel(t: CreditTxn): string {
 const STATUS_KO: Record<string, string> = {
   approved: "충전 완료", refunded: "환불됨", pending: "결제 대기", failed: "실패", canceled: "취소", ready: "결제 대기",
 };
+import { useTranslation } from "react-i18next";
 
 declare global {
   interface Window {
@@ -121,6 +123,7 @@ function PassSection() {
 export default function PaymentsPage() {
   const nav = useNavigate();
   const me = useMe();
+  const { t } = useTranslation();
   const [pkgs, setPkgs] = useState<Pkg[]>([]);
   const [history, setHistory] = useState<any[]>([]);
   const [txns, setTxns] = useState<CreditTxn[]>([]);   // 포인트 원장(충전·차감·환불 전부)
@@ -180,9 +183,11 @@ export default function PaymentsPage() {
       // 더미 키 → 즉시 mock 승인 (개발용)
       const fakeKey = `mock_pk_${Date.now()}`;
       const c = await api.paymentConfirm(fakeKey, order.order_id, order.amount);
-      alert(
-        `[테스트모드] ${p.label} 충전 완료\n+${c.credits_granted.toLocaleString()} P → 잔액 ${c.balance.toLocaleString()} P`
-      );
+      alert(t("pay.test_done", {
+        label: p.label,
+        credits: fmtNum(c.credits_granted),
+        balance: fmtNum(c.balance),
+      }));
       // me 캐시 갱신
       const newMe = await api.me();
       setCachedMe(newMe);
@@ -302,11 +307,11 @@ export default function PaymentsPage() {
       <table style={{ width: "100%", fontSize: 13, borderCollapse: "collapse" }}>
         <thead>
           <tr style={{ background: "#f7f7f7" }}>
-            <th style={th}>주문번호</th>
-            <th style={{ ...th, textAlign: "right" }}>금액</th>
-            <th style={{ ...th, textAlign: "right" }}>크레딧</th>
-            <th style={th}>상태</th>
-            <th style={th}>시각</th>
+            <th style={th}>{t("pay.th_order")}</th>
+            <th style={{ ...th, textAlign: "right" }}>{t("pay.th_amount")}</th>
+            <th style={{ ...th, textAlign: "right" }}>{t("pay.th_credit")}</th>
+            <th style={th}>{t("pay.th_status")}</th>
+            <th style={th}>{t("pay.th_time")}</th>
           </tr>
         </thead>
         <tbody>

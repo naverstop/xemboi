@@ -18,11 +18,13 @@ def create_session(
     saju_summary: str | None,
     chart_json: dict | None,
     user_id: int | None = None,
+    locale: str = "ko",
 ) -> ChatSession:
     row = ChatSession(
         session_id=session_id,
         top_k=top_k,
         user_id=user_id,
+        locale=locale,
         birth_date=birth_dict["birth_date"],
         birth_time=birth_dict.get("birth_time"),
         calendar=birth_dict.get("calendar", "solar"),

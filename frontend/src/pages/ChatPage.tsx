@@ -5,13 +5,14 @@
  */
 import ReviewStrip from "../components/ReviewStrip";
 import { useEffect, useRef, useState } from "react";
+import { useTranslation, Trans } from "react-i18next";
 import AdvancedBirthSettings from "../components/AdvancedBirthSettings";
 import PrivacyNotice from "../components/PrivacyNotice";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { api, Birth, useMe, ensureFreshToken, setCachedMe, notifySessionExpired, Source } from "../api";
 import { fmtKSTDate } from "../lib/datetime";
 import SajuChart, { Chart } from "../components/SajuChart";
-import { zodiacAvatar } from "../lib/zodiacAvatar";
+import { zodiacAvatar, zodiacLabel } from "../lib/zodiacAvatar";
 import TimeSelect from "../components/TimeSelect";
 import BannerSlot from "../components/BannerSlot";
 import AdSlot from "../components/AdSlot";
@@ -27,6 +28,8 @@ import { displayName } from "../lib/displayName";
 import { useBulkSelect } from "../lib/useBulkSelect";
 import { readableBirth, type BirthValue } from "../components/BirthFields";
 import FollowupBilling from "../components/FollowupBilling";
+import { fmtNum } from "../lib/money";
+import { DEFAULT_LON } from "../lib/regions";
 
 // 철학관 상호(항목 D) — 운영 설정값 연동은 P3, 우선 환경값으로 표시.
 const STUDIO_NAME = (import.meta.env.VITE_STUDIO_NAME as string | undefined) || "";
@@ -52,6 +55,7 @@ const SUGGEST_CHIPS = [
   "건강에서 주의할 점은?",
   "대운 흐름을 짚어주세요.",
 ];
+// 종합 풀이 프롬프트·추천 칩은 로케일별(tr("chat.comprehensive"|"chat.chips")) — 컴포넌트 내부에서 정의.
 
 type Turn = {
   role: "user" | "assistant";
@@ -83,10 +87,25 @@ type SessionItem = {
 export default function ChatPage() {
   const me = useMe();
   const navigate = useNavigate();
+  const { t: tr } = useTranslation();
   const { openCharge } = useCharge();
   // 상담서(PDF) 제목/대상에 쓰는 회원 표시명 — ⚠️ 호칭은 이메일 아이디 고정(운영자 결정 2026-07).
   //    정책·잠금 주석은 lib/displayName.ts 에 일원화 — 전 메뉴 공통 헬퍼를 쓸 것(닉네임 우선 금지).
   const memberName = displayName(me);
+  // 종합 풀이 자동전송 프롬프트 + 추천 칩(로케일별) — LLM에 그대로 전달된다.
+  const COMPREHENSIVE_READING = tr("chat.comprehensive");
+  const SUGGEST_CHIPS = tr("chat.chips", { returnObjects: true }) as string[];
+
+  function billingHint(): string {
+    if (!me) return tr("chat.bh_guest");
+    if ((me.level ?? 9) <= 1) return tr("chat.bh_admin");
+    if (me.is_member)
+      return tr("chat.bh_member", { rem: fmtNum(me.membership_remaining ?? 0), quota: fmtNum(me.membership_quota ?? 0) });
+    const cost = depth === "deep" ? (me.credit_cost_deep ?? 0) : (me.credit_cost_basic ?? 0);
+    if ((me.free_remaining ?? 0) > 0)
+      return tr("chat.bh_free", { rem: me.free_remaining, quota: me.free_quota_count ?? 3, deepNote: depth === "deep" ? tr("chat.bh_free_deep") : "" });
+    return tr("chat.bh_paid", { level: depth === "deep" ? tr("chat.lvl_deep") : tr("chat.lvl_basic"), cost: fmtNum(cost), bal: fmtNum(me.balance) });
+  }
   const [birth, setBirth] = useState<Birth>({
     birth_date: "1990-03-15",
     birth_time: "",          // 비워두면 제출 시 00:30 기본('시 모름'이면 시주 제외)
@@ -94,7 +113,7 @@ export default function ChatPage() {
     gender: "male",
     is_leap_month: false,
     apply_true_solar_time: true,
-    birth_longitude: 126.98,
+    birth_longitude: DEFAULT_LON,
     night_zi_mode: "yaja",
   });
   const [dateText, setDateText] = useState("1990-03-15");  // 생년월일 직접 입력 텍스트
@@ -275,13 +294,13 @@ export default function ChatPage() {
       return;
     }
     if (d.length !== 8 && d.length !== 10 && d.length !== 12) {
-      setQuickInfo("8자리(생년월일) 또는 12자리(생년월일+시분)를 입력해 주세요.");
+      setQuickInfo(tr("chat.q_len"));
       return;
     }
     const y = d.slice(0, 4), mo = d.slice(4, 6), da = d.slice(6, 8);
     const yi = +y, moi = +mo, dai = +da;
     if (yi < 1900 || yi > 2100 || moi < 1 || moi > 12 || dai < 1 || dai > 31) {
-      setQuickInfo("생년월일 숫자를 다시 확인해 주세요.");
+      setQuickInfo(tr("chat.q_date_bad"));
       return;
     }
     const next: Birth = { ...birth, birth_date: `${y}-${mo}-${da}` };
@@ -294,7 +313,7 @@ export default function ChatPage() {
         timeLabel = ` ${hh}:${mm}`;
         setUnknownTime(false);
       } else {
-        setQuickInfo("시각(시·분) 숫자를 다시 확인해 주세요.");
+        setQuickInfo(tr("chat.q_time_bad"));
         return;
       }
     } else if (!unknownTime && !String(next.birth_time || "").trim()) {
@@ -304,7 +323,7 @@ export default function ChatPage() {
     }
     setBirth(next);
     setDateText(next.birth_date);
-    setQuickInfo(`✓ ${yi}년 ${moi}월 ${dai}일${timeLabel} 자동 입력됨`);
+    setQuickInfo(tr("chat.q_ok", { y: yi, mo: moi, da: dai, time: timeLabel }));
   };
 
   // 생년월일 직접 타이핑 — 숫자만 받아 YYYY-MM-DD 자동 포맷, 8자리 완성 시 반영
@@ -347,7 +366,7 @@ export default function ChatPage() {
 
   // 한도 정리 화면에서 상담 삭제 — 복구 불가라 한 번 확인. 현재 보던 상담이면 새 상담으로.
   const removeSession = async (id: string, label: string) => {
-    if (!window.confirm(`"${label}" 상담을 삭제할까요?\n삭제한 상담 기록은 복구할 수 없어요.`)) return;
+    if (!window.confirm(tr("chat.del_confirm", { label }))) return;
     try {
       await api.deleteChatSession(id);
       await refreshSessions();
@@ -678,7 +697,7 @@ export default function ChatPage() {
             ) {
               setShowPaywall(true);
             } else if (j.code === "service_unavailable" || d.includes("연결할 수 없습니다")) {
-              setErr("⚠️ 일시적으로 서비스에 연결할 수 없습니다. 잠시 후 다시 시도해 주세요.");
+              setErr(tr("chat.svc_unavailable"));
             } else {
               setErr(d);
             }
@@ -730,9 +749,7 @@ export default function ChatPage() {
       if (m.includes("402") || m.includes("quota_exceeded") || m.includes("insufficient_credits")) {
         setShowPaywall(true);
       } else if (m.includes("503") || m.includes("연결할 수 없습니다")) {
-        setErr("⚠️ 일시적으로 서비스에 연결할 수 없습니다. 잠시 후 다시 시도해 주세요.");
-      } else if (m.includes("STREAM_STALLED")) {
-        setErr("⚠️ 답변 생성이 지연되고 있어요. 잠시 후 다시 질문해 주세요. (포인트는 차감되지 않았어요)");
+        setErr(tr("chat.svc_unavailable"));
       } else {
         setErr(m);
       }
@@ -861,7 +878,7 @@ export default function ChatPage() {
     } catch (e: any) {
       const m = String(e?.message || "");
       if (m.includes("insufficient_credits") || m.includes("quota_exceeded") || m.includes("402")) {
-        openCharge("포인트가 부족해요. 충전하면 전체보기로 바로 이어집니다.");
+        openCharge(tr("chat.need_points"));
       } else {
         setErr(m);
       }
@@ -889,15 +906,15 @@ export default function ChatPage() {
     switch (t.billing_mode) {
       case "free_quota":
       case "free_daily":
-        return "✓ 무료 질문 사용됨";
+        return tr("chat.ba_free");
       case "membership_full":
-        return "✓ 연간회원 무과금";
+        return tr("chat.ba_member");
       case "admin_full":
-        return "✓ 관리자 무과금";
+        return tr("chat.ba_admin");
       case "paid_full":
-        return `✓ 크레딧 ${(t.credits_charged ?? 0).toLocaleString()}P 차감됨`;
+        return tr("chat.ba_paid", { cost: fmtNum(t.credits_charged ?? 0) });
       case "anonymous_preview":
-        return "비로그인 미리보기(50%)";
+        return tr("chat.ba_anon");
       default:
         return null;
     }
@@ -917,46 +934,40 @@ export default function ChatPage() {
         {!sid && (
           <>
             <header className="compat-hero saju-hero">
-              {/* 四柱命理 한자 워드마크(명조 웹폰트, 딥 브랜드톤) + 한글 음. (중복이던 상단 四柱 배지 제거) */}
-              <h1 className="saju-hanja-title" aria-label="사주상담 (四柱命理)">
-                <span className="sht-hanja">四柱命理</span>
-                <span className="sht-ko">사주상담</span>
-              </h1>
-              <p>
-                중국·일본·한국의 명리 <b>고서(古書)</b>를 토대로, 한국 전통 관법에 맞춰
-                풀어내는 정통 AI 사주 상담입니다.
-              </p>
+              <div className="compat-hero-badge">{tr("chat.hero_badge")}</div>
+              <h1>{tr("chat.hero_title")}</h1>
+              <p>{tr("chat.hero_desc")}</p>
             </header>
 
             {/* 신뢰 스트립 — 실제 구현된 계산 로직을 그대로 노출(과장 없음) */}
-            <div className="trust-strip" aria-label="사주 분석 방식">
+            <div className="trust-strip" aria-label={tr("chat.trust_aria")}>
               <div className="trust-item">
                 <span className="ti-ico" aria-hidden="true">🕰️</span>
-                <span className="ti-title">진태양시 보정</span>
-                <span className="ti-desc">출생지 경도로 실제 태양시를 교정해 정확한 시주(時柱)를 세웁니다</span>
+                <span className="ti-title">{tr("chat.t1_title")}</span>
+                <span className="ti-desc">{tr("chat.t1_desc")}</span>
               </div>
               <div className="trust-item">
                 <span className="ti-ico" aria-hidden="true">📐</span>
-                <span className="ti-title">정통 명식 산출</span>
-                <span className="ti-desc">천간·지지·지장간·십성·신살·십이운성·대운까지 빠짐없이 계산</span>
+                <span className="ti-title">{tr("chat.t2_title")}</span>
+                <span className="ti-desc">{tr("chat.t2_desc")}</span>
               </div>
               <div className="trust-item">
                 <span className="ti-ico" aria-hidden="true">🧭</span>
-                <span className="ti-title">조후·억부 용신</span>
-                <span className="ti-desc">궁통보감(窮通寶鑑) 조후표 기반의 결정적 산식 — 그때그때 지어내지 않습니다</span>
+                <span className="ti-title">{tr("chat.t3_title")}</span>
+                <span className="ti-desc">{tr("chat.t3_desc")}</span>
               </div>
               <div className="trust-item">
                 <span className="ti-ico" aria-hidden="true">📚</span>
-                <span className="ti-title">고서 근거 인용</span>
-                <span className="ti-desc">신뢰등급으로 검증된 명리 원전만 근거로 삼아 풀이합니다</span>
+                <span className="ti-title">{tr("chat.t4_title")}</span>
+                <span className="ti-desc">{tr("chat.t4_desc")}</span>
               </div>
             </div>
 
             <ReviewStrip source="chat" title="이용자 후기" limit={8} />
 
             <div className="gemini-greeting">
-              <p className="hello">{me?.nickname ? `${me.nickname}님, 안녕하세요` : "안녕하세요"}</p>
-              <p className="sub">생년월일시를 입력하면, 바로 사주를 풀어 드릴게요.</p>
+              <p className="hello">{me?.nickname ? tr("chat.hello_named", { name: me.nickname }) : tr("chat.hello")}</p>
+              <p className="sub">{tr("chat.greet_sub")}</p>
             </div>
           </>
         )}
@@ -964,10 +975,8 @@ export default function ChatPage() {
         {needBirth && (
           <div className="card saju-input-card">
             <div className="card-head-row">
-              <h3 style={{ margin: 0 }}>사주 입력</h3>
-              {/* 눈에 띄는 필 토글(운영자 지적: 사용자가 잘 못 봄) — 스위치+상태문구로 강조 */}
-              <label className={`remember-check${remember ? " on" : ""}`}
-                     title="켜 두면 입력한 사주정보를 저장해, 다시 로그인하거나 새 창으로 들어와도 그대로 불러옵니다.">
+              <h3 style={{ margin: 0 }}>{tr("chat.input_title")}</h3>
+              <label className="remember-check" title={tr("chat.remember_title")}>
                 <input
                   type="checkbox"
                   checked={remember}
@@ -980,7 +989,7 @@ export default function ChatPage() {
                 </span>
               </label>
             </div>
-            <p className="card-sub">생년월일·시각·성별만 입력하면 됩니다. 태어난 시각을 모르면 비워 두어도 괜찮아요.</p>
+            <p className="card-sub">{tr("chat.card_sub")}</p>
 
             {/* 기억된 내 정보 — 표준 화면(공용 BirthFields)과 동일한 강조 카드.
                 운영자 지적: 상담(사주상담)만 이 카드가 없어 '저장됨'이 안 보였다 → 동일 마크업/클래스로 통일. */}
@@ -997,43 +1006,43 @@ export default function ChatPage() {
             {/* 빠른 입력 — 숫자만 입력하면 자동 완성(가장 빠른 길) */}
             <div className="bf-quick">
               <div className="bf-quick-top">
-                <span className="bf-quick-label">⚡ 빠른 입력</span>
-                <span className="bf-quick-sub">생년월일시를 숫자로 — 자동 완성</span>
+                <span className="bf-quick-label">{tr("chat.quick_label")}</span>
+                <span className="bf-quick-sub">{tr("chat.quick_sub")}</span>
               </div>
               <div className="bf-quick-row">
                 <input
                   ref={quickRef}
                   className="bf-quick-input"
                   type="text" inputMode="numeric" maxLength={14}
-                  placeholder="예: 199909300530  →  1999-09-30 05:30"
+                  placeholder={tr("chat.quick_ph")}
                   value={quick}
                   onChange={(e) => applyQuick(e.target.value)}
                 />
                 {/* 적용은 React state(quick)가 아니라 실제 DOM 값을 읽는다 — 자동완성·붙여넣기·
                     IME 등 onChange가 안 걸린 채 값이 들어와도 항상 화면의 값을 반영(무반응 버그 차단). */}
                 <button type="button" className="bf-quick-btn"
-                        onClick={() => applyQuick(quickRef.current?.value ?? quick)}>적용</button>
+                        onClick={() => applyQuick(quickRef.current?.value ?? quick)}>{tr("chat.apply")}</button>
               </div>
               <div className={`bf-quick-hint${quickInfo && quickInfo.startsWith("✓") ? " ok" : quickInfo ? " warn" : ""}`}>
-                {quickInfo || "8자리(YYYYMMDD) 또는 12자리(YYYYMMDDHHMM)"}
+                {quickInfo || tr("chat.quick_hint")}
               </div>
             </div>
 
-            <div className="bf-or"><span>또는 직접 입력</span></div>
+            <div className="bf-or"><span>{tr("chat.or_manual")}</span></div>
 
             {/* 직접 입력 — 전 메뉴 공통 프리미엄 그리드(생년월일·시각은 한 줄, 성별·달력은 토글) */}
             <div className="bf-grid">
               <div className="bf-field bf-field-wide">
-                <label>📅 생년월일</label>
+                <label>{tr("chat.f_birth")}</label>
                 <div className="bf-datebox">
                   <input
                     className="bf-input"
                     type="text" inputMode="numeric" maxLength={10}
-                    placeholder="예: 1990-03-15 (직접 입력)"
+                    placeholder={tr("chat.birth_ph")}
                     value={dateText}
                     onChange={(e) => typeDate(e.target.value)}
                   />
-                  <button type="button" className="bf-cal-btn" title="달력에서 선택"
+                  <button type="button" className="bf-cal-btn" title={tr("chat.cal_title")}
                           onClick={() => { const el = dateRef.current; if (!el) return; (el as any).showPicker ? (el as any).showPicker() : el.focus(); }}>📅</button>
                   <input ref={dateRef} type="date" className="bf-date-native" tabIndex={-1} aria-hidden
                          value={birth.birth_date}
@@ -1041,7 +1050,7 @@ export default function ChatPage() {
                 </div>
               </div>
               <div className="bf-field bf-field-wide">
-                <label>🕐 태어난 시각 <span className="bf-opt">선택</span></label>
+                <label>{tr("chat.f_time")} <span className="bf-opt">{tr("chat.opt")}</span></label>
                 <div className="bf-time">
                   <TimeSelect
                     value={birth.birth_time || ""}
@@ -1049,28 +1058,28 @@ export default function ChatPage() {
                     onChange={(v) => setBirth({ ...birth, birth_time: v || null })}
                   />
                   <button type="button" className={`bf-chip ${unknownTime ? "on" : ""}`}
-                          onClick={() => setUnknownTime((u) => !u)}>시 모름</button>
+                          onClick={() => setUnknownTime((u) => !u)}>{tr("chat.unknown_time")}</button>
                 </div>
                 <div className="bf-time-hint" style={{ fontSize: 12, color: "#8a8f98", marginTop: 4 }}>
-                  {unknownTime ? "시주 없이 3기둥으로 분석해요." : "비워두면 자동으로 00:30로 진행돼요 · 태어난 시를 모르면 ‘시 모름’"}
+                  {unknownTime ? tr("chat.time_hint_unknown") : tr("chat.time_hint_default")}
                 </div>
               </div>
               <div className="bf-field">
-                <label>성별</label>
+                <label>{tr("chat.f_gender")}</label>
                 <div className="bf-seg">
                   <button type="button" className={birth.gender === "male" ? "on" : ""}
-                          onClick={() => setBirth({ ...birth, gender: "male" })}>♂ 남자</button>
+                          onClick={() => setBirth({ ...birth, gender: "male" })}>{tr("chat.male")}</button>
                   <button type="button" className={birth.gender === "female" ? "on" : ""}
-                          onClick={() => setBirth({ ...birth, gender: "female" })}>♀ 여자</button>
+                          onClick={() => setBirth({ ...birth, gender: "female" })}>{tr("chat.female")}</button>
                 </div>
               </div>
               <div className="bf-field">
-                <label>양/음력</label>
+                <label>{tr("chat.f_calendar")}</label>
                 <div className="bf-seg">
                   <button type="button" className={birth.calendar === "solar" ? "on" : ""}
-                          onClick={() => setBirth({ ...birth, calendar: "solar", is_leap_month: false })}>양력</button>
+                          onClick={() => setBirth({ ...birth, calendar: "solar", is_leap_month: false })}>{tr("chat.solar")}</button>
                   <button type="button" className={birth.calendar === "lunar" ? "on" : ""}
-                          onClick={() => setBirth({ ...birth, calendar: "lunar" })}>음력</button>
+                          onClick={() => setBirth({ ...birth, calendar: "lunar" })}>{tr("chat.lunar")}</button>
                 </div>
               </div>
             </div>
@@ -1092,19 +1101,18 @@ export default function ChatPage() {
 
             {!isLoggedIn && (
               <div style={{ marginTop: 8, fontSize: 12, color: "#aa6600" }}>
-                비로그인은 답변의 50%만 미리보기로 제공됩니다. 전체 보기는{" "}
-                <Link to="/login">로그인</Link> 후 1일 무료질문 또는 크레딧 차감.
+                <Trans i18nKey="chat.guest_hint" components={{ a: <Link to="/login" /> }} />
               </div>
             )}
             {/* 메인 CTA — 입력을 마치면 자연히 시선이 닿는 폼 하단 중앙 큰 버튼 */}
             <div className="chat-start-actions">
               <button className="chat-cta" onClick={startSession} disabled={busy || !dateText}>
-                {busy ? "준비 중…" : "🔮 상담 시작"}
+                {busy ? tr("chat.cta_prep") : tr("chat.cta_start")}
               </button>
             </div>
-            {!dateText && <div className="cta-hint">생년월일을 입력하면 상담을 시작할 수 있어요</div>}
+            {!dateText && <div className="cta-hint">{tr("chat.cta_hint")}</div>}
             <p className="saju-assure">
-              🔒 입력 정보는 사주 풀이에만 쓰여요 · <b>명식(천간·지지)</b>을 먼저 세운 뒤, 그 위에서 풀이가 진행됩니다
+              <Trans i18nKey="chat.assure" components={{ b: <b /> }} />
             </p>
             {err && <div className="err">{err}</div>}
           </div>
@@ -1122,9 +1130,9 @@ export default function ChatPage() {
             <div className="chart-head">
               {(() => {
                 const av = zodiacAvatar(chart.pillars?.year?.branch, birth.birth_date);
-                return av ? <img className="chart-zodiac" src={av.src} alt={`${av.zodiac}띠`} width={46} height={46} loading="lazy" /> : null;
+                return av ? <img className="chart-zodiac" src={av.src} alt={zodiacLabel(av.zodiac)} width={46} height={46} loading="lazy" /> : null;
               })()}
-              <h3 style={{ marginTop: 0 }}>사주 명식</h3>
+              <h3 style={{ marginTop: 0 }}>{tr("chat.chart_title")}</h3>
             </div>
             <SajuChart chart={chart} />
             {/* A-1: 이 명식 그대로 상담사에게 — 접수 시 명식이 자동 전달돼 중복 설명 불필요.
@@ -1146,7 +1154,7 @@ export default function ChatPage() {
                일반 사용자는 위의 시각적 명식표만 본다. (백엔드도 비관리자에겐 saju_summary 미전송) */}
             {summary && me?.role === "admin" && (
               <details style={{ marginTop: 8 }}>
-                <summary style={{ cursor: "pointer", fontSize: 12, color: "#888" }}>내부 명식 데이터 (관리자 전용)</summary>
+                <summary style={{ cursor: "pointer", fontSize: 12, color: "#888" }}>{tr("chat.internal_data")}</summary>
                 <pre style={{ whiteSpace: "pre-wrap", fontFamily: "inherit", fontSize: 12, color: "#555", marginTop: 6 }}>{summary}</pre>
               </details>
             )}
@@ -1155,11 +1163,11 @@ export default function ChatPage() {
 
         {sid && (
           <div className="card">
-            <h3 style={{ marginTop: 0 }}>상담</h3>
+            <h3 style={{ marginTop: 0 }}>{tr("chat.consult")}</h3>
             {showBanners && <BannerSlot slot="chat_top_1" height={60} />}
             {turns.map((t, i) => (
               <div key={i} className={`msg ${t.role}${t.flash ? " done-flash" : ""}`}>
-                <div className="role">{t.role === "user" ? "나" : "상담친구"}</div>
+                <div className="role">{t.role === "user" ? tr("chat.role_me") : tr("chat.role_friend")}</div>
                 <div
                   className={t.refined ? "refine-fade" : undefined}
                   style={{ whiteSpace: "pre-wrap" }}
@@ -1211,24 +1219,23 @@ export default function ChatPage() {
                     <span className="dot-pulse" aria-hidden="true"></span>
                     <span>
                       {refineStage === "verifying"
-                        ? "🔍 명식(천간·지지)과 풀이가 정확히 일치하는지 확인하는 중이에요" +
-                          (verifyElapsed ? ` — ${verifyElapsed}초째 문장을 다듬고 있어요` : "")
+                        ? tr("chat.think_verify")
                         : refineStage === "refining"
-                        ? "🔮 저보다 똑똑한, 사주에 통달한 AI와 사주를 한 번 더 풀이하고 있어요"
+                        ? tr("chat.think_refine")
                         : refineStage === "draft_done"
-                        ? "초안을 마치고, 더 깊이 한 번 더 풀이하는 중이에요"
+                        ? tr("chat.think_draft")
                         : refineStage === "refine_done"
-                        ? "풀이를 마무리하는 중이에요"
+                        ? tr("chat.think_refine_done")
                         : !t.content
-                        ? "🔮 천간·지지와 대운을 짚어 정통 관법으로 사주를 풀이하는 중이에요"
-                        : "✍️ 풀이를 정성껏 작성하는 중이에요"}
-                      {" "}<TypingDots />
+                        ? tr("chat.think_start")
+                        : tr("chat.think_writing")}
+                      <span className="thinking-dots" aria-hidden="true"></span>
                     </span>
                   </div>
                 )}
                 {t.role === "assistant" && t.refined && (
-                  <span className="refined-badge" title="심화 검증·보강됨">
-                    ✦ 심화 보강됨
+                  <span className="refined-badge" title={tr("chat.refined_title")}>
+                    {tr("chat.refined_badge")}
                   </span>
                 )}
                 {t.role === "assistant" &&
@@ -1246,19 +1253,19 @@ export default function ChatPage() {
                     initialFeedback={t.feedback}
                     isLast={i === turns.length - 1 && !streaming}
                     pdf={{
-                      docTitle: `${memberName} 님의 사주`,
-                      personLine: `${memberName} 님`,
+                      docTitle: tr("chat.pdf_doc", { name: memberName }),
+                      personLine: tr("chat.pdf_person", { name: memberName }),
                       item:
                         (turns[i - 1]?.role === "user" ? turns[i - 1].content : "").slice(0, 40) ||
-                        "사주 종합 풀이",
+                        tr("chat.pdf_item"),
                     }}
                   />
                 )}
                 {t.role === "assistant" && t.is_preview && !t.preview_revealed && t.message_id && (
                   <div className="reveal-cta">
-                    <span className="reveal-cta-lock">🔒 여기까지는 <b>미리보기</b>예요 — 뒷부분 풀이가 더 있어요</span>
+                    <span className="reveal-cta-lock"><Trans i18nKey="chat.reveal_lock" components={{ b: <b /> }} /></span>
                     <button className="reveal-cta-btn" onClick={() => reveal(t.message_id!, i)} disabled={revealing}>
-                      {revealing ? "여는 중…" : <>전체 보기 <b>{(t.reveal_cost || me?.preview_reveal_cost || 900).toLocaleString()}P</b></>}
+                      {revealing ? tr("chat.revealing") : <>{tr("chat.reveal_btn")} <b>{fmtNum(t.reveal_cost ?? 10000)}{tr("pay.pt")}</b></>}
                     </button>
                   </div>
                 )}
@@ -1267,10 +1274,10 @@ export default function ChatPage() {
                   ((t.evidence && t.evidence.length > 0) || (t.sources && t.sources.length > 0)) &&
                   !(streaming && i === turns.length - 1) && (
                     <details className="sources evidence-block" style={{ marginTop: 6 }}>
-                      <summary><strong>이 풀이의 근거</strong></summary>
+                      <summary><strong>{tr("chat.evidence_summary")}</strong></summary>
                       {t.evidence && t.evidence.length > 0 && (
                         <div style={{ marginTop: 4 }}>
-                          <div className="evi-head">사주명식 근거</div>
+                          <div className="evi-head">{tr("chat.evi_saju")}</div>
                           <ul style={{ margin: "2px 0 0 16px", padding: 0 }}>
                             {t.evidence.map((e, j) => (
                               <li key={j}>{e}</li>
@@ -1280,7 +1287,7 @@ export default function ChatPage() {
                       )}
                       {t.sources && t.sources.length > 0 && (
                         <div style={{ marginTop: 6 }}>
-                          <div className="evi-head">자료 근거 ({t.sources.length})</div>
+                          <div className="evi-head">{tr("chat.evi_source", { n: t.sources.length })}</div>
                           <ul style={{ margin: "2px 0 0 16px", padding: 0 }}>
                             {t.sources.map((s, j) => (
                               <li key={j}>
@@ -1311,7 +1318,7 @@ export default function ChatPage() {
             {turns.length > 0 && !streaming && !busy && dynamicSuggests.length > 0 &&
               turns[turns.length - 1].role === "assistant" && (
                 <div className="suggest-chips followup">
-                  <div className="suggest-label">💡 이어서 물어보세요</div>
+                  <div className="suggest-label">{tr("chat.followup_label")}</div>
                   {dynamicSuggests.map((q) => (
                     <button key={q} className="chip" onClick={() => onChipClick(q)} disabled={busy}>
                       {q}
@@ -1329,16 +1336,16 @@ export default function ChatPage() {
                         .filter((t) => t.content)
                         .map((t) => ({ role: t.role, content: stripMarkdown(t.content) }));
                       return {
-                        doc_title: `${memberName} 님 사주 종합 감정서`,
-                        person_line: `${memberName} 님`,
-                        item: "사주 종합 감정",
+                        doc_title: tr("chat.report_doc", { name: memberName }),
+                        person_line: tr("chat.report_person", { name: memberName }),
+                        item: tr("chat.report_item"),
                         conversation,
-                        topic: "사주 상담",
+                        topic: tr("chat.report_topic"),
                         session_id: sid || undefined,   // 명식 패널(한지 위 본인 사주) 포함
                       };
                     }}
                   />
-                  <span className="report-hint">여러 질문·답변을 하나의 감정서로 정리해 PDF로 만듭니다.</span>
+                  <span className="report-hint">{tr("chat.report_hint")}</span>
                 </div>
               )}
             <div className="composer">
@@ -1355,15 +1362,15 @@ export default function ChatPage() {
                       if (!busy) send();
                     }
                   }}
-                  placeholder="질문을 입력하세요 (Enter 전송, Shift+Enter 줄바꿈)"
+                  placeholder={tr("chat.composer_ph")}
                   disabled={busy}
                 />
                 <button
                   className="send-btn"
                   onClick={send}
                   disabled={busy || !input.trim()}
-                  title="전송"
-                  aria-label="전송"
+                  title={tr("chat.send")}
+                  aria-label={tr("chat.send")}
                 >
                   {streaming ? "⋯" : "➤"}
                 </button>
@@ -1374,13 +1381,13 @@ export default function ChatPage() {
                     <TypingDots /> 상담친구가 답변을 작성하고 있어요
                   </span>
                 ) : (
-                  <span className="alive-status idle">● 대기 중 — 질문을 입력하세요</span>
+                  <span className="alive-status idle">{tr("chat.idle")}</span>
                 )}
                 <label style={{ marginLeft: "auto" }}>
-                  <input type="checkbox" checked={useSSE} onChange={(e) => setUseSSE(e.target.checked)} /> 스트리밍
+                  <input type="checkbox" checked={useSSE} onChange={(e) => setUseSSE(e.target.checked)} /> {tr("chat.streaming")}
                 </label>
-                <label style={{ marginLeft: 12 }} title="100단어 이내로 핵심만 간단히 답변받습니다.">
-                  <input type="checkbox" checked={brief} onChange={(e) => toggleBrief(e.target.checked)} /> 핵심만
+                <label style={{ marginLeft: 12 }} title={tr("chat.brief_title")}>
+                  <input type="checkbox" checked={brief} onChange={(e) => toggleBrief(e.target.checked)} /> {tr("chat.brief")}
                 </label>
               </div>
             </div>
@@ -1390,12 +1397,26 @@ export default function ChatPage() {
               <FollowupBilling me={me} depth={depth} onDepth={setDepth} freeNote={followupFreeNote()} />
               <label
                 className={`easy-toggle${easy ? " on" : ""}`}
-                title="체크하면 전문용어 대신 이야기하듯 쉬운 말로 풀어 드립니다."
+                title={tr("chat.easy_title")}
               >
                 <input type="checkbox" checked={easy} onChange={(e) => toggleEasy(e.target.checked)} />
                 <span className="easy-ico" aria-hidden="true">🌿</span>
-                쉽게 풀어 주세요
+                {tr("chat.easy")}
               </label>
+            </div>
+            {/* 질문창 아래 과금 안내 (현재 depth 기준 무료/차감/잔여) */}
+            <div className="billing-hint">
+              <span className="bh-main">💳 {billingHint()}</span>
+              {me && (me.level ?? 9) > 1 && !me.is_member && (
+                <span className="bh-sub">
+                  {tr("chat.bh_sub_deep", {
+                    creditNote:
+                      typeof me.credit_cost_deep === "number" && typeof me.credit_cost_basic === "number"
+                        ? tr("chat.bh_sub_credit", { deep: fmtNum(me.credit_cost_deep), basic: fmtNum(me.credit_cost_basic) })
+                        : "",
+                  })}
+                </span>
+              )}
             </div>
             {err && <div className="err">{err}</div>}
           </div>
@@ -1405,25 +1426,24 @@ export default function ChatPage() {
       {showExplainPopup && (
         <div className="pwa-overlay" onClick={cancelExplainPopup}>
           <div className="pwa-modal explain-modal" onClick={(e) => e.stopPropagation()}>
-            <h3 style={{ marginTop: 0 }}>답변을 어떻게 풀어 드릴까요?</h3>
+            <h3 style={{ marginTop: 0 }}>{tr("chat.explain_title")}</h3>
             <p style={{ color: "var(--ink-600, #555)", fontSize: 14, marginBottom: 16 }}>
-              처음이시네요! 풀이 방식을 한 번만 골라 주세요. <br />
-              이후에는 질문창의 <b>🌿 쉽게 풀어 주세요</b> 버튼으로 언제든 바꿀 수 있어요.
+              <Trans i18nKey="chat.explain_desc" components={{ br: <br />, b: <b /> }} />
             </p>
             <div className="explain-choices">
               <button className="explain-choice easy" onClick={() => chooseExplain("easy")}>
                 <span className="ec-ico">🌿</span>
-                <span className="ec-title">쉽게 풀어 주세요</span>
-                <span className="ec-desc">전문용어 대신 이야기하듯 쉽게</span>
+                <span className="ec-title">{tr("chat.ec_easy_title")}</span>
+                <span className="ec-desc">{tr("chat.ec_easy_desc")}</span>
               </button>
               <button className="explain-choice pro" onClick={() => chooseExplain("normal")}>
                 <span className="ec-ico">📘</span>
-                <span className="ec-title">전문용어로 풀어 주세요</span>
-                <span className="ec-desc">명리 용어 그대로 깊이 있게</span>
+                <span className="ec-title">{tr("chat.ec_pro_title")}</span>
+                <span className="ec-desc">{tr("chat.ec_pro_desc")}</span>
               </button>
             </div>
             <button className="ghost" style={{ marginTop: 12 }} onClick={laterExplainPopup}>
-              나중에 결정할게요 — 일단 표준 풀이로 받기
+              {tr("chat.explain_later")}
             </button>
           </div>
         </div>
@@ -1432,20 +1452,18 @@ export default function ChatPage() {
       {showPaywall && (
         <div className="pwa-overlay" onClick={() => setShowPaywall(false)}>
           <div className="pwa-modal" onClick={(e) => e.stopPropagation()}>
-            <h3 style={{ marginTop: 0 }}>무료 질문을 모두 사용했어요</h3>
+            <h3 style={{ marginTop: 0 }}>{tr("chat.pw_title")}</h3>
             <p style={{ color: "var(--ink-soft, #555)", fontSize: 14 }}>
-              {isLoggedIn
-                ? "충전 또는 멤버십으로 계속 이용하실 수 있어요. 심화(외부 AI 보강) 답변은 더 깊이 있는 풀이를 제공합니다."
-                : "로그인하면 무료 질문과 전체 답변을 이용할 수 있어요."}
+              {isLoggedIn ? tr("chat.pw_desc_in") : tr("chat.pw_desc_guest")}
             </p>
             <div className="pwa-actions">
               {isLoggedIn ? (
-                <button onClick={() => openCharge()}>충전하기</button>
+                <button onClick={() => openCharge()}>{tr("chat.pw_charge")}</button>
               ) : (
-                <button onClick={() => navigate("/login")}>로그인</button>
+                <button onClick={() => navigate("/login")}>{tr("chat.pw_login")}</button>
               )}
               <button className="ghost" onClick={() => setShowPaywall(false)}>
-                닫기
+                {tr("chat.close")}
               </button>
             </div>
           </div>
@@ -1461,16 +1479,14 @@ export default function ChatPage() {
             <div className="sl-head">
               <span className="sl-head-ico" aria-hidden="true">🗂️</span>
               <div>
-                <h3>상담함이 가득 찼어요</h3>
-                <p className="sl-sub">지금까지 나눈 소중한 상담을 모두 보관하고 있어요</p>
+                <h3>{tr("chat.sl_title")}</h3>
+                <p className="sl-sub">{tr("chat.sl_sub")}</p>
               </div>
             </div>
             <p className="sl-desc">
-              상담은 최대 <b>{maxSessions}개</b>까지 보관돼요. 다시 보지 않을 상담을
-              정리하면 새로운 상담을 바로 이어갈 수 있어요. 정리한 상담 기록은 복구할 수 없으니
-              한 번 더 살펴봐 주세요.
+              <Trans i18nKey="chat.sl_desc" values={{ max: maxSessions }} components={{ b: <b /> }} />
             </p>
-            <div className="sl-gauge" role="img" aria-label={`상담 ${sessions.length}개 중 ${maxSessions}개 사용`}>
+            <div className="sl-gauge" role="img" aria-label={tr("chat.sl_gauge_aria", { cur: sessions.length, max: maxSessions })}>
               <div className="sl-gauge-track">
                 <span className={`sl-gauge-fill${full ? " full" : ""}`} style={{ width: `${pct}%` }} />
               </div>
@@ -1513,18 +1529,18 @@ export default function ChatPage() {
                   />
                   <span className="sl-body">
                     <span className="sl-title">
-                      {s.title || "(제목 없는 상담)"}
-                      {sid === s.session_id && <span className="sl-badge">보는 중</span>}
+                      {s.title || tr("chat.sl_untitled")}
+                      {sid === s.session_id && <span className="sl-badge">{tr("chat.sl_current")}</span>}
                     </span>
                     <span className="sl-meta">
-                      {shortDate(s.created_at)} · 생년월일 {s.birth_date} · 메시지 {s.message_count}개
+                      {tr("chat.sl_meta", { date: shortDate(s.created_at), birth: s.birth_date, n: s.message_count })}
                     </span>
                   </span>
                   <button
                     className="sl-del"
                     onClick={(e) => { e.stopPropagation(); removeSession(s.session_id, s.title || s.birth_date); }}
                   >
-                    삭제
+                    {tr("chat.sl_delete")}
                   </button>
                 </div>
               ))}
@@ -1538,10 +1554,10 @@ export default function ChatPage() {
                   startSession();
                 }}
               >
-                {full ? "정리 후 시작할 수 있어요" : "새 상담 시작"}
+                {full ? tr("chat.sl_start_full") : tr("chat.sl_start")}
               </button>
               <button className="ghost" onClick={() => setShowSessionLimit(false)}>
-                나중에 할게요
+                {tr("chat.sl_later")}
               </button>
             </div>
           </div>

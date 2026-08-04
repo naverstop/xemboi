@@ -1,15 +1,16 @@
 /** 첫 화면(랜딩) — 6개 기능을 이미지+설명 섹션으로. 클릭 시 해당 기능으로. */
 import { useEffect, useState, type ReactNode } from "react";
+import { Trans, useTranslation } from "react-i18next";
 import { Link, useNavigate } from "react-router-dom";
 import { api, useMe, type TrustStats } from "../api";
 import { entryCost, type EntryMenu } from "../lib/entryFee";
 import { Ic, type IcName } from "../components/icons";
-import { ZODIACS } from "../lib/zodiacAvatar";
+import { zodiacStripKeys } from "../lib/zodiacAvatar";
 import MyeongriWheel from "../components/MyeongriWheel";
 import ReviewStrip from "../components/ReviewStrip";
 
 // 기능별 고급 일러스트(실사 이미지 없을 때 폴백) — 320×200 장면형 ──────
-const defs = (id: string, c0 = "#22b8f0", c1 = "#0496d8") => (
+const defs = (id: string, c0 = "#1fbfa8", c1 = "#0d9488") => (
   <defs>
     <linearGradient id={id} x1="0" y1="0" x2="1" y2="1">
       <stop offset="0%" stopColor={c0} /><stop offset="100%" stopColor={c1} />
@@ -219,6 +220,7 @@ function TrustStrip() {
 }
 
 export default function LandingPage() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const me = useMe();
   return (
@@ -237,17 +239,17 @@ export default function LandingPage() {
             </div>
             {me ? (
               <div className="lp-hero-note lp-hero-note-in">
-                ✨ 로그인 완료 — 진태양시 정밀 보정·전체 해설·이어지는 질문까지 <b>모든 기능을 100% 이용</b> 중이에요.
+                <Trans i18nKey="landing.note_in" components={{ b: <b /> }} />
               </div>
             ) : (
               <div className="lp-hero-note">
-                비로그인은 <b>50% 미리보기</b>만 제공해요. <b>로그인</b>하시면 진태양시 정밀 보정·전체 해설·무료 질문 등 <b>본 사이트만의 차별화 기능을 100%</b> 이용할 수 있어요.
+                <Trans i18nKey="landing.note_guest" components={{ b: <b /> }} />
               </div>
             )}
             <TrustStrip />
             {/* 12띠 3D 캐릭터 스트립 (장식) — 애기(초년) 버전, 영상 파이프라인과 동일 에셋 */}
             <div className="lp-zodiac-strip" aria-hidden>
-              {ZODIACS.map((z) => (
+              {zodiacStripKeys().map((z) => (
                 <img key={z} src={`/zodiac/${z}_초년.jpg`} alt="" loading="lazy" width={44} height={44} />
               ))}
             </div>
@@ -296,9 +298,9 @@ export default function LandingPage() {
 
       {/* FAQ */}
       <section className="lp-section">
-        <h2 className="lp-h2">자주 묻는 질문</h2>
+        <h2 className="lp-h2">{t("landing.faq_title")}</h2>
         <div className="lp-faq">
-          {FAQ.map((f, i) => (
+          {(t("landing.faq", { returnObjects: true }) as { q: string; a: string }[]).map((f, i) => (
             <details key={i} className="lp-faq-item">
               <summary>{f.q}</summary>
               <div className="lp-faq-a">{f.a}</div>

@@ -77,7 +77,7 @@ def test_solar_to_lunar_display_divergence():
 def _adj_vi(y, m, d, hh, mm, lon=None):
     b = BirthInput(birth_date=date(y, m, d), birth_time=time(hh, mm),
                    locale="vi", apply_true_solar_time=True, birth_longitude=lon)
-    _, at = _adjust_time(b, date(y, m, d))
+    _, _, at = _adjust_time(b, date(y, m, d))  # (표준일, 표준시각, 진태양시각)
     return at
 
 def test_true_solar_vietnam_small_correction():
@@ -92,7 +92,7 @@ def test_vietnam_no_dst_removal():
     # 베트남 현대는 서머타임 없음 → 진태양시 미적용이면 시계 그대로
     b = BirthInput(birth_date=date(2000, 7, 15), birth_time=time(12, 0),
                    locale="vi", apply_true_solar_time=False)
-    _, at = _adjust_time(b, date(2000, 7, 15))
+    _, _, at = _adjust_time(b, date(2000, 7, 15))
     assert at == time(12, 0)
 
 
@@ -127,7 +127,7 @@ def test_vi_model_config():
     from backend.app.core.config import get_settings
     s = get_settings()
     assert s.ollama_model_vi == "qwen3:14b" and s.ollama_refine_model_vi == "qwen3:14b"
-    assert s.ollama_model == "exaone3.5:7.8b"   # ko 기본(초안) 불변
+    assert s.ollama_model == "qwen3:14b"   # ko 메인 엔진 qwen3 전환(saju 운영 2026-07-16)
 
 
 def test_ko_chart_unchanged():

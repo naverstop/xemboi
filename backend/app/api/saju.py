@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from backend.app.core.db import get_db
-from backend.app.core.deps import get_optional_user
+from backend.app.core.deps import get_locale, get_optional_user
 from backend.app.domain.chat_dto import BirthDTO
 from backend.app.repositories.auth_models import User
 from backend.app.saju.engine import build_chart
@@ -29,8 +29,12 @@ _ELEM_LUCKY = {
 
 
 @router.post("/chart", response_model=SajuChart)
-def post_chart(birth: BirthDTO) -> SajuChart:
-    """생년월일/시/성별 → 사주 8자 + 오행 + 십성 + 대운."""
+def post_chart(birth: BirthDTO, locale: str = Depends(get_locale)) -> SajuChart:
+    """생년월일/시/성별 → 사주 8자 + 오행 + 십성 + 대운.
+
+    locale(요청 로케일 X-Locale→user→Accept-Language→default)이 역법/경도를 결정한다:
+    vi 면 105°E·hongoc_duc, ko 면 서울·sxtwl. birth_longitude/균시차/자시관법도 함께 전달.
+    """
     try:
         bi = BirthInput(
             birth_date=birth.birth_date,
@@ -42,6 +46,7 @@ def post_chart(birth: BirthDTO) -> SajuChart:
             birth_longitude=birth.birth_longitude,          # 드롭 복구 — /today와 동일화(전수감사 P0-4)
             apply_equation_of_time=birth.apply_equation_of_time,
             night_zi_mode=birth.night_zi_mode,
+            locale=locale,
         )
     except ValueError as e:  # 없는 윤달 입력 등 → 깔끔한 400(R1 메시지 전달)
         raise HTTPException(status_code=400, detail=str(e))

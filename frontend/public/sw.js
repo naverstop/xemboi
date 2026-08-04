@@ -1,9 +1,9 @@
-/* 사주 에이전트 Service Worker
+/* Xem Bói Service Worker
  * - 정적 셸 프리캐시 + 런타임 캐시(정적 자원만).
  * - API(/api/*)·SSE 스트림은 캐시 제외(실시간성/인증 보호).
  * - Web Push 수신/클릭 핸들러(계획 2.7.6).
  */
-const CACHE = "saju-shell-v210";
+const CACHE = "xemboi-shell-v70";
 const SHELL = ["/", "/manifest.webmanifest"];  // 오프라인 폴백용
 
 self.addEventListener("install", (event) => {
@@ -69,7 +69,7 @@ self.addEventListener("fetch", (event) => {
 
 // ---- Web Push ----
 self.addEventListener("push", (event) => {
-  let data = { title: "사주 에이전트", body: "새 알림이 있어요.", url: "/chat" };
+  let data = { title: "Xem Bói", body: "Bạn có thông báo mới.", url: "/chat" };
   try {
     if (event.data) data = { ...data, ...event.data.json() };
   } catch (_) {

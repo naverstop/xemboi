@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import {
   api,
@@ -9,6 +10,7 @@ import {
   type ConsultantSelf,
   type ConsultantEarnings,
 } from "../api";
+import { fmtNum } from "../lib/money";
 import { useConsultation } from "../components/ConsultationProvider";
 import ConsultantSettingsPage from "./ConsultantSettingsPage";
 
@@ -21,6 +23,7 @@ import ConsultantSettingsPage from "./ConsultantSettingsPage";
  * 설정: 간판·요금·#키워드(ConsultantSettingsPage 임베드). 영업 상태는 탭과 무관하게 유지된다.
  */
 export default function ConsultantConsolePage() {
+  const { t: tr } = useTranslation();
   const me = useMe();
   const { openSession, setConsoleOnDuty } = useConsultation();
   const [profile, setProfile] = useState<ConsultantSelf | null | undefined>(undefined); // undefined=로딩
@@ -132,7 +135,7 @@ export default function ConsultantConsolePage() {
       openSession(s.id, "consultant");
       setRequests((cur) => cur.filter((x) => x.id !== s.id));
     } catch (e: any) {
-      alert(e?.message || "수락에 실패했어요.");
+      alert(e?.message || tr("consult.con_accept_fail"));
     }
   }
   async function decline(s: ConsultationSession) {
@@ -178,12 +181,12 @@ export default function ConsultantConsolePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [online, soundOn, pending.length]);
 
-  if (profile === undefined) return <div className="ccon-wrap">불러오는 중…</div>;
+  if (profile === undefined) return <div className="ccon-wrap">{tr("consult.loading")}</div>;
   if (!me || !profile)
     return (
       <div className="ccon-wrap">
-        <h3>상담사 전용</h3>
-        <p>입점 상담사 계정만 이용할 수 있어요. <Link to="/">홈으로</Link></p>
+        <h3>{tr("consult.con_only_title")}</h3>
+        <p>{tr("consult.con_only_desc")} <Link to="/">{tr("consult.con_go_home")}</Link></p>
       </div>
     );
 
@@ -255,161 +258,39 @@ export default function ConsultantConsolePage() {
         </div>
       )}
       <div className="ccon-head">
-        {/* 영업 상태 — 크고 색상 있는 토글(녹=영업중·적=영업종료), 좌측. 클릭 즉시 DB 저장 */}
-        <button
-          type="button"
-          role="switch"
-          aria-checked={online}
-          className={`ccon-biz-switch ${online ? "on" : "off"}`}
-          onClick={() => setBiz(!online)}
-          title="영업 상태 — 켜면 실시간 접수 시작(즉시 저장)"
-        >
-          <span className="ccon-biz-track" aria-hidden><span className="ccon-biz-knob" /></span>
-          <span className="ccon-biz-txt">{online ? "영업 중" : "영업 종료"}</span>
-        </button>
-        <label className="ccon-switch ccon-sound" title="접수 알림음 — 켜 두면 새 요청이 응답될 때까지 15초마다 소리·음성으로 알려드려요">
-          <input type="checkbox" checked={soundOn} onChange={(e) => toggleSound(e.target.checked)} />
-          <span className={soundOn ? "on" : "off"}>{soundOn ? "🔔 알림음" : "🔕 무음"}</span>
+        <h2>{tr("consult.con_title")}</h2>
+        <label className="ccon-switch" title={tr("consult.con_status_aria")}>
+          <input type="checkbox" checked={online} onChange={(e) => setOnline(e.target.checked)} />
+          <span className={online ? "on" : "off"}>{online ? tr("consult.con_on") : tr("consult.con_off")}</span>
         </label>
       </div>
-
-      <div className="ccon-tabs" role="tablist">
-        <button role="tab" aria-selected={tab === "console"}
-          className={`ccon-tab ${tab === "console" ? "active" : ""}`} onClick={() => setTab("console")}>
-          접수{online && pending.length > 0 ? ` (${pending.length})` : ""}
-        </button>
-        <button role="tab" aria-selected={tab === "reserve"}
-          className={`ccon-tab ${tab === "reserve" ? "active" : ""}`} onClick={() => setTab("reserve")}>
-          예약
-        </button>
-        <button role="tab" aria-selected={tab === "earnings"}
-          className={`ccon-tab ${tab === "earnings" ? "active" : ""}`} onClick={() => setTab("earnings")}>
-          내 수익
-        </button>
-        <button role="tab" aria-selected={tab === "settings"}
-          className={`ccon-tab ${tab === "settings" ? "active" : ""}`} onClick={() => setTab("settings")}>
-          간판·요금·설정
-        </button>
-      </div>
-
-      {tab === "console" ? (
-        <>
-          <p className="ccon-biz">
-            {profile.business_name} · {profile.eff_price_p.toLocaleString()}P / {profile.eff_duration_min}분
-          </p>
-          {!online && (
-            <p className="ccon-off">
-              ‘영업 중’으로 켜면 접수 알림을 받고, 사용자 목록에 ‘대기중’으로 표시돼요. (영업 중엔 자동 로그아웃되지 않아요)
-            </p>
-          )}
-          {activeSessions.length > 0 && (
-            <div className="ccon-reqs ccon-active-reqs">
-              <h3>진행 중 상담 ({activeSessions.length})</h3>
-              {activeSessions.map((s) => (
-                <div key={s.id} className="ccon-req ccon-req-active">
-                  <div>
-                    <b>진행 중인 상담</b>
-                    <div className="ccon-req-sub">
-                      {s.price_p.toLocaleString()}P · {s.duration_min}분
-                      {(s.extended_min ?? 0) > 0 ? ` (+${s.extended_min}분 연장)` : ""}
-                    </div>
-                    <div className="ccon-req-sub">고객이 대기 중일 수 있어요. 바로 이어서 응대하세요.</div>
-                  </div>
-                  <div className="ccon-req-act">
-                    <button className="ccon-accept" onClick={() => openSession(s.id, "consultant")}>재입장</button>
-                  </div>
-                </div>
-              ))}
+      <p className="ccon-biz">
+        {profile.business_name} · {fmtNum(profile.eff_price_p)}{tr("pay.pt")} / {tr("consult.dur_min", { n: fmtNum(profile.eff_duration_min) })}
+      </p>
+      {!online && (
+        <p className="ccon-off">
+          {tr("consult.con_off_note")}
+        </p>
+      )}
+      {online && (
+        <div className="ccon-reqs">
+          <h3>{tr("consult.con_pending", { count: pending.length })}</h3>
+          {pending.length === 0 && <p className="ccon-empty">{tr("consult.con_waiting")}</p>}
+          {pending.map((s) => (
+            <div key={s.id} className="ccon-req">
+              <div>
+                <b>{tr("consult.con_new_req")}</b>
+                <div className="ccon-req-sub">{fmtNum(s.price_p)}{tr("pay.pt")} · {tr("consult.dur_min", { n: fmtNum(s.duration_min) })}</div>
+              </div>
+              <div className="ccon-req-act">
+                <button className="ccon-accept" onClick={() => accept(s)}>{tr("consult.con_accept")}</button>
+                <button className="ccon-decline" onClick={() => decline(s)}>{tr("consult.con_decline")}</button>
+              </div>
             </div>
-          )}
-          {online && (
-            <div className="ccon-reqs">
-              <h3>접수 대기 ({pending.length})</h3>
-              {pending.length === 0 && <p className="ccon-empty">새 상담 요청을 기다리는 중이에요…</p>}
-              {pending.map((s) => (
-                <div key={s.id} className="ccon-req">
-                  <div>
-                    <b>새 상담 요청</b>
-                    {/* A-1: 명식/카드 첨부 표시 — 수락 시 채팅방 상단에서 바로 볼 수 있음 */}
-                    {s.source_kind && (
-                      <span className="ccon-req-ctx">
-                        {s.source_kind === "saju" ? "📜 사주 명식 첨부" : "🃏 타로 카드 첨부"}
-                      </span>
-                    )}
-                    <div className="ccon-req-sub">{s.price_p.toLocaleString()}P · {s.duration_min}분</div>
-                    {/* 수락 전에도 첨부 내용을 미리 확인(운영자 요청) — 타로: 질문+카드 목록, 사주: 생년 요약 */}
-                    {s.source_kind === "tarot" && (s.source_context?.cards?.length ?? 0) > 0 && (
-                      <div className="ccon-req-cards">
-                        {s.source_context?.question && (
-                          <div className="ccon-req-q">“{s.source_context.question}”</div>
-                        )}
-                        <ul>
-                          {(s.source_context?.cards ?? []).map((c) => (
-                            <li key={c.position_index}>
-                              <em>{c.position_index + 1}. {c.position_name}</em> {c.name_kr}
-                              {c.orientation === "reversed" && <i className="ccon-rev"> 역방향</i>}
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-                    {s.source_kind === "saju" && s.source_context?.birth_date && (
-                      <div className="ccon-req-cards">
-                        <div className="ccon-req-q">
-                          {s.source_context.birth_date}
-                          {s.source_context.birth_time ? ` ${s.source_context.birth_time}` : ""}
-                          {s.source_context.calendar === "lunar" ? " · 음력" : " · 양력"}
-                          {s.source_context.gender === "male" ? " · 남" : s.source_context.gender === "female" ? " · 여" : ""}
-                          {" — 명식은 수락 후 채팅방 상단에서 확인"}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                  <div className="ccon-req-act">
-                    <button className="ccon-accept" onClick={() => accept(s)}>수락</button>
-                    <button className="ccon-decline" onClick={() => decline(s)}>거절</button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </>
-      ) : tab === "reserve" ? (
-        <div className="ccon-reserve">
-          <p className="ccon-biz">예약 가능한 시간을 열어두면, 부재중에도 사용자가 예약(선결제)할 수 있어요.
-            시간이 되면 자동으로 접수가 생성되고 알림이 와요.</p>
-          <div className="ccon-slot-add">
-            <input
-              type="datetime-local"
-              value={slotAt}
-              onChange={(e) => setSlotAt(e.target.value)}
-              min={new Date(Date.now() + 3600000).toISOString().slice(0, 16)}
-            />
-            <button className="ccon-accept" onClick={addSlot} disabled={!slotAt}>시간 열기</button>
-          </div>
-          {slotErr && <p className="csl-consent-err">{slotErr}</p>}
-          {slots == null && <p className="ccon-empty">불러오는 중…</p>}
-          {slots != null && slots.length === 0 && <p className="ccon-empty">등록된 예약 시간이 없어요.</p>}
-          {slots != null && slots.length > 0 && (
-            <div className="ccon-slots">
-              {slots.map((s) => (
-                <div key={s.id} className={`ccon-slot st-${s.status}`}>
-                  <span className="t">{new Date(s.start_at).toLocaleString("ko-KR", { month: "numeric", day: "numeric", weekday: "short", hour: "2-digit", minute: "2-digit" })}</span>
-                  <span className="st">
-                    {s.status === "open" ? "열림" : s.status === "booked" ? `예약됨 (${s.charged_p.toLocaleString()}P 홀드)` :
-                     s.status === "converted" ? "진행됨" : "취소됨"}
-                  </span>
-                  {(s.status === "open" || s.status === "booked") && (
-                    <button className="ccon-decline" onClick={() => removeSlot(s)}>
-                      {s.status === "booked" ? "예약 취소" : "삭제"}
-                    </button>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
+          ))}
         </div>
-      ) : tab === "earnings" ? (
+      )}
+      {tab === "earnings" && (
         <div className="ccon-earn">
           {earnings === undefined && <p className="ccon-empty">불러오는 중…</p>}
           {earnings === null && <p className="ccon-empty">수익 정보를 불러오지 못했어요.</p>}
@@ -454,9 +335,8 @@ export default function ConsultantConsolePage() {
             </>
           )}
         </div>
-      ) : (
-        <ConsultantSettingsPage embedded />
       )}
+      {tab === "settings" && <ConsultantSettingsPage embedded />}
     </div>
   );
 }

@@ -10,6 +10,7 @@
  *  - 상시 진입점: window 이벤트 'saju:open-install-guide'(사이드바·플로팅 "📲 앱 설치")로 스누즈 무관 오픈.
  */
 import { useEffect, useState, type ReactNode } from "react";
+import { useTranslation, Trans } from "react-i18next";
 import { usePwaInstall } from "../hooks/usePwaInstall";
 import {
   escapeToExternalBrowser, externalTargetUrl, inAppBrowser,

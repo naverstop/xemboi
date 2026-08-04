@@ -1,6 +1,7 @@
-/** 사주명식 시각화 (원광만세력 v4.0.0 스타일 단순화). */
+/** 사주명식 시각화 (원광만세력 v4.0.0 스타일 단순화). 라벨·독음은 로케일(ko/vi). */
 import { useMemo } from "react";
 import { traits, domains, seunLabel, currentDaewoonIndex, type Trait } from "../lib/sajuMetrics";
+import { useTranslation } from "react-i18next";
 
 type Pillar = { stem: string; branch: string };
 type Wuxing = { wood: number; fire: number; earth: number; metal: number; water: number };
@@ -43,60 +44,57 @@ type JohuYongsin = {
   source: string;
 };
 
+// 로케일 무관 내부 코드는 오행 한자(木火土金水)로 통일 — 표시 독음은 로케일 매핑(chart.wuxing).
 // 전통 오행 5색 (하늘도마뱀 만세력 기준): 木녹·火적·土황·金백·水흑.
 const WX_COLOR: Record<string, string> = {
-  목: "#2fa84f",   // 木 = 청/녹
-  화: "#E11D2E",   // 火 = 적
-  토: "#F2C200",   // 土 = 황
-  금: "#ffffff",   // 金 = 백
-  수: "#33373d",   // 水 = 흑(가독 위해 약간 누그러뜨림)
+  木: "#2fa84f",   // 木 = 청/녹
+  火: "#E11D2E",   // 火 = 적
+  土: "#F2C200",   // 土 = 황
+  金: "#ffffff",   // 金 = 백
+  水: "#33373d",   // 水 = 흑(가독 위해 약간 누그러뜨림)
 };
 // 배경 대비 글자색 (土·金=어둡게, 나머지 흰색)
 const WX_TEXT: Record<string, string> = {
-  목: "#ffffff",
-  화: "#ffffff",
-  토: "#1f2937",
-  금: "#1f2937",
-  수: "#ffffff",
+  木: "#ffffff",
+  火: "#ffffff",
+  土: "#1f2937",
+  金: "#1f2937",
+  水: "#ffffff",
 };
 // 흰 배경(金)은 배경과 섞이므로 또렷한 실선 박스로 구분
-const WX_BORDER: Record<string, string> = { 금: "1.5px solid #8b94a0" };
-
-// 십성 한자 → 한글
-const TEN_GOD_KO: Record<string, string> = {
-  正財: "정재", 偏財: "편재", 正官: "정관", 偏官: "편관", 正印: "정인", 偏印: "편인",
-  比肩: "비견", 劫財: "겁재", 食神: "식신", 傷官: "상관",
-};
-const tg = (v: string | null | undefined) => (v ? TEN_GOD_KO[v] || v : "");
+const WX_BORDER: Record<string, string> = { 金: "1.5px solid #8b94a0" };
 
 const STEM_WX: Record<string, string> = {
-  甲: "목", 乙: "목", 丙: "화", 丁: "화", 戊: "토", 己: "토",
-  庚: "금", 辛: "금", 壬: "수", 癸: "수",
+  甲: "木", 乙: "木", 丙: "火", 丁: "火", 戊: "土", 己: "土",
+  庚: "金", 辛: "金", 壬: "水", 癸: "水",
 };
 const BRANCH_WX: Record<string, string> = {
-  寅: "목", 卯: "목", 巳: "화", 午: "화", 辰: "토", 戌: "토", 丑: "토", 未: "토",
-  申: "금", 酉: "금", 亥: "수", 子: "수",
+  寅: "木", 卯: "木", 巳: "火", 午: "火", 辰: "土", 戌: "土", 丑: "土", 未: "土",
+  申: "金", 酉: "金", 亥: "水", 子: "水",
+};
+// 백엔드 day_master_element(영문) → 오행 한자 코드
+const EL_FROM_EN: Record<string, string> = {
+  wood: "木", fire: "火", earth: "土", metal: "金", water: "水",
 };
 
-const STEM_KO: Record<string, string> = {
-  甲: "갑", 乙: "을", 丙: "병", 丁: "정", 戊: "무", 己: "기",
-  庚: "경", 辛: "신", 壬: "임", 癸: "계",
-};
-const BRANCH_KO: Record<string, string> = {
-  子: "자", 丑: "축", 寅: "인", 卯: "묘", 辰: "진", 巳: "사",
-  午: "오", 未: "미", 申: "신", 酉: "유", 戌: "술", 亥: "해",
-};
+type StrMap = Record<string, string>;
 
 function PillarCell({ label, pillar, stemGod, branchGod, hidden, lifeStage, sinsal }: {
   label: string; pillar: Pillar | null;
   stemGod?: string; branchGod?: string; hidden?: string[];
   lifeStage?: string; sinsal?: string;
 }) {
+  const { t: tr, i18n } = useTranslation();
+  const vi = i18n.language.startsWith("vi");
+  const stemR = tr("chart.stem", { returnObjects: true }) as StrMap;
+  const branchR = tr("chart.branch", { returnObjects: true }) as StrMap;
+  const lifeR = tr("chart.life", { returnObjects: true }) as StrMap;
+  const sinsalR = tr("chart.sinsal", { returnObjects: true }) as StrMap;
   if (!pillar) {
     return (
       <div className="pillar empty">
         <div className="pillar-label">{label}</div>
-        <div className="pillar-god">시 미상</div>
+        <div className="pillar-god">{tr("chart.hour_unknown")}</div>
         <div className="pillar-stem">?</div>
         <div className="pillar-branch">?</div>
         <div className="pillar-god" />
@@ -106,24 +104,24 @@ function PillarCell({ label, pillar, stemGod, branchGod, hidden, lifeStage, sins
       </div>
     );
   }
-  const sWx = STEM_WX[pillar.stem] || "토";
-  const bWx = BRANCH_WX[pillar.branch] || "토";
+  const sWx = STEM_WX[pillar.stem] || "土";
+  const bWx = BRANCH_WX[pillar.branch] || "土";
   return (
     <div className="pillar">
       <div className="pillar-label">{label}</div>
       <div className="pillar-god top">{stemGod || ""}</div>
       <div className="pillar-stem" style={{ background: WX_COLOR[sWx], color: WX_TEXT[sWx], border: WX_BORDER[sWx] }}>
-        <div className="ch">{pillar.stem}</div>
-        <div className="ko">{STEM_KO[pillar.stem]}</div>
+        <div className="ch">{vi ? (stemR[pillar.stem] || pillar.stem) : pillar.stem}</div>
+        <div className="ko">{vi ? "" : stemR[pillar.stem]}</div>
       </div>
       <div className="pillar-branch" style={{ background: WX_COLOR[bWx], color: WX_TEXT[bWx], border: WX_BORDER[bWx] }}>
-        <div className="ch">{pillar.branch}</div>
-        <div className="ko">{BRANCH_KO[pillar.branch]}</div>
+        <div className="ch">{vi ? (branchR[pillar.branch] || pillar.branch) : pillar.branch}</div>
+        <div className="ko">{vi ? "" : branchR[pillar.branch]}</div>
       </div>
       <div className="pillar-god bot">{branchGod || ""}</div>
-      <div className="pillar-hidden">{(hidden || []).join(" ")}</div>
-      <div className="pillar-extra" title="십이운성">{lifeStage || ""}</div>
-      <div className="pillar-extra sinsal" title="십이신살">{sinsal || ""}</div>
+      <div className="pillar-hidden">{(hidden || []).map((s) => (vi ? (stemR[s] || s) : s)).join(" ")}</div>
+      <div className="pillar-extra" title={tr("chart.life_tip")}>{lifeStage ? (lifeR[lifeStage] || lifeStage) : ""}</div>
+      <div className="pillar-extra sinsal" title={tr("chart.sinsal_tip")}>{sinsal ? (sinsalR[sinsal] || sinsal) : ""}</div>
     </div>
   );
 }
@@ -153,14 +151,25 @@ function TraitRadar({ data }: { data: Trait[] }) {
 }
 
 export default function SajuChart({ chart }: { chart: Chart }) {
+  const { t: tr, i18n } = useTranslation();
+  const vi = i18n.language.startsWith("vi");
+  const stemR = tr("chart.stem", { returnObjects: true }) as StrMap;
+  const branchR = tr("chart.branch", { returnObjects: true }) as StrMap;
+  const wuxingR = tr("chart.wuxing", { returnObjects: true }) as StrMap;
+  const tengodR = tr("chart.tengod", { returnObjects: true }) as StrMap;
+  const napeumR = tr("chart.napeum", { returnObjects: true }) as StrMap;
+  const strengthR = tr("chart.strength", { returnObjects: true }) as StrMap;
+  // 십성 한자 → 로케일 독음
+  const tg = (v: string | null | undefined) => (v ? tengodR[v] || v : "");
+
   const traitData = useMemo(() => traits(chart), [chart]);
   const domainData = useMemo(() => domains(chart), [chart]);
   const curDw = useMemo(() => currentDaewoonIndex(chart), [chart]);
   // 오행 개수는 사용자가 눈으로 읽는 '팔자 8글자'(천간4+지지4) 기준으로 센다.
   // [2026-07-22 운영자 지적] 종전엔 chart.wuxing(지장간까지 합산한 full, 합 14)을 그려 명식표와
-  //   어긋났다 — 예: 시丁卯·일己丑·월壬寅·년壬子 는 팔자에 금이 0인데 막대는 금 1(丑 중기 辛).
-  //   pillars 에서 직접 세므로 옛 세션(저장 chart_json)도 마이그레이션 없이 바로 맞는 값이 나온다.
-  //   ⚠️ 신강/신약은 지장간 통근을 반영해야 하는 별개 계산이라 백엔드가 계속 full 로 판정한다.
+  //   어긋났다 — pillars 에서 직접 세므로 옛 세션(저장 chart_json)도 바로 맞는 값이 나온다.
+  //   ⚠️ 신강/신약은 지장간 통근 반영이라 백엔드가 계속 full 로 판정한다.
+  //   (vi 렌더 호환: ko·el 두 키 모두 제공 — el은 한자, 라벨은 wuxingR[el]로 로케일 독음)
   const wxArr = useMemo(() => {
     const cnt: Record<string, number> = { 목: 0, 화: 0, 토: 0, 금: 0, 수: 0 };
     const p = chart.pillars;
@@ -172,52 +181,55 @@ export default function SajuChart({ chart }: { chart: Chart }) {
       if (b) cnt[b] += 1;
     }
     const total = Math.max(1, cnt.목 + cnt.화 + cnt.토 + cnt.금 + cnt.수);
+    const HJ: Record<string, string> = { 목: "木", 화: "火", 토: "土", 금: "金", 수: "水" };
     return (["목", "화", "토", "금", "수"] as const).map((ko) => ({
-      ko, v: cnt[ko], pct: (cnt[ko] / total) * 100,
+      ko, el: HJ[ko], v: cnt[ko], pct: (cnt[ko] / total) * 100,
     }));
   }, [chart.pillars]);
 
   const g = chart.ten_gods;
   const lf = chart.twelve_life;
   const ss = chart.twelve_sinsal;
-  // 지장간은 위치 라벨(년지/월지/일지/시지) 키로 제공됨
+  // 지장간은 위치 라벨(년지/월지/일지/시지) 키로 제공됨 (백엔드 데이터 키)
   const h = (label: string) => (chart.hidden_stems?.[label] || []);
+  const dmEl = EL_FROM_EN[chart.day_master_element] || "土";
 
   return (
     <div className="saju-chart">
       <div className="pillar-row">
-        <PillarCell label="시" pillar={chart.pillars.hour}
+        {/* 위치 키("시"/"일"/"월"/"년", "시지"…)는 백엔드 데이터 키라 그대로 사용 */}
+        <PillarCell label={tr("chart.pillar_hour")} pillar={chart.pillars.hour}
           stemGod={tg(g?.hour_stem)} branchGod={tg(g?.hour_branch)} hidden={h("시지")}
           lifeStage={lf?.["시"]} sinsal={ss?.["시"]} />
-        <PillarCell label="일" pillar={chart.pillars.day}
-          stemGod="일원" branchGod={tg(g?.day_branch)} hidden={h("일지")}
+        <PillarCell label={tr("chart.pillar_day")} pillar={chart.pillars.day}
+          stemGod={tr("chart.day_master_god")} branchGod={tg(g?.day_branch)} hidden={h("일지")}
           lifeStage={lf?.["일"]} sinsal={ss?.["일"]} />
-        <PillarCell label="월" pillar={chart.pillars.month}
+        <PillarCell label={tr("chart.pillar_month")} pillar={chart.pillars.month}
           stemGod={tg(g?.month_stem)} branchGod={tg(g?.month_branch)} hidden={h("월지")}
           lifeStage={lf?.["월"]} sinsal={ss?.["월"]} />
-        <PillarCell label="년" pillar={chart.pillars.year}
+        <PillarCell label={tr("chart.pillar_year")} pillar={chart.pillars.year}
           stemGod={tg(g?.year_stem)} branchGod={tg(g?.year_branch)} hidden={h("년지")}
           lifeStage={lf?.["년"]} sinsal={ss?.["년"]} />
       </div>
 
       {chart.napeum && (chart.napeum["시"] || chart.napeum["일"] || chart.napeum["월"] || chart.napeum["년"]) && (
-        <div className="chart-napeum">납음(納音)
-          {["시", "일", "월", "년"].map((k) => chart.napeum?.[k] ? <span key={k} className="np">{chart.napeum[k]}</span> : null)}
+        <div className="chart-napeum">{tr("chart.napeum_label")}
+          {["시", "일", "월", "년"].map((k) => chart.napeum?.[k] ? <span key={k} className="np">{napeumR[chart.napeum[k]] || chart.napeum[k]}</span> : null)}
         </div>
       )}
       {chart.saryeong && (
-        <div className="chart-gongmang">사령(司令) <b>{chart.saryeong}({STEM_KO[chart.saryeong] || ""})</b></div>
+        <div className="chart-gongmang">{tr("chart.saryeong_label")} <b>{vi ? (stemR[chart.saryeong] || chart.saryeong) : `${chart.saryeong}(${stemR[chart.saryeong] || ""})`}</b></div>
       )}
       {chart.gongmang && chart.gongmang.length > 0 && (
-        <div className="chart-gongmang">공망(空亡) <b>{chart.gongmang.join("·")}</b></div>
+        <div className="chart-gongmang">{tr("chart.gongmang_label")} <b>{chart.gongmang.map((c) => (vi ? (branchR[c] || c) : c)).join("·")}</b></div>
       )}
 
       <div className="wx-bars">
         {wxArr.map((w) => (
-          <div key={w.ko} className="wx-bar">
-            <span className="wx-label" style={{ color: WX_COLOR[w.ko] }}>{w.ko}</span>
+          <div key={w.el} className="wx-bar">
+            <span className="wx-label" style={{ color: WX_COLOR[w.el] }}>{wuxingR[w.el]}</span>
             <div className="wx-fill-wrap">
-              <div className="wx-fill" style={{ width: `${w.pct}%`, background: WX_COLOR[w.ko] }} />
+              <div className="wx-fill" style={{ width: `${w.pct}%`, background: WX_COLOR[w.el] }} />
             </div>
             <span className="wx-num">{w.v}</span>
           </div>
@@ -225,25 +237,24 @@ export default function SajuChart({ chart }: { chart: Chart }) {
       </div>
 
       <div className="day-master-info">
-        일간 <strong>{chart.pillars.day.stem}({STEM_KO[chart.pillars.day.stem]})</strong> ·
-        오행 <span style={{ color: WX_COLOR[chart.day_master_element === "wood" ? "목" : chart.day_master_element === "fire" ? "화" : chart.day_master_element === "earth" ? "토" : chart.day_master_element === "metal" ? "금" : "수"] }}>
-          {{ wood: "목", fire: "화", earth: "토", metal: "금", water: "수" }[chart.day_master_element] || chart.day_master_element}
-        </span> · 강약 <strong>{chart.day_master_strength}</strong>
+        {tr("chart.day_master_label")} <strong>{vi ? stemR[chart.pillars.day.stem] : `${chart.pillars.day.stem}(${stemR[chart.pillars.day.stem]})`}</strong> ·
+        {tr("chart.wuxing_label")} <span style={{ color: WX_COLOR[dmEl] }}>{wuxingR[dmEl]}</span> ·
+        {tr("chart.strength_label")} <strong>{strengthR[chart.day_master_strength] || chart.day_master_strength}</strong>
       </div>
 
       {chart.johu_yongsin && (() => {
         const ys = chart.johu_yongsin!;
-        const pWx = STEM_WX[ys.primary] || "토";
+        const pWx = STEM_WX[ys.primary] || "土";
         return (
           <div className="chart-yongsin" title={ys.note}>
-            조후용신(調候)
+            {tr("chart.yongsin_label")}
             <b className="ys-chip" style={{ background: WX_COLOR[pWx], color: WX_TEXT[pWx], border: WX_BORDER[pWx] }}>
-              {ys.primary}({STEM_KO[ys.primary] || ""})
+              {vi ? (stemR[ys.primary] || ys.primary) : `${ys.primary}(${stemR[ys.primary] || ""})`}
             </b>
             {ys.supporting.length > 0 && (
-              <span className="ys-sup">보조 {ys.supporting.map((s) => `${s}(${STEM_KO[s] || ""})`).join("·")}</span>
+              <span className="ys-sup">{tr("chart.yongsin_support")} {ys.supporting.map((s) => (vi ? (stemR[s] || s) : `${s}(${stemR[s] || ""})`)).join("·")}</span>
             )}
-            {ys.is_climate_priority && <span className="ys-badge">조후 우선</span>}
+            {ys.is_climate_priority && <span className="ys-badge">{tr("chart.yongsin_climate")}</span>}
           </div>
         );
       })()}
@@ -251,7 +262,10 @@ export default function SajuChart({ chart }: { chart: Chart }) {
       {chart.daewoon && chart.daewoon.entries.length > 0 && (
         <div className="daewoon-strip">
           <div className="daewoon-title">
-            대운 ({chart.daewoon.direction === "forward" ? "순행" : "역행"}, 대운수 {chart.daewoon.start_age.toFixed(1)}세)
+            {tr("chart.daewoon_title", {
+              dir: chart.daewoon.direction === "forward" ? tr("chart.daewoon_forward") : tr("chart.daewoon_backward"),
+              age: chart.daewoon.start_age.toFixed(1),
+            })}
           </div>
           <div className="daewoon-row">
             {chart.daewoon.entries.slice(0, 9).map((d, i) => {
@@ -262,8 +276,8 @@ export default function SajuChart({ chart }: { chart: Chart }) {
                 <div key={d.start_age} className={`dw-cell${now ? " now" : ""}`}>
                   {now && <div className="dw-now">지금</div>}
                   <div className="dw-age">{d.start_age}</div>
-                  <div className="dw-stem" style={{ background: WX_COLOR[sWx], color: WX_TEXT[sWx], border: WX_BORDER[sWx] }}>{d.pillar.stem}</div>
-                  <div className="dw-branch" style={{ background: WX_COLOR[bWx], color: WX_TEXT[bWx], border: WX_BORDER[bWx] }}>{d.pillar.branch}</div>
+                  <div className="dw-stem" style={{ background: WX_COLOR[sWx], color: WX_TEXT[sWx], border: WX_BORDER[sWx] }}>{vi ? (stemR[d.pillar.stem] || d.pillar.stem) : d.pillar.stem}</div>
+                  <div className="dw-branch" style={{ background: WX_COLOR[bWx], color: WX_TEXT[bWx], border: WX_BORDER[bWx] }}>{vi ? (branchR[d.pillar.branch] || d.pillar.branch) : d.pillar.branch}</div>
                 </div>
               );
             })}

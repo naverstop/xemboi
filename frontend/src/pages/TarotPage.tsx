@@ -32,55 +32,22 @@ import FollowupBilling from "../components/FollowupBilling";
 import { useEnsureEntry, EntryFeeNotice, useCharge } from "../components/ChargeModal";
 import { displayName } from "../lib/displayName";
 import { useBulkSelect } from "../lib/useBulkSelect";
+import { useTranslation, Trans } from "react-i18next";
+import { fmtNum } from "../lib/money";
 import "./tarot.css";
 
 /* ══════════════ 정적 데이터 ══════════════ */
 
 type SectionDef = { key: string; nm: string; n: 7 | 11; exs: string[] };
-/* 섹션별 예시질문 5개(운영자 승인 문안 2026-07-04). exs[0]은 대표 예시(placeholder에도 사용). */
-const SECTIONS: SectionDef[] = [
-  { key: "love", nm: "연애 · 재회", n: 7, exs: [
-    "이번에 새로 만난 사람, 저와 잘 이어질까요?",
-    "헤어진 그 사람과 다시 만날 가능성이 있을까요?",
-    "지금 사귀는 사람과 결혼까지 갈 수 있을까요?",
-    "그 사람은 지금 저를 어떻게 생각하고 있을까요?",
-    "마음에 둔 상대에게 먼저 다가가도 될까요?",
-  ] },
-  { key: "money", nm: "금전 · 재물", n: 7, exs: [
-    "지금 고민 중인 투자, 진행해도 괜찮을까요?",
-    "올해 안에 목돈이 들어올 운이 있을까요?",
-    "빌려준 돈을 돌려받을 수 있을까요?",
-    "지금 시작하려는 부업, 수익이 날까요?",
-    "집·차 같은 큰 지출, 지금 해도 될까요?",
-  ] },
-  { key: "career", nm: "직업 · 사업", n: 7, exs: [
-    "준비 중인 이직, 올해 안에 결실이 있을까요?",
-    "지금 회사에 남을까요, 옮기는 게 나을까요?",
-    "새로 시작한 사업, 자리를 잡을 수 있을까요?",
-    "곧 있을 승진·평가 결과가 좋을까요?",
-    "지금 하는 일이 저와 잘 맞는 길일까요?",
-  ] },
-  { key: "study", nm: "학업 · 시험", n: 7, exs: [
-    "이번 시험, 지금 방식대로 준비하면 합격할까요?",
-    "어느 전공·진로가 저에게 맞을까요?",
-    "자격증 공부, 올해 안에 마칠 수 있을까요?",
-    "지금의 슬럼프를 어떻게 넘기면 좋을까요?",
-    "유학·편입을 지금 준비해도 될까요?",
-  ] },
-  { key: "choice", nm: "선택의 기로", n: 7, exs: [
-    "지금 사는 집을 팔까요, 계속 둘까요?",
-    "A와 B 두 제안 중 어느 쪽을 택해야 할까요?",
-    "이 관계를 정리할까요, 이어갈까요?",
-    "낯선 곳으로 이사·이직을 결정해도 될까요?",
-    "지금은 결정을 미룰까요, 밀어붙일까요?",
-  ] },
-  { key: "life", nm: "인생 종합 · 심층", n: 11, exs: [
-    "지금 제 인생의 큰 흐름이 어디로 가고 있나요?",
-    "올 한 해 제가 집중해야 할 것은 무엇일까요?",
-    "요즘 반복되는 고민, 그 뿌리는 무엇일까요?",
-    "제가 지금 놓치고 있는 기회가 있을까요?",
-    "앞으로 1년, 제 삶의 가장 큰 변화는 무엇일까요?",
-  ] },
+/* 섹션 구성(백엔드 key + 스프레드 장수). 표시 문구(nm/예시질문 exs)는 로케일(tarot.sec.*)에서
+   컴포넌트 내부에서 합성한다. exs[0]은 대표 예시(placeholder에도 사용). */
+const SECTION_META: { key: string; n: 7 | 11 }[] = [
+  { key: "love", n: 7 },
+  { key: "money", n: 7 },
+  { key: "career", n: 7 },
+  { key: "study", n: 7 },
+  { key: "choice", n: 7 },
+  { key: "life", n: 11 },
 ];
 
 const ROMAN = ["Ⅰ", "Ⅱ", "Ⅲ", "Ⅳ", "Ⅴ", "Ⅵ", "Ⅶ", "Ⅷ", "Ⅸ", "Ⅹ", "Ⅺ"];
@@ -312,8 +279,60 @@ function useAmbient(canvasRef: React.RefObject<HTMLCanvasElement>, hostRef: Reac
 
 type Phase = "question" | "shuffle" | "table";
 
+/* 섹션별 예시질문 5개(운영자 승인 문안 2026-07-04). exs[0]은 대표 예시(placeholder에도 사용). */
+const SECTIONS: SectionDef[] = [
+  { key: "love", nm: "연애 · 재회", n: 7, exs: [
+    "이번에 새로 만난 사람, 저와 잘 이어질까요?",
+    "헤어진 그 사람과 다시 만날 가능성이 있을까요?",
+    "지금 사귀는 사람과 결혼까지 갈 수 있을까요?",
+    "그 사람은 지금 저를 어떻게 생각하고 있을까요?",
+    "마음에 둔 상대에게 먼저 다가가도 될까요?",
+  ] },
+  { key: "money", nm: "금전 · 재물", n: 7, exs: [
+    "지금 고민 중인 투자, 진행해도 괜찮을까요?",
+    "올해 안에 목돈이 들어올 운이 있을까요?",
+    "빌려준 돈을 돌려받을 수 있을까요?",
+    "지금 시작하려는 부업, 수익이 날까요?",
+    "집·차 같은 큰 지출, 지금 해도 될까요?",
+  ] },
+  { key: "career", nm: "직업 · 사업", n: 7, exs: [
+    "준비 중인 이직, 올해 안에 결실이 있을까요?",
+    "지금 회사에 남을까요, 옮기는 게 나을까요?",
+    "새로 시작한 사업, 자리를 잡을 수 있을까요?",
+    "곧 있을 승진·평가 결과가 좋을까요?",
+    "지금 하는 일이 저와 잘 맞는 길일까요?",
+  ] },
+  { key: "study", nm: "학업 · 시험", n: 7, exs: [
+    "이번 시험, 지금 방식대로 준비하면 합격할까요?",
+    "어느 전공·진로가 저에게 맞을까요?",
+    "자격증 공부, 올해 안에 마칠 수 있을까요?",
+    "지금의 슬럼프를 어떻게 넘기면 좋을까요?",
+    "유학·편입을 지금 준비해도 될까요?",
+  ] },
+  { key: "choice", nm: "선택의 기로", n: 7, exs: [
+    "지금 사는 집을 팔까요, 계속 둘까요?",
+    "A와 B 두 제안 중 어느 쪽을 택해야 할까요?",
+    "이 관계를 정리할까요, 이어갈까요?",
+    "낯선 곳으로 이사·이직을 결정해도 될까요?",
+    "지금은 결정을 미룰까요, 밀어붙일까요?",
+  ] },
+  { key: "life", nm: "인생 종합 · 심층", n: 11, exs: [
+    "지금 제 인생의 큰 흐름이 어디로 가고 있나요?",
+    "올 한 해 제가 집중해야 할 것은 무엇일까요?",
+    "요즘 반복되는 고민, 그 뿌리는 무엇일까요?",
+    "제가 지금 놓치고 있는 기회가 있을까요?",
+    "앞으로 1년, 제 삶의 가장 큰 변화는 무엇일까요?",
+  ] },
+];
+
 export default function TarotPage() {
   const me = useMe();
+  const { t: tr, i18n } = useTranslation();
+  const vi = i18n.language === "vi";
+  // 카드명·포지션명 로케일 선택 — vi 는 vi명(없으면 영문/한글 폴백), ko 는 기존 한글 그대로.
+  // 백엔드가 name_vi/position_name_vi 를 병기(구 세션엔 없을 수 있어 폴백 유지).
+  const cardMainName = (c: TarotCard) => (vi ? (c.name_vi || c.name_en) : c.name_kr);
+  const posMainName = (c: TarotCard) => (vi ? (c.position_name_vi || c.position_name) : c.position_name);
   const ensureEntry = useEnsureEntry();
   const { openCharge } = useCharge();
   const memberName = displayName(me, "회원");  // ⚠️ 호칭=이메일 아이디 고정(운영자 결정) — lib/displayName.ts
@@ -376,7 +395,7 @@ export default function TarotPage() {
   const coords = isCeltic ? COORD11 : COORD7;
   const allPicked = !!sess && pickedCount >= need;
   const allFlipped = !!sess && flipped.length === need && flipped.every(Boolean) && !!cards;
-  const spreadLabel = isCeltic ? "켈틱 크로스 11장" : "말굽 7장";
+  const spreadLabel = isCeltic ? tr("tarot.spread_celtic") : tr("tarot.spread_horse");
 
   function timer(fn: () => void, ms: number) {
     const id = window.setTimeout(fn, ms);
@@ -441,7 +460,7 @@ export default function TarotPage() {
         tarot_id: snap.tarot_id || id,
         spread_type: snap.spread_type,
         need: n,
-        positions: snap.positions && snap.positions.length ? snap.positions : sorted.map((c) => c.position_name),
+        positions: snap.positions && snap.positions.length ? snap.positions : sorted.map((c) => posMainName(c)),
         section: snap.section,
         question: snap.question,
       });
@@ -521,12 +540,12 @@ export default function TarotPage() {
 
   async function removeSession(id: string, e: ReactMouseEvent) {
     e.stopPropagation();
-    if (!window.confirm("이 타로 상담 기록을 삭제할까요?")) return;
+    if (!window.confirm(tr("tarot.del_confirm"))) return;
     try {
       await api.deleteTarot(id);
       setSessions((cur) => cur.filter((s) => s.tarot_id !== id));
       if (id === sess?.tarot_id) newReading();  // 현재 열람 중 세션 삭제 → 새 리딩
-    } catch { alert("삭제에 실패했어요. 잠시 후 다시 시도해 주세요."); }
+    } catch { alert(tr("tarot.del_fail")); }
   }
 
   // 체크한 기록 일괄삭제 — 서버 단일 요청(개별 DELETE 반복의 레이트리밋·부분실패 회피). 한 번만 확인.
@@ -612,16 +631,16 @@ export default function TarotPage() {
       timer(() => { setPhase("table"); scrollTop(); }, reduced ? 250 : 2700);
     } catch (e: any) {
       if (e instanceof ApiError && e.status === 402) {
-        openCharge("타로 입장 포인트가 부족해요. 충전하면 작성 내용 그대로 이어집니다.");
+        openCharge(tr("tarot.charge_entry"));
       } else if (e instanceof ApiError && e.status === 409) {
         // 세션 20개 상한(입장료는 차감되지 않음) — 기록 정리 안내
         setDrawerOpen(true);
         refreshSessions();
-        alert(`저장된 타로 기록이 최대 ${maxSessions}개에 도달했어요.\n왼쪽 ‘내 기록’에서 오래된 기록을 삭제한 뒤 다시 시도해 주세요.\n(기록은 최대 1주간 보관됩니다.)`);
+        alert(tr("tarot.sessions_full", { max: maxSessions }));
       } else if (e?.message === "SESSION_EXPIRED") {
         /* notifySessionExpired 가 처리 */
       } else {
-        setErr(e?.message || "타로 세션을 시작하지 못했어요. 잠시 후 다시 시도해 주세요.");
+        setErr(e?.message || tr("tarot.create_fail"));
       }
     } finally {
       setCreating(false);
@@ -722,7 +741,7 @@ export default function TarotPage() {
       const sorted = [...r.cards].sort((a, b) => a.position_index - b.position_index);
       setCards(sorted);
     } catch (e: any) {
-      setPicksErr(e?.message || "카드 확정에 실패했어요.");
+      setPicksErr(e?.message || tr("tarot.picks_fail"));
     }
   }
 
@@ -859,9 +878,9 @@ export default function TarotPage() {
       else if (e?.message === "PAYWALL") {
         setQaTurns((t) => t.slice(0, -2)); // 방금 넣은 user + 빈 assistant 턴 제거
         setQInput(text); // 입력 복원 — 충전 후 그대로 재전송 가능
-        openCharge("추가 질문 포인트가 부족해요. 충전하면 작성 내용 그대로 이어집니다.");
+        openCharge(tr("tarot.charge_followup"));
       } else {
-        upd({ content: "답변 생성에 실패했어요. 잠시 후 다시 시도해 주세요." });
+        upd({ content: tr("tarot.answer_fail") });
       }
     } finally {
       setQStreaming(false);
@@ -900,33 +919,49 @@ export default function TarotPage() {
   /* PDF 메타 + 헤더(카드 목록) */
   const pdfHeader = useMemo(() => {
     if (!cards || !sess) return "";
-    const lines = [`[질문] ${sess.question}`, `[스프레드] ${spreadLabel} (${sec?.nm || sess.section})`];
+    const lines = [
+      tr("tarot.pdf_q", { q: sess.question }),
+      tr("tarot.pdf_spread", { spread: spreadLabel, sec: sec?.nm || sess.section }),
+    ];
     cards.forEach((c, i) => {
-      lines.push(`${i + 1}. ${c.position_name}: ${c.name_kr} (${c.name_en}) · ${c.orientation === "reversed" ? "역방향" : "정방향"}`);
+      lines.push(tr("tarot.pdf_card", {
+        n: i + 1,
+        pos: posMainName(c),
+        kr: cardMainName(c),
+        en: c.name_en,
+        ori: c.orientation === "reversed" ? tr("tarot.reversed") : tr("tarot.upright"),
+      }));
     });
     return lines.join("\n");
-  }, [cards, sess, sec, spreadLabel]);
+  }, [cards, sess, sec, spreadLabel, tr, vi]);
 
   /* 리딩 본문 강조 구절(항목5) — 백엔드가 평문화해도 화면에서 카드명·방향·포지션을 금색 강조 */
   const richHighlight = useMemo<string[]>(() => {
     if (!cards) return [];
-    const hl: string[] = ["정방향", "역방향"];
+    const hl: string[] = [tr("tarot.upright"), tr("tarot.reversed")];
     cards.forEach((c) => {
-      if (c.name_kr) hl.push(c.name_kr);
-      if (c.name_en) hl.push(c.name_en);
-      if (c.position_name) hl.push(c.position_name);
+      const nm = cardMainName(c);
+      if (nm) hl.push(nm);
+      if (c.name_en) hl.push(c.name_en);   // 본문이 영문명을 쓰는 경우도 강조(vi 공통)
+      const pos = posMainName(c);
+      if (pos) hl.push(pos);
     });
     return hl;
-  }, [cards]);
+  }, [cards, tr, vi]);
 
   const basicCost = me?.credit_cost_basic ?? 1900;
   const deepCost = me?.credit_cost_deep ?? 3900;
   const freeLeft = me?.free_remaining ?? 0;
   const feeNote = !me
-    ? "※ 로그인 후 추가 질문을 이용할 수 있어요 (1일 무료 또는 포인트 차감)"
+    ? tr("tarot.fee_guest")
     : freeLeft > 0
-    ? `※ 이번 추가 질문 무료 · 남은 무료 ${freeLeft}회`
-    : `※ 추가 질문은 기본 ${basicCost.toLocaleString()}P · 심화 ${deepCost.toLocaleString()}P 차감 · 잔액 ${(me.balance ?? 0).toLocaleString()}P`;
+    ? tr("tarot.fee_free", { n: fmtNum(freeLeft) })
+    : tr("tarot.fee_paid", {
+        basic: fmtNum(basicCost),
+        deep: fmtNum(deepCost),
+        bal: fmtNum(me.balance ?? 0),
+        pt: tr("pay.pt"),
+      });
 
   /* ══════════════ 렌더 ══════════════ */
   return (
@@ -939,26 +974,26 @@ export default function TarotPage() {
 
       {/* 항목8·9: 좌측상단 상시 플로팅 — 새롭게 타로보기 + 내 기록(로그인만) */}
       <div className="tr-float">
-        <button className="tr-float-new" onClick={newReading} title="새 타로 리딩 시작(입장료는 카드 섞기 때 차감)">
-          ✦ 새롭게 타로보기
+        <button className="tr-float-new" onClick={newReading} title={tr("tarot.float_new_title")}>
+          {tr("tarot.float_new")}
         </button>
         {loggedIn && (
-          <button className="tr-float-hist" onClick={() => { refreshSessions(); setDrawerOpen((v) => !v); }} title="내 타로 상담 기록">
-            🕮 내 기록{sessions.length > 0 && <em> {sessions.length}/{maxSessions}</em>}
+          <button className="tr-float-hist" onClick={() => { refreshSessions(); setDrawerOpen((v) => !v); }} title={tr("tarot.float_hist_title")}>
+            {tr("tarot.float_hist")}{sessions.length > 0 && <em> {sessions.length}/{maxSessions}</em>}
           </button>
         )}
       </div>
       {drawerOpen && loggedIn && (
         <>
           <div className="tr-drawer-back" onClick={() => setDrawerOpen(false)} aria-hidden />
-          <aside className="tr-drawer" role="dialog" aria-label="내 타로 기록">
+          <aside className="tr-drawer" role="dialog" aria-label={tr("tarot.drawer_title")}>
             <div className="tr-drawer-head">
-              <span>내 타로 기록 <em>{sessions.length}/{maxSessions}</em></span>
-              <button className="tr-drawer-x" onClick={() => setDrawerOpen(false)} aria-label="닫기">✕</button>
+              <span>{tr("tarot.drawer_title")} <em>{sessions.length}/{maxSessions}</em></span>
+              <button className="tr-drawer-x" onClick={() => setDrawerOpen(false)} aria-label={tr("tarot.drawer_close")}>✕</button>
             </div>
-            <div className="tr-drawer-note">🕰 타로 상담 기록은 <b>최대 1주간</b> 보관됩니다.</div>
+            <div className="tr-drawer-note"><Trans i18nKey="tarot.drawer_note" components={{ b: <b /> }} /></div>
             {sessions.length === 0 ? (
-              <div className="tr-drawer-empty">아직 저장된 타로 기록이 없어요.</div>
+              <div className="tr-drawer-empty">{tr("tarot.drawer_empty")}</div>
             ) : (
               <>
                 <div className="tr-drawer-toolbar">
@@ -1023,10 +1058,10 @@ export default function TarotPage() {
               </g>
               <path d="M16.2 8.6 A5.4 5.4 0 1 0 16.2 17.4 A4.3 4.3 0 1 1 16.2 8.6 Z" fill="#E3C87F" />
             </svg>
-            TAROT<small>미드나잇 골드 아틀리에 · 타로</small>
+            TAROT<small>{tr("tarot.brand_sub")}</small>
           </h1>
-          <nav className="tr-steps" aria-label="진행 단계">
-            {["질문", "셔플", "뽑기", "리딩"].map((nm, i) => (
+          <nav className="tr-steps" aria-label={tr("tarot.steps_aria")}>
+            {(tr("tarot.steps", { returnObjects: true }) as string[]).map((nm, i) => (
               <span key={nm} style={{ display: "contents" }}>
                 {i > 0 && <span className="tr-sep">·</span>}
                 <span className={`tr-st${step === i + 1 ? " on" : ""}`}>{nm}</span>
@@ -1049,16 +1084,14 @@ export default function TarotPage() {
         {phase === "question" && <EntryFeeNotice menu="tarot" />}
         {phase === "question" && (
           <div className="tr-storenote">
-            {loggedIn
-              ? "🕰 타로 상담 기록은 최대 1주간 보관되며, 최대 20개까지 저장됩니다. 왼쪽 위 ‘내 기록’에서 다시 볼 수 있어요."
-              : "🔒 로그인하지 않으면 이 기기에서만 임시 보관되어, 기기를 바꾸거나 브라우저를 정리하면 기록이 사라집니다. 로그인하면 최대 1주간 안전하게 보관됩니다."}
+            {loggedIn ? tr("tarot.storenote_in") : tr("tarot.storenote_guest")}
           </div>
         )}
 
         {/* ── 1. 질문 ── */}
         <section className={`tr-phase${phase === "question" ? " on" : ""}`}>
-          <h2 className="tr-h2">어떤 이야기가 궁금하신가요?</h2>
-          <p className="tr-sub">신중히 고민하고 질문을 입력하세요. 질문에 따라 상담 내용이 달라집니다.</p>
+          <h2 className="tr-h2">{tr("tarot.q_h2")}</h2>
+          <p className="tr-sub">{tr("tarot.q_sub")}</p>
           <div className="tr-secgrid">
             {SECTIONS.map((s) => (
               <button
@@ -1070,7 +1103,7 @@ export default function TarotPage() {
                 <span className="tr-art">{ART[s.key]}</span>
                 <span className="tr-bd">
                   <span className="tr-nm">{s.nm}</span>
-                  <span className="tr-sp">{s.n === 11 ? "켈틱 크로스 확장 · 11장" : "말굽 스프레드 · 7장"}</span>
+                  <span className="tr-sp">{s.n === 11 ? tr("tarot.sub_celtic") : tr("tarot.sub_horse")}</span>
                 </span>
               </button>
             ))}
@@ -1078,7 +1111,7 @@ export default function TarotPage() {
           {/* 섹션별 예시질문 5개 — 부각 라벨 + 칩(클릭 시 입력창 채움) */}
           {sec && (
             <div className="tr-examples">
-              <div className="tr-suggest-label">💡 {sec.nm} — 이런 질문이 잘 통해요</div>
+              <div className="tr-suggest-label">{tr("tarot.examples_label", { sec: sec.nm })}</div>
               <div className="tr-chips">
                 {sec.exs.map((t) => (
                   <button key={t} type="button" className="tr-chip" onClick={() => { setQ(t); setNudgeQ(false); }}>{t}</button>
@@ -1091,23 +1124,23 @@ export default function TarotPage() {
               ref={qInputRef}
               type="text"
               maxLength={120}
-              placeholder={nudgeQ ? "질문을 먼저 입력해 주세요" : (sec ? `예) ${sec.exs[0]}` : "예) 지금 준비 중인 이직, 올해 안에 결실이 있을까요?")}
-              aria-label="질문 입력"
+              placeholder={nudgeQ ? tr("tarot.q_ph_nudge") : (sec ? tr("tarot.q_ph_sec", { ex: sec.exs[0] }) : tr("tarot.q_ph_default"))}
+              aria-label={tr("tarot.q_aria")}
               value={q}
               onChange={(e) => { setQ(e.target.value); if (nudgeQ) setNudgeQ(false); }}
               onKeyDown={(e) => { if (e.key === "Enter") submit(); }}
             />
           </div>
           <button className="tr-cta" onClick={submit}>
-            {creating ? "준비 중…" : "카드 섞기 →"}
+            {creating ? tr("tarot.cta_prep") : tr("tarot.cta_shuffle")}
           </button>
           {err && <div className="tr-err">{err}</div>}
         </section>
 
         {/* ── 2. 셔플 ── */}
         <section className={`tr-phase${phase === "shuffle" ? " on" : ""}`}>
-          <h2 className="tr-h2">카드를 섞고 있습니다</h2>
-          <p className="tr-sub">마음속으로 질문을 한 번 더 떠올려 주세요.</p>
+          <h2 className="tr-h2">{tr("tarot.shuf_h2")}</h2>
+          <p className="tr-sub">{tr("tarot.shuf_sub")}</p>
           <div className="tr-well">
             {phase === "shuffle" && shufCards.map((c) => (
               <div
@@ -1123,21 +1156,21 @@ export default function TarotPage() {
               </div>
             ))}
           </div>
-          <p className="tr-shufnote"><b>질문</b> — {q}{sec ? `  (${sec.nm})` : ""}</p>
+          <p className="tr-shufnote"><b>{tr("tarot.shuf_q")}</b> — {q}{sec ? `  (${sec.nm})` : ""}</p>
         </section>
 
         {/* ── 3·4. 테이블: 부채꼴 뽑기 + 스프레드 + 해석 ── */}
         <section className={`tr-phase${phase === "table" ? " on" : ""}`}>
           <h2 className="tr-h2">
-            {!allPicked ? "왼손으로, 끌리는 카드를 뽑아주세요" : !allFlipped ? "이제, 한 장씩 직접 뒤집어 주세요" : "카드가 전하는 이야기입니다"}
+            {!allPicked ? tr("tarot.table_pick") : !allFlipped ? tr("tarot.table_flip") : tr("tarot.table_done")}
           </h2>
 
           <div className={`tr-fanblock${fanGone ? " away" : ""}`}>
             <div className="tr-pickbar">
               <p className="tr-sub" style={{ margin: 0 }}>
-                일흔여덟 장 가운데 <b style={{ color: "var(--tr-gold-hi)" }}>{need}</b>장 — 카드에 손을 얹으면 살짝 떠오르고, 누르면 아래 자리로 내려앉습니다.
+                <Trans i18nKey="tarot.pickbar" values={{ n: need }} components={{ b: <b style={{ color: "var(--tr-gold-hi)" }} /> }} />
               </p>
-              <div className="tr-cnt">{pickedCount} / {need}<small>뽑은 카드</small></div>
+              <div className="tr-cnt">{pickedCount} / {need}<small>{tr("tarot.pick_count")}</small></div>
             </div>
             <div className="tr-fanscroll">
               <div className="tr-fanarea">
@@ -1173,7 +1206,7 @@ export default function TarotPage() {
           {picksErr && (
             <div className="tr-err" style={{ textAlign: "center" }}>
               {picksErr}{" "}
-              <button className="tr-chip" onClick={submitPicks}>다시 시도</button>
+              <button className="tr-chip" onClick={submitPicks}>{tr("tarot.retry")}</button>
             </div>
           )}
           {fanGone && !allFlipped && !picksErr && (
@@ -1240,12 +1273,12 @@ export default function TarotPage() {
                   >
                     <div className="tr-ring">{ROMAN[i]}</div>
                     <div className="tr-plabel">
-                      {i + 1}. {sess.positions[i] || c?.position_name || ""}
+                      {i + 1}. {sess.positions[i] || (c ? posMainName(c) : "") || ""}
                       <span className="tr-cardnm">
                         {c && flipped[i] && (
                           <>
-                            {c.name_kr} <span style={{ opacity: .65 }}>({c.name_en})</span> ·{" "}
-                            {c.orientation === "reversed" ? <span className="tr-revtag">역방향</span> : "정방향"}
+                            {cardMainName(c)} <span style={{ opacity: .65 }}>({c.name_en})</span> ·{" "}
+                            {c.orientation === "reversed" ? <span className="tr-revtag">{tr("tarot.reversed")}</span> : tr("tarot.upright")}
                           </>
                         )}
                       </span>
@@ -1256,7 +1289,7 @@ export default function TarotPage() {
                         style={{ ["--tilt" as any]: `${tiltsRef.current[i] ?? 0}deg` }}
                         role="button"
                         tabIndex={0}
-                        aria-label={`${i + 1}번 카드 뒤집기`}
+                        aria-label={tr("tarot.flip_aria", { n: i + 1 })}
                         onClick={() => flip(i)}
                         onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); flip(i); } }}
                       >
@@ -1266,7 +1299,7 @@ export default function TarotPage() {
                             {c && (
                               <img
                                 src={c.image_url}
-                                alt={`${c.name_kr} (${c.name_en})`}
+                                alt={`${cardMainName(c)} (${c.name_en})`}
                                 className={c.orientation === "reversed" ? "rev" : undefined}
                                 loading="lazy"
                               />
@@ -1343,8 +1376,8 @@ export default function TarotPage() {
                 <div className="charge-receipt">✓ 타로 입장료 {sess.credits_charged.toLocaleString()} P 차감됨</div>
               )}
               <h3>THE READING</h3>
-              <p className="tr-rdsub">카드가 전하는 이야기</p>
-              <p className="tr-qecho">질문 — {sess.question}  ({sec?.nm || sess.section} · {spreadLabel})</p>
+              <p className="tr-rdsub">{tr("tarot.reading_sub")}</p>
+              <p className="tr-qecho">{tr("tarot.reading_qecho", { q: sess.question, sec: sec?.nm || sess.section, spread: spreadLabel })}</p>
               <svg className="tr-rdrule" viewBox="0 0 600 14" preserveAspectRatio="none" aria-hidden>
                 <line x1="0" y1="7" x2="284" y2="7" stroke="#C9A455" strokeOpacity=".35" />
                 <line x1="316" y1="7" x2="600" y2="7" stroke="#C9A455" strokeOpacity=".35" />
@@ -1360,9 +1393,9 @@ export default function TarotPage() {
                 {refineStage === "refining" && <span className="tr-refinetag">✨ 보강 중…</span>}
                 {explainFailed && !explainStreaming && (
                   <div className="tr-rdretry">
-                    해석 생성에 실패했어요. 네트워크나 서버 사정일 수 있어요.
+                    {tr("tarot.reading_fail")}
                     <button type="button" className="tr-depthbtn" onClick={() => sess && startExplain(sess.tarot_id)}>
-                      다시 시도 (무과금)
+                      {tr("tarot.retry_free")}
                     </button>
                   </div>
                 )}
@@ -1389,9 +1422,9 @@ export default function TarotPage() {
                     orientation: c.orientation, image_url: c.image_url,
                   }))}
                   pdf={{
-                    docTitle: `${memberName} 님의 타로 리딩`,
-                    personLine: `${memberName} 님`,
-                    item: `타로 리딩 (${sec?.nm || sess.section})`,
+                    docTitle: tr("tarot.pdf_doc", { name: memberName }),
+                    personLine: tr("tarot.pdf_person", { name: memberName }),
+                    item: tr("tarot.pdf_item", { sec: sec?.nm || sess.section }),
                   }}
                   messageId={explainMsgId}
                   source="tarot"
@@ -1410,7 +1443,7 @@ export default function TarotPage() {
                       )}
                       {t.refined && <span className="tr-qacharged">✨ 보강됨</span>}
                       {t.role === "assistant" && typeof t.charged === "number" && t.charged > 0 && (
-                        <span className="tr-qacharged">✓ {t.charged.toLocaleString()}P 차감됨</span>
+                        <span className="tr-qacharged">{tr("tarot.qa_charged", { n: fmtNum(t.charged), pt: tr("pay.pt") })}</span>
                       )}
                     </div>
                     {/* 추가질문 답변에도 공유/복사/PDF·피드백 — 전 메뉴 표준. 미리보기·스트리밍 중 미노출 */}
@@ -1436,7 +1469,7 @@ ${stripMarkdown(t.content)}`}
               </div>
               {suggests.length > 0 && !qStreaming && !explainStreaming && (
                 <div className="tr-chips" style={{ marginTop: 14, marginBottom: 0 }}>
-                  <div className="tr-suggest-label">💡 이어서 물어보세요</div>
+                  <div className="tr-suggest-label">{tr("tarot.suggest_more")}</div>
                   {suggests.map((sg) => (
                     <button key={sg} type="button" className="tr-chip" disabled={qStreaming} onClick={() => askFollowup("basic", sg)}>
                       {sg}
@@ -1470,18 +1503,15 @@ ${stripMarkdown(t.content)}`}
               </div>
 
               {!explainStreaming && !qStreaming && (
-                <button className="tr-restart" onClick={restart}>↺ 새 리딩 시작</button>
+                <button className="tr-restart" onClick={restart}>{tr("tarot.restart")}</button>
               )}
             </div>
           )}
         </section>
 
-        {/* ── 하단 저작권 고지(전 단계 상시 노출 — 문안 고정) ── */}
+        {/* ── 하단 저작권 고지(전 단계 상시 노출) ── */}
         <footer className="tr-legal">
-          <b>저작권 고지</b> — 본 서비스의 타로 카드 이미지는 라이더-웨이트-스미스(Rider-Waite-Smith) 타로 원판(1909년, 아서 E. 웨이트 기획 · 파멜라 콜먼 스미스 작화, 윌리엄 라이더 앤 선 출판)을 기반으로 자체 보정·가공한 것입니다.
-          해당 원판은 전 세계 대부분 지역에서 퍼블릭 도메인(공유 저작물)입니다.
-          "Rider-Waite", "Universal Waite" 등의 명칭은 U.S. Games Systems, Inc.의 상표일 수 있으며, 본 서비스는 U.S. Games Systems, Inc.와 무관하고 제휴·후원·승인 관계가 없습니다.
-          타로 콘텐츠는 참고 및 오락 목적으로 제공됩니다.
+          <Trans i18nKey="tarot.legal" components={{ b: <b /> }} />
         </footer>
       </div>
 

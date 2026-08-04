@@ -153,6 +153,17 @@ def create_app() -> FastAPI:
 
     @app.on_event("startup")
     def _bootstrap_db() -> None:
+        # ── DB/컬렉션 물리분리 가드 — vi 인스턴스는 한국 saju_db/saju_corpus 접근 금지(fail-closed) ──
+        #   VN(DEFAULT_LOCALE=vi)이 한국 리소스를 가리키면 부팅 자체를 거부해 데이터 오염을 원천 차단.
+        _s = get_settings()
+        if _s.default_locale == "vi":
+            _dbname = _s.database_url.rstrip("/").rsplit("/", 1)[-1].split("?")[0]
+            if _dbname == "saju_db" or _s.qdrant_collection == "saju_corpus":
+                raise RuntimeError(
+                    "VN 인스턴스(DEFAULT_LOCALE=vi)가 한국 리소스를 가리킵니다 — 부팅 거부. "
+                    f"현재 DB='{_dbname}', collection='{_s.qdrant_collection}'. "
+                    "물리 분리 필요: DATABASE_URL=...saju_vn_db · QDRANT_COLLECTION=saju_vn_corpus"
+                )
         # 스키마는 Alembic으로 관리: `alembic upgrade head` 가 사전에 실행되어 있어야 함.
         # create_all 은 신규 모델 추가 시 마이그레이션 미작성 케이스를 위한 안전망(기존 테이블은 건드리지 않음).
         engine = get_engine()
@@ -213,6 +224,10 @@ def create_app() -> FastAPI:
                 # [P3-D1] RAG 회수 로그의 메뉴 태그 — 멱등 보강
                 conn.execute(text("ALTER TABLE retrieval_logs ADD COLUMN IF NOT EXISTS menu VARCHAR(32)"))
                 conn.execute(text("CREATE INDEX IF NOT EXISTS ix_retrieval_logs_menu ON retrieval_logs (menu)"))
+                # 이중 로케일(ko/vi) — 사용자·세션·프로필 locale 멱등 보강(마이그레이션 0015 미실행 환경 안전망). 기존 행은 'ko'.
+                for _t in ("users", "chat_sessions", "saju_profiles", "compat_sessions",
+                           "tool_sessions", "tarot_sessions", "consultation_sessions"):
+                    conn.execute(text(f"ALTER TABLE {_t} ADD COLUMN IF NOT EXISTS locale VARCHAR(2) NOT NULL DEFAULT 'ko'"))
                 # 피드백 source 네임스페이스(사주/택일/궁합 메시지 id 충돌 방지) — 멱등 보강
                 conn.execute(text("ALTER TABLE message_feedback ADD COLUMN IF NOT EXISTS source VARCHAR(16) NOT NULL DEFAULT 'chat'"))
                 conn.execute(text("ALTER TABLE message_feedback DROP CONSTRAINT IF EXISTS uq_feedback_msg_user"))

@@ -21,6 +21,8 @@ except Exception:  # noqa: BLE001
 
 # 출생지 경도 기본값(서울). 진태양시 보정 시 사용. 표준자오선과의 차 × 4분/도.
 DEFAULT_LONGITUDE = 126.98
+# 베트남 기본 경도(하노이). vi 로케일 진태양시 기본값. 표준자오선 105°E(UTC+7).
+VN_DEFAULT_LONGITUDE = 105.85
 
 
 def _civil_std_offset_h(d: date) -> float:
@@ -33,6 +35,31 @@ def _civil_std_offset_h(d: date) -> float:
     if d < date(1961, 8, 10):
         return 8.5
     return 9.0
+
+
+def _vn_civil_std_offset_h(d: date) -> float:
+    """그 시기 베트남 표준시 UTC offset(시간). 출처: IANA tz Asia/Ho_Chi_Minh(남부/사이공).
+    베트남은 현대에 서머타임이 없어 이 값이 곧 실제 offset이다(DST 제거항 0).
+    ⚠ 북부(하노이) 전시(1954~75) 이력은 IANA에 미수록 — 그 시기·지역 출생자는 시주 오차 가능.
+    ~1911-05: +7:06:30(PLMT) / ~1942-12: +7 / ~1945-03: +8 / ~1945-09: +9(일제) /
+    ~1947-04: +7 / ~1955-07: +8 / ~1959-12: +7 / ~1975-06-13: +8(남베트남) / 이후: +7."""
+    if d < date(1911, 5, 1):
+        return 7.1083  # +7:06:30
+    if d < date(1942, 12, 31):
+        return 7.0
+    if d < date(1945, 3, 14):
+        return 8.0
+    if d < date(1945, 9, 2):
+        return 9.0
+    if d < date(1947, 4, 1):
+        return 7.0
+    if d < date(1955, 7, 1):
+        return 8.0
+    if d < date(1959, 12, 31):
+        return 7.0
+    if d < date(1975, 6, 13):
+        return 8.0
+    return 7.0
 
 
 def _kst_utcoffset_h(solar_d: date, t: time) -> float:
@@ -54,10 +81,18 @@ def _equation_of_time_min(d: date) -> float:
 
 
 def _to_solar(birth: BirthInput) -> date:
-    """입력을 양력 date 로 정규화."""
+    """입력을 양력 date 로 정규화. 음력은 로케일 역법으로 변환(vi=호응옥득 UTC+7)."""
     if birth.calendar == CalendarType.SOLAR:
         return birth.birth_date
-    # 음력 → 양력
+    if birth.locale == "vi":
+        # 베트남 음력(Âm lịch, UTC+7) → 양력. 중국·한국 음력과 경계일에서 하루 어긋날 수 있음.
+        from .hongoc_duc import lunar_to_solar
+        dd, mm, yy = lunar_to_solar(
+            birth.birth_date.day, birth.birth_date.month, birth.birth_date.year,
+            birth.is_leap_month, 7.0,
+        )
+        return date(yy, mm, dd)
+    # 음력 → 양력 (중국·한국, sxtwl/UTC+8)
     d = sxtwl.fromLunar(
         birth.birth_date.year,
         birth.birth_date.month,
@@ -77,19 +112,27 @@ def _adjust_time(birth: BirthInput, solar_d: date) -> tuple[date, time | None, t
     ★ 2026-07 전문가 관법 결정: **진태양시(경도 보정)는 시주(時)에만 적용하고 일주(日)의 날짜
       경계를 넘기지 않는다.** 그래서 ②(경도) 보정은 '진태양시각'에만 반영하고, 일/월/년주와 야자시
       판정은 '표준시각/표준일'을 쓴다. (종전엔 −32분 경도보정이 00:30을 전날로 굴려 일주가 하루
-      밀리는 재발 버그가 있었음 — 실측 00:30 표본 48/48 시프트.)"""
+      밀리는 재발 버그가 있었음 — 실측 00:30 표본 48/48 시프트.)
+    로케일: vi(베트남)는 현대 서머타임 없음 → 제거항 0, 표준자오선 105°E·기본경도 하노이."""
     if birth.birth_time is None:
         return solar_d, None, None
     dt = datetime.combine(solar_d, birth.birth_time)
 
-    off_h = _kst_utcoffset_h(solar_d, birth.birth_time)
-    civil_h = _civil_std_offset_h(solar_d)
+    if birth.locale == "vi":
+        # 베트남: 현대 서머타임 없음 → off==civil(제거항 0). 표준자오선 105°E(civil×15).
+        civil_h = _vn_civil_std_offset_h(solar_d)
+        off_h = civil_h
+        default_lon = VN_DEFAULT_LONGITUDE
+    else:
+        off_h = _kst_utcoffset_h(solar_d, birth.birth_time)
+        civil_h = _civil_std_offset_h(solar_d)
+        default_lon = DEFAULT_LONGITUDE
     dst_min = -(off_h - civil_h) * 60.0        # ① 서머타임 제거(표준시 환산) — 일/월/년주 기준
     std_dt = dt + timedelta(minutes=round(dst_min)) if dst_min else dt
 
     solar_dt = std_dt
     if birth.apply_true_solar_time:             # ② 경도 보정 — 진태양시각(시주 전용)에만
-        lon = birth.birth_longitude if birth.birth_longitude is not None else DEFAULT_LONGITUDE
+        lon = birth.birth_longitude if birth.birth_longitude is not None else default_lon
         ts_min = (lon - civil_h * 15.0) * 4.0
         if birth.apply_equation_of_time:
             ts_min += _equation_of_time_min(solar_d)
@@ -132,10 +175,17 @@ def compute_pillars(birth: BirthInput) -> tuple[FourPillars, date, time | None, 
             hour_p = _gz_to_pillar(day.getHourGZ(solar_t.hour))
 
     # 음력일을 그레고리력 date 컨테이너에 담는다(표시용). 음력 대월 29·30일이 그레고리력 해당 월에
-    # 없는 날이면(예: 음력 2/30 → 양력 2월엔 30일 없음) ValueError — 실측: 2025~2028 중 5일이
-    # 여기서 크래시해 그 날짜가 낀 택일 창 전체·당일 부적 발행이 죽었다. 기둥 계산(위)은 이미 완료된
-    # 상태라, 표시용 음력일만 그 달의 마지막 유효일로 클램프한다(사주 계산엔 무영향).
-    _ly, _lm, _ld = day.getLunarYear(), day.getLunarMonth(), day.getLunarDay()
+    # 없는 날이면 ValueError — 표시용 음력일만 그 달의 마지막 유효일로 클램프(사주 계산 무영향).
+    if birth.locale == "vi":
+        # 베트남 음력 표시는 호응옥득(UTC+7)로 — day 가 대표하는 양력일 기준(자시 굴림 반영).
+        from .hongoc_duc import solar_to_lunar
+        _ld, _lm, _ly = None, None, None
+        _ld, _lm, _ly, is_leap = solar_to_lunar(
+            day.getSolarDay(), day.getSolarMonth(), day.getSolarYear(), 7.0
+        )
+    else:
+        _ly, _lm, _ld = day.getLunarYear(), day.getLunarMonth(), day.getLunarDay()
+        is_leap = bool(day.isLunarLeap())
     while _ld > 28:
         try:
             lunar_d = date(_ly, _lm, _ld)
@@ -144,7 +194,6 @@ def compute_pillars(birth: BirthInput) -> tuple[FourPillars, date, time | None, 
             _ld -= 1
     else:
         lunar_d = date(_ly, _lm, _ld)
-    is_leap = bool(day.isLunarLeap())
 
     return (
         FourPillars(year=year_p, month=month_p, day=day_p, hour=hour_p),

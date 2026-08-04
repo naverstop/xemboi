@@ -106,6 +106,9 @@ class ConsultationSession(Base):
         BigInteger, ForeignKey("consultants.id", ondelete="CASCADE"), nullable=False, index=True
     )
     specialty: Mapped[str] = mapped_column(String(8), nullable=False, default="saju")
+    # 요청 로케일(ko|vi) — 세션 생성 시 get_locale 로 확정. 요약 상담서 언어·모델 선택 근거.
+    # 기존 행은 server_default 'ko'(한국 서비스 불변). DB 컬럼은 0015_locale 마이그레이션이 보강.
+    locale: Mapped[str] = mapped_column(String(2), nullable=False, default="ko", server_default="ko")
     status: Mapped[str] = mapped_column(
         String(16), nullable=False, default="requested", index=True
     )

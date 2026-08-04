@@ -1,4 +1,7 @@
+import { Trans } from "react-i18next";
+import { fmtNum } from "./lib/money";
 import { NavLink, Route, Routes, Link, Navigate, useLocation, useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { Ic, type IcName } from "./components/icons";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import ChatPage from "./pages/ChatPage";
@@ -52,6 +55,7 @@ function MenuIc({ k, ic }: { k: string; ic: IcName }) {
 
 export default function App() {
   const me = useMe();
+  const { t: tr } = useTranslation();
   // 사업자 정보(전자상거래법 footer) — 관리자 '사이트/회사정보' 입력값을 공개 API 로 읽어 반영.
   const [legal, setLegal] = useState<LegalInfo | null>(null);
   useEffect(() => { api.legalVersions().then(setLegal).catch(() => {}); }, []);
@@ -149,7 +153,7 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   async function delNavSession(id: string) {
-    if (!window.confirm("이 상담을 삭제할까요?")) return;
+    if (!window.confirm(tr("shell.session_delete_confirm"))) return;
     try { await api.deleteChatSession(id); } catch { /* ignore */ }
     if (curS === id) navigate("/chat");
     refreshNav();
@@ -199,9 +203,7 @@ export default function App() {
     );
   }
   function logout() {
-    const ok = window.confirm(
-      "로그아웃을 하면 개인정보, 일주정보와 채팅 히스토리는 이 기기에서 삭제됩니다.\n\n※ 동일 계정으로 재로그인하면 서버에 보관된 정보는 그대로 복원됩니다.\n\n진행할까요?"
-    );
+    const ok = window.confirm(tr("shell.logout_confirm"));
     if (!ok) return;
     const rt = localStorage.getItem("saju_refresh");
     if (rt) api.authLogout(rt);
@@ -211,20 +213,21 @@ export default function App() {
     location.href = "/login";
   }
   async function withdraw() {
-    const ok1 = window.confirm(
-      "⚠️ 정말 탈퇴하시겠습니까?\n\n탈퇴 시 계정, 개인정보, 사주/일주 정보, 모든 채팅 기록, 보유 포인트 및 결제 이력이 영구적으로 삭제되며 복원할 수 없습니다."
-    );
+    const ok1 = window.confirm(tr("shell.withdraw_confirm"));
     if (!ok1) return;
-    const phrase = window.prompt("확인을 위해 「탈퇴」 단어를 입력해 주세요.");
-    if (phrase !== "탈퇴") {
-      alert("탈퇴가 취소되었습니다.");
+    // 확인 게이트: 로케일별 확인단어(ko '탈퇴' / vi 'XÓA')를 입력. 대소문자·공백 무시로
+    // vi 자판 사용자도 탈퇴 가능(기존 한국어 정확일치 요구 버그 수정).
+    const word = tr("shell.withdraw_phrase");
+    const phrase = window.prompt(tr("shell.withdraw_prompt", { word }));
+    if ((phrase ?? "").trim().toLowerCase() !== word.toLowerCase()) {
+      alert(tr("shell.withdraw_cancelled"));
       return;
     }
     try {
       await api.deleteMe();
-      alert("탈퇴가 완료되었습니다. 그동안 이용해 주셔서 감사합니다.");
+      alert(tr("shell.withdraw_done"));
     } catch (e: any) {
-      alert(`탈퇴 실패: ${e?.message || e}`);
+      alert(tr("shell.withdraw_fail", { msg: e?.message || e }));
       return;
     }
     setToken(null);
@@ -233,32 +236,32 @@ export default function App() {
   }
   return (
     <div className="app-shell">
-      <button className="app-hamburger" aria-label="메뉴" onClick={() => setNavOpen((v) => !v)}>☰</button>
+      <button className="app-hamburger" aria-label={tr("shell.menu")} onClick={() => setNavOpen((v) => !v)}>☰</button>
       <div className={`app-sidebar-overlay ${navOpen ? "open" : ""}`} onClick={() => setNavOpen(false)} />
       <aside className={`app-sidebar ${navOpen ? "open" : ""}`}>
-        <Link className="app-brand" to="/" onClick={() => setNavOpen(false)} title="메인으로">
+        <Link className="app-brand" to="/" onClick={() => setNavOpen(false)} title={tr("shell.brand_home")}>
           <img className="app-brand-icon" src="/pwa-icon.svg" alt="" width={22} height={22} />
-          <span>인생상담 친구</span>
+          <span>{tr("brand")}</span>
           <img className="app-brand-seal" src="/brand-seal.png" alt="" width={15} height={15} />
         </Link>
         <button
           className="app-newchat"
           onClick={() => { window.dispatchEvent(new Event("saju:new-chat")); navigate("/chat"); setNavOpen(false); }}
         >
-          <Ic name="pencil" /> 새 상담
+          <Ic name="pencil" /> {tr("nav.new_consult")}
         </button>
         <nav className="app-nav">
-          <NavLink to="/chat" onClick={() => setNavOpen(false)} className={({ isActive }) => (isActive ? "active" : "")}><MenuIc k="chat" ic="chat" /> 상담</NavLink>
-          <NavLink to="/today" onClick={() => setNavOpen(false)} className={({ isActive }) => (isActive ? "active" : "")}><MenuIc k="today" ic="calendar" /> 오늘의 운세</NavLink>
-          <NavLink to="/calendar" onClick={() => setNavOpen(false)} className={({ isActive }) => (isActive ? "active" : "")}><MenuIc k="fcalendar" ic="calendar" /> 운세 캘린더</NavLink>
-          <NavLink to="/compatibility" onClick={() => setNavOpen(false)} className={({ isActive }) => (isActive ? "active" : "")}><MenuIc k="gunghap" ic="heart" /> 궁합</NavLink>
-          <NavLink to="/taekil" onClick={() => setNavOpen(false)} className={({ isActive }) => (isActive ? "active" : "")}><MenuIc k="taekil" ic="calendar" /> 택일</NavLink>
-          <NavLink to="/amulet" onClick={() => setNavOpen(false)} className={({ isActive }) => (isActive ? "active" : "")}><MenuIc k="amulet" ic="amulet" /> 부적</NavLink>
-          <NavLink to="/tarot" onClick={() => setNavOpen(false)} className={({ isActive }) => (isActive ? "active" : "")}><MenuIc k="tarot" ic="tarot" /> 타로</NavLink>
-          <NavLink to="/snack" onClick={() => setNavOpen(false)} className={({ isActive }) => (isActive ? "active" : "")}><MenuIc k="snack" ic="star" /> 무료 테스트</NavLink>
-          <NavLink to="/reviews" onClick={() => setNavOpen(false)} className={({ isActive }) => (isActive ? "active" : "")}><MenuIc k="reviews" ic="star" /> 이용 후기</NavLink>
-          <NavLink to="/payments" onClick={() => setNavOpen(false)} className={({ isActive }) => (isActive ? "active" : "")}><MenuIc k="bolt" ic="bolt" /> 충전</NavLink>
-          <NavLink to="/support" onClick={() => setNavOpen(false)} className={({ isActive }) => (isActive ? "active support-nav" : "support-nav")}><MenuIc k="mail" ic="mail" /> 고객센터</NavLink>
+          <NavLink to="/chat" onClick={() => setNavOpen(false)} className={({ isActive }) => (isActive ? "active" : "")}><MenuIc k="chat" ic="chat" /> {tr("nav.consult")}</NavLink>
+          <NavLink to="/today" onClick={() => setNavOpen(false)} className={({ isActive }) => (isActive ? "active" : "")}><MenuIc k="today" ic="calendar" /> {tr("nav.today")}</NavLink>
+          <NavLink to="/calendar" onClick={() => setNavOpen(false)} className={({ isActive }) => (isActive ? "active" : "")}><MenuIc k="fcalendar" ic="calendar" /> {tr("nav.fcalendar")}</NavLink>
+          <NavLink to="/compatibility" onClick={() => setNavOpen(false)} className={({ isActive }) => (isActive ? "active" : "")}><MenuIc k="gunghap" ic="heart" /> {tr("nav.compat")}</NavLink>
+          <NavLink to="/taekil" onClick={() => setNavOpen(false)} className={({ isActive }) => (isActive ? "active" : "")}><MenuIc k="taekil" ic="calendar" /> {tr("nav.taekil")}</NavLink>
+          <NavLink to="/amulet" onClick={() => setNavOpen(false)} className={({ isActive }) => (isActive ? "active" : "")}><MenuIc k="amulet" ic="amulet" /> {tr("nav.amulet")}</NavLink>
+          <NavLink to="/tarot" onClick={() => setNavOpen(false)} className={({ isActive }) => (isActive ? "active" : "")}><MenuIc k="tarot" ic="tarot" /> {tr("nav.tarot")}</NavLink>
+          <NavLink to="/snack" onClick={() => setNavOpen(false)} className={({ isActive }) => (isActive ? "active" : "")}><MenuIc k="snack" ic="star" /> {tr("nav.snack")}</NavLink>
+          <NavLink to="/reviews" onClick={() => setNavOpen(false)} className={({ isActive }) => (isActive ? "active" : "")}><MenuIc k="reviews" ic="star" /> {tr("nav.reviews")}</NavLink>
+          <NavLink to="/payments" onClick={() => setNavOpen(false)} className={({ isActive }) => (isActive ? "active" : "")}><MenuIc k="bolt" ic="bolt" /> {tr("nav.charge")}</NavLink>
+          <NavLink to="/support" onClick={() => setNavOpen(false)} className={({ isActive }) => (isActive ? "active support-nav" : "support-nav")}><MenuIc k="mail" ic="mail" /> {tr("nav.support")}</NavLink>
           {/* 앱 설치 — 다른 메뉴와 동일 UI(FLUX 메달리온 아이콘) · 스누즈 무관 상시 진입점 */}
           <button type="button" className="app-install-btn"
                   onClick={() => { setNavOpen(false); window.dispatchEvent(new CustomEvent("saju:open-install-guide")); }}>
@@ -285,9 +288,9 @@ export default function App() {
         </nav>
         {me && (
           <div className="app-sessions">
-            <div className="app-sessions-label">최근 상담</div>
+            <div className="app-sessions-label">{tr("shell.sidebar_recent")}</div>
             <div className="app-session-list">
-              {navSessions.length === 0 && <div className="app-session-empty">아직 상담이 없어요</div>}
+              {navSessions.length === 0 && <div className="app-session-empty">{tr("shell.sidebar_empty")}</div>}
               {navSessions.map((s) => (
                 <div
                   key={s.session_id}
@@ -296,7 +299,7 @@ export default function App() {
                   <span className="t" onClick={() => { navigate(`/chat?s=${s.session_id}`); setNavOpen(false); }}>
                     {s.title || s.birth_date}
                   </span>
-                  <button className="x" title="삭제" onClick={() => delNavSession(s.session_id)}>×</button>
+                  <button className="x" title={tr("shell.session_delete")} onClick={() => delNavSession(s.session_id)}>×</button>
                 </div>
               ))}
             </div>
@@ -308,26 +311,26 @@ export default function App() {
           <AdSlot slot="side_2" height={120} adsenseSlot={import.meta.env.VITE_ADSENSE_SLOT_SIDE2 as string | undefined} />
         </div>
         <div className="app-sidebar-foot">
-          <button onClick={toggle} className="theme-toggle" title="테마 전환" aria-label="테마 전환">
-            {theme === "dark" ? "☀️ 라이트" : "🌙 다크"}
+          <button onClick={toggle} className="theme-toggle" title={tr("shell.theme_toggle")} aria-label={tr("shell.theme_toggle")}>
+            {theme === "dark" ? `☀️ ${tr("theme.light")}` : `🌙 ${tr("theme.dark")}`}
           </button>
           {me ? (
             <>
               <div className="app-account-name">{me.nickname || me.email}</div>
-              <div className="app-account-bal">{me.balance.toLocaleString()} P</div>
+              <div className="app-account-bal">{fmtNum(me.balance)} {tr("pay.pt")}</div>
               <div className="app-account-actions">
-                <button className="ghost" onClick={logout}>로그아웃</button>
-                <button className="ghost" style={{ color: "#991b1b" }} onClick={withdraw}>탈퇴</button>
+                <button className="ghost" onClick={logout}>{tr("nav.logout")}</button>
+                <button className="ghost" style={{ color: "#991b1b" }} onClick={withdraw}>{tr("nav.withdraw")}</button>
               </div>
             </>
           ) : (
-            <NavLink to="/login" className="app-login-btn" onClick={() => setNavOpen(false)}>로그인</NavLink>
+            <NavLink to="/login" className="app-login-btn" onClick={() => setNavOpen(false)}>{tr("nav.login")}</NavLink>
           )}
         </div>
       </aside>
       <div className="app-content">
       {showTarotShortcut && (
-        <Link className="tarot-shortcut" to="/tarot" title="타로 리딩 — 카드가 전하는 이야기" aria-label="타로 리딩 보러가기">
+        <Link className="tarot-shortcut" to="/tarot" title={tr("shell.tarot_shortcut_title")} aria-label={tr("shell.tarot_shortcut_aria")}>
           <span className="tsc-emblem" aria-hidden>
             <img className="tsc-img" src="/tarot/tarot-badge.webp" alt="" width={40} height={40}
                  onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
@@ -346,7 +349,7 @@ export default function App() {
           </span>
           <span className="tsc-labels">
             <span className="tsc-text">TAROT</span>
-            <span className="tsc-sub">타로</span>
+            <span className="tsc-sub">{tr("nav.tarot")}</span>
           </span>
         </Link>
       )}
@@ -388,36 +391,34 @@ export default function App() {
       </div>
         <footer className="app-footer">
           <div className="app-footer-links">
-            <Link to="/legal/terms">이용약관</Link>
-            <Link to="/legal/privacy" className="footer-strong">개인정보처리방침</Link>
-            <Link to="/legal/refund">환불정책</Link>
-            <Link to="/legal/disclaimer">면책고지</Link>
-            {/* 입점 문의 — 상담사 모집 진입점(운영자 확정: 사이드바 대신 푸터). 메달리온 아이콘 pill로 강조 */}
-            <Link to="/partner-apply" className="partner-inquiry-link"><MenuIc k="partner" ic="heart" /> 상담사 입점 문의</Link>
+            <Link to="/legal/terms">{tr("legal.title_terms")}</Link>
+            <Link to="/legal/privacy" className="footer-strong">{tr("legal.title_privacy")}</Link>
+            <Link to="/legal/refund">{tr("legal.title_refund")}</Link>
+            <Link to="/legal/disclaimer">{tr("legal.title_disclaimer")}</Link>
           </div>
           {legal?.business && (
             <div className="app-footer-biz">
               {legal.business.name && <span><b>{legal.business.name}</b></span>}
-              {legal.business.ceo && <span>대표 {legal.business.ceo}</span>}
-              {legal.business.reg_no && <span>사업자등록번호 {legal.business.reg_no}</span>}
-              <span>통신판매업 신고 {legal.business.mailorder_no || "준비 중"}</span>
+              {legal.business.ceo && <span>{tr("shell.biz_ceo")} {legal.business.ceo}</span>}
+              {legal.business.reg_no && <span>{tr("shell.biz_reg_no")} {legal.business.reg_no}</span>}
+              <span>{tr("shell.biz_mailorder")} {legal.business.mailorder_no || tr("shell.biz_mailorder_pending")}</span>
               {legal.business.address && <span>{legal.business.address}</span>}
-              {legal.business.tel && <span>고객센터 {legal.business.tel}</span>}
-              {legal.business.hours && <span>운영시간 {legal.business.hours}</span>}
+              {legal.business.tel && <span>{tr("shell.biz_tel")} {legal.business.tel}</span>}
+              {legal.business.hours && <span>{tr("shell.biz_hours")} {legal.business.hours}</span>}
               {legal.business.email && (
                 <span>
-                  이메일{" "}
+                  {tr("shell.biz_email")}{" "}
                   {legal.business.email.split(/[,;]/).map((e) => e.trim()).filter(Boolean).map((e, i) => (
                     <span key={e}>{i > 0 && " · "}<a href={`mailto:${e}`}>{e}</a></span>
                   ))}
                 </span>
               )}
-              {legal.business.privacy_officer && <span>개인정보보호책임자 {legal.business.privacy_officer}</span>}
-              {legal.business.hosting && <span>호스팅 {legal.business.hosting}</span>}
+              {legal.business.privacy_officer && <span>{tr("shell.biz_privacy_officer")} {legal.business.privacy_officer}</span>}
+              {legal.business.hosting && <span>{tr("shell.biz_hosting")} {legal.business.hosting}</span>}
             </div>
           )}
-          <p className="app-footer-copy">© {new Date().getFullYear()} {legal?.business?.name || legal?.service_name || "인생상담 친구"}. All rights reserved.</p>
-          <p className="app-footer-note">본 서비스 응답은 학습 자료 기반 참고용입니다. 의료·법률·투자 자문이 아닙니다.</p>
+          <p className="app-footer-copy">© {new Date().getFullYear()} {legal?.business?.name || legal?.service_name || tr("brand")}. All rights reserved.</p>
+          <p className="app-footer-note">{tr("shell.footer_note")}</p>
         </footer>
       </div>
       <InstallPrompt />
@@ -448,34 +449,34 @@ export default function App() {
       {/* 상담사 알림 자동 구독 — 로그인 상담사면 오프라인에도 접수 알림 받도록(허용 1클릭 배너/무음 재등록) */}
       <ConsultantPushPrompt active={isConsultant} />
       {me ? (
-        <button className="charge-fab" onClick={() => openCharge()} aria-label={`내 포인트 ${(me.balance ?? 0).toLocaleString()}P · 충전하기`}>
+        <button className="charge-fab" onClick={() => openCharge()} aria-label={tr("pay.bal_charge", { bal: fmtNum(me.balance ?? 0) })}>
           <span className="cfab-bal">
             <span className="cfab-ic" aria-hidden>💰</span>
-            <span className="cfab-amt">{(me.balance ?? 0).toLocaleString()}<small>P</small></span>
+            <span className="cfab-amt">{fmtNum(me.balance ?? 0)}<small>{tr("pay.pt")}</small></span>
           </span>
-          <span className="cfab-go">＋ 충전</span>
+          <span className="cfab-go">＋ {tr("nav.charge")}</span>
         </button>
       ) : !loc.pathname.startsWith("/login") ? (
-        <NavLink to="/login" className="login-fab" onClick={() => setNavOpen(false)} aria-label="로그인">
+        <NavLink to="/login" className="login-fab" onClick={() => setNavOpen(false)} aria-label={tr("nav.login")}>
           <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden>
             <path fill="currentColor" d="M12 12a5 5 0 100-10 5 5 0 000 10zm0 2c-5 0-9 2.5-9 6v2h18v-2c0-3.5-4-6-9-6z" />
           </svg>
-          <span>로그인</span>
+          <span>{tr("nav.login")}</span>
         </NavLink>
       ) : null}
       <ProgressDock />{/* 전역 진행 dock(영상·PDF·감정서). 작업 없을 땐 null → 비로그인도 무해 */}
       {me && idle.warning && (
-        <div className="pwa-overlay" role="alertdialog" aria-label="유휴 자동 로그아웃 경고">
+        <div className="pwa-overlay" role="alertdialog" aria-label={tr("shell.idle_aria")}>
           <div className="pwa-modal">
-            <h3>자동 로그아웃 안내</h3>
+            <h3>{tr("shell.idle_title")}</h3>
             <p>
-              일정 시간 활동이 없어 곧 자동으로 로그아웃됩니다.
+              {tr("shell.idle_body")}
               <br />
-              <strong>{idle.remaining}</strong>초 후 로그아웃됩니다.
+              <Trans i18nKey="shell.idle_seconds" values={{ n: idle.remaining }} components={{ b: <strong /> }} />
             </p>
             <div className="pwa-actions">
-              <button onClick={idle.stayActive}>계속 이용하기</button>
-              <button className="ghost" onClick={forceLogout}>로그아웃</button>
+              <button onClick={idle.stayActive}>{tr("shell.idle_stay")}</button>
+              <button className="ghost" onClick={forceLogout}>{tr("nav.logout")}</button>
             </div>
           </div>
         </div>
