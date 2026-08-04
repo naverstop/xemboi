@@ -59,6 +59,8 @@ class User(Base):
     free_quota_period: Mapped[str | None] = mapped_column(String(7), nullable=True)
     # 답변 말투/방언(계획 P): standard | gyeongsang | jeolla | gangwon | jeju
     answer_dialect: Mapped[str] = mapped_column(String(16), nullable=False, default="standard")
+    # 로케일(ko|vi) — 언어·역법·독음 축. 기존 회원은 'ko'. answer_dialect(방언)는 ko 전용.
+    locale: Mapped[str] = mapped_column(String(2), nullable=False, default="ko", server_default="ko")
     # 유료/멤버십 캐시(계획 5.2)
     membership_expires_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     is_premium: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
@@ -407,5 +409,7 @@ class SajuProfile(Base):
     birth_longitude: Mapped[float | None] = mapped_column(EncryptedFloat, nullable=True)
     apply_equation_of_time: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     night_zi_mode: Mapped[str | None] = mapped_column(String(8), nullable=True)  # yaja/jeongja
+    # 로케일(ko|vi) — 이 프로필의 역법/독음(vi=베트남 음력·한월음)
+    locale: Mapped[str] = mapped_column(String(2), nullable=False, default="ko", server_default="ko")
     is_default: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
