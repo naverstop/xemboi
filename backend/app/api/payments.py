@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
@@ -66,6 +66,23 @@ def my_history(
     user: User = Depends(get_current_user),
 ) -> dict[str, Any]:
     return {"items": svc.list_my_payments(db, user)}
+
+
+@router.get("/transactions")
+def my_transactions(
+    limit: int = Query(100, ge=1, le=300),
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> dict[str, Any]:
+    """회원 본인 포인트 원장(충전·차감·환불·리워드 전부, 최신순) — 비로그인 401.
+
+    '잔액은 줄었는데 쓴 기록이 없다'는 오해를 없애기 위한 사용자용 투명 조회.
+    관리자용 list_transactions 를 그대로 재사용(본인 user.id 로 스코프 고정)."""
+    from backend.app.services import admin_service
+    return {
+        "items": admin_service.list_transactions(db, user.id, limit=limit),
+        "summary": admin_service.credit_ledger_summary(db, user.id),   # 충전+적립−사용=잔액 정합성 대조용
+    }
 
 
 class RefundReq(BaseModel):

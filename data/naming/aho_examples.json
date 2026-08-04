@@ -1,0 +1,110 @@
+{
+  "version": "draft-2 (감수 재확인 2026-07-22)",
+  "note": "설명용 실존 호 사례. LLM 은 이 표에 있는 사례만 인용할 수 있고, 표에 없는 인물의 호 유래를 지어내면 안 된다. origin_story 가 null 이면 유래가 확인되지 않은 것이므로 호 표기만 쓰고 유래를 만들어 붙이지 말 것. ⚠️source 는 그 서술을 **실제로 담고 있는** 페이지여야 한다 — 1차 작성 때 '인물 항목'만 달아 놓고 정작 유래 서술이 없는 경우가 6건 있었다(감수 재확인에서 교체).",
+  "examples": [
+    {
+      "ho": "퇴계", "hanja": "退溪", "person": "이황", "type": "socheo",
+      "origin_story": "46세에 고향 낙동강 상류 토계(兎溪)로 물러나 양진암을 짓고 지내며, 그 지명을 퇴계(退溪)로 고쳐 호로 삼음",
+      "confidence": "high",
+      "source": "https://contents.history.go.kr/mobile/eh/view.do?levelId=eh_n0415_0010 · https://encykorea.aks.ac.kr/Article/E0046626"
+    },
+    {
+      "ho": "화담", "hanja": "花潭", "person": "서경덕", "type": "socheo",
+      "origin_story": "서른 무렵부터 만년까지 지낸 개성 화담(花潭)에 서재를 짓고 살아, 그 지명을 호로 삼음",
+      "note": "1차 작성 때 '만년에 살던'이라 적었으나 1519년(31세 무렵) 정착해 1546년 몰년까지 그곳에 있었다 — 시기 서술을 바로잡음.",
+      "confidence": "high",
+      "source": "https://encykorea.aks.ac.kr/Article/E0027580"
+    },
+    {
+      "ho": "다산", "hanja": "茶山", "person": "정약용", "type": "socheo",
+      "origin_story": "유배지 강진 만덕산 기슭의 지명 다산(茶山)에서 따옴 — 1808년 그곳 초당으로 옮겨 십여 년을 머묾",
+      "note": "'차나무가 많아 붙은 이름'이라는 통설은 공신력 출처로 확정하지 못해 넣지 않았다.",
+      "confidence": "medium",
+      "source": "https://encykorea.aks.ac.kr/Article/E0050060 · https://encykorea.aks.ac.kr/Article/E0013467"
+    },
+    {
+      "ho": "여유당", "hanja": "與猶堂", "person": "정약용", "type": "soji",
+      "origin_story": "『도덕경』의 '겨울에 시내를 건너듯 조심하고 사방 이웃을 두려워하듯 경계한다'는 구절에서 앞 글자 여(與)·유(猶)를 따 지은 당호",
+      "note": "「여유당기」 원문은 대조하지 못했다(한국고전종합DB 접속 불가).",
+      "confidence": "medium",
+      "source": "https://contents.history.go.kr/mobile/kc/view.do?levelId=kc_r300725"
+    },
+    {
+      "ho": "단원", "hanja": "檀園", "person": "김홍도", "type": null, "aux": "citation",
+      "origin_story": "평소 존경하던 명나라 문인화가 이유방(李流芳)의 호를 그대로 따 자호함",
+      "confidence": "high",
+      "source": "https://contents.history.go.kr/mobile/kc/view.do?levelId=kc_n303100"
+    },
+    {
+      "ho": "목은", "hanja": "牧隱", "person": "이색", "type": null,
+      "group_note": "고려 말 삼은(三隱)의 하나",
+      "origin_story": null,
+      "origin_status": "호 표기와 '은(隱)'자 공유는 확인. 牧을 택한 작호 유래는 확정 전거 미확인",
+      "confidence": "medium",
+      "source": "https://encykorea.aks.ac.kr/Article/E0044640 · https://encykorea.aks.ac.kr/Article/E0026752"
+    },
+    {
+      "ho": "포은", "hanja": "圃隱", "person": "정몽주", "type": null,
+      "group_note": "고려 말 삼은(三隱)의 하나",
+      "origin_story": null,
+      "origin_status": "호 표기는 확인. 圃를 택한 작호 유래는 확정 전거 미확인",
+      "confidence": "medium",
+      "source": "https://encykorea.aks.ac.kr/Article/E0050190 · https://encykorea.aks.ac.kr/Article/E0026752"
+    },
+    {
+      "ho": "야은", "hanja": "冶隱", "person": "길재", "type": null,
+      "group_note": "고려 말 삼은(三隱)의 하나. 다른 호로 금오산인(金烏山人)",
+      "origin_story": null,
+      "origin_status": "호 표기와 금오산 은거는 확인. 冶를 택한 작호 유래는 확정 전거 미확인",
+      "confidence": "medium",
+      "source": "https://encykorea.aks.ac.kr/Article/E0007909"
+    },
+    {
+      "ho": "역옹", "hanja": "櫟翁", "person": "이제현", "type": null,
+      "origin_story": null,
+      "origin_status": "2자 호 표기는 확인. 櫟(상수리나무)을 택한 작호 유래는 확정 전거 미확인",
+      "note": "翁 접미의 실존 근거로 넣음 — 이게 없으면 근거가 부실한 士만 가산을 받는 역전이 생긴다.",
+      "confidence": "medium",
+      "source": "https://encykorea.aks.ac.kr/Article/E0045877"
+    },
+    {
+      "ho": "백범", "hanja": "白凡", "person": "김구", "type": "soji",
+      "origin_story": "백정(白丁)의 '백'과 범부(凡夫)의 '범'을 따, 가장 낮은 백성들까지 자기만 한 애국심을 갖기를 바라는 뜻으로 1911년 옥중에서 지음",
+      "note": "1차 작성 때 '가장 낮은 백성을 자처함'이라 적었으나 취지가 다르다 — 자처가 아니라 바람이다.",
+      "confidence": "high",
+      "source": "https://contents.history.go.kr/mobile/kc/view.do?levelId=kc_n400245"
+    },
+    {
+      "ho": "백운거사", "hanja": "白雲居士", "person": "이규보", "type": null,
+      "origin_story": null,
+      "origin_status": "25세 무렵 개경 천마산 시절 자호한 것으로 확인. 명명 이유는 본인의 「백운거사어록」에 실려 있으나 원문 대조 전",
+      "note": "1차 작성 때 type 을 'sochuk'으로 배정했으나 어느 출처에서도 확인되지 않아 null 로 되돌림 — 백과사전은 네 유형을 정의만 하고 인물별 배정을 하지 않는다.",
+      "confidence": "medium",
+      "source": "https://encykorea.aks.ac.kr/Article/E0043772"
+    },
+    {
+      "ho": "한힌샘", "hanja": null, "person": "주시경", "type": null,
+      "origin_story": "근현대의 순우리말 호",
+      "confidence": "high",
+      "source": "https://encykorea.aks.ac.kr/Article/E0063656"
+    },
+    {
+      "ho": "외솔", "hanja": null, "person": "최현배", "type": null,
+      "origin_story": "근현대의 순우리말 호",
+      "confidence": "high",
+      "source": "https://encykorea.aks.ac.kr/Article/E0063656"
+    },
+    {
+      "ho": "가람", "hanja": null, "person": "이병기", "type": null,
+      "origin_story": "근현대의 순우리말 호",
+      "confidence": "high",
+      "source": "https://encykorea.aks.ac.kr/Article/E0063656"
+    },
+    {
+      "ho": "늘봄", "hanja": null, "person": "전영택", "type": null,
+      "origin_story": "근현대의 순우리말 호",
+      "confidence": "high",
+      "source": "https://encykorea.aks.ac.kr/Article/E0063656"
+    }
+  ]
+}

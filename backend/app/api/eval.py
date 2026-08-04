@@ -67,7 +67,8 @@ def _read_runs(limit: int = 200) -> tuple[list[dict], int]:
 
 
 @router.get("/runs")
-def list_runs(limit: int = 200) -> dict:
+def list_runs(limit: int = 200, admin: User = Depends(require_admin)) -> dict:
+    # 관리자 전용 — 내부 데이터셋 경로·RAG 품질지표 노출 방지(/status·/run 과 통일).
     rows, skipped = _read_runs(limit)
     return {"runs": rows, "count": len(rows), "skipped_malformed": skipped}
 
@@ -80,24 +81,51 @@ def eval_status(admin: User = Depends(require_admin)) -> dict:
 
 class RunEvalReq(BaseModel):
     tag: str | None = None
-    top_k: int = 8
+    # 0 = 운영 설정(rag_top_k_default)을 따른다. 예전 기본 8은 운영(4)의 두 배였다(P3-D2).
+    top_k: int = 0
 
 
 def _run_eval_bg(tag: str, top_k: int, qdrant_url: str, collection: str) -> None:
-    """별도 스레드에서 RAG retrieval 평가 1회 실행 후 runs.jsonl 에 append."""
+    """RAG retrieval 평가 1회를 **별도 프로세스**로 돌리고 runs.jsonl 에 append.
+
+    [P3-D7 2026-07-22] 예전에는 이 함수가 인프로세스에서 evaluate() 를 직접 호출했다.
+    그런데 eval 쪽 SajuRetriever 는 device 미지정 → torch 기본 'cuda' 를 잡고, 백엔드는
+    saju_start.bat 에서 CUDA_VISIBLE_DEVICES=1 로 뜨므로 그 'cuda' 가 곧 **ollama·리랭커가
+    쓰는 GPU1**이었다. 실측 GPU1 여유 1,129MiB / BGE-m3 약 2.3GB → 관리자가 '지금 평가 실행'을
+    누르면 CUDA OOM 이 나거나 VRAM 을 영구 점유한다. 게다가 _load_embedder 는 device 가 캐시
+    키인 lru_cache(maxsize=1) 이라 운영용 CPU 임베더가 캐시에서 축출된다.
+    → 야간 배치(scheduler._run_rag_eval_batch)와 똑같이 CUDA_VISIBLE_DEVICES=-1 서브프로세스로 뺀다.
+    """
+    import os
+    import subprocess
+    import sys
+
     error: str | None = None
     summary: dict | None = None
     try:
-        from ml.eval.eval_retrieval import DEFAULT_DATASET, append_run, eval_lock, evaluate
+        from ml.eval.eval_retrieval import eval_lock   # PROJECT_ROOT·RUNS_PATH 는 이 모듈 것 사용
 
         # 교차 가드 락: 스케줄러 서브프로세스 평가가 이 락(PID 파일)을 보고 그날 실행을
         # 미루도록 한다(웹서버 ↔ 배치 프로세스 동시 평가 방지).
         with eval_lock():
-            result = evaluate(
-                DEFAULT_DATASET, top_k=top_k, qdrant_url=qdrant_url, collection=collection
-            )
-            append_run(result, tag)
-            summary = result["summary"]
+            cmd = [sys.executable, "-u", "-m", "ml.eval.eval_retrieval",
+                   "--tag", tag, "--qdrant-url", qdrant_url, "--collection", collection]
+            if top_k:
+                cmd += ["--top-k", str(top_k)]
+            env = dict(os.environ)
+            env.setdefault("PYTHONPATH", str(PROJECT_ROOT))
+            env["CUDA_VISIBLE_DEVICES"] = "-1"   # CPU 강제("" 는 torch 에서 무효)
+            before = RUNS_PATH.stat().st_size if RUNS_PATH.exists() else 0
+            proc = subprocess.run(cmd, cwd=str(PROJECT_ROOT), env=env,
+                                  capture_output=True, text=True, timeout=1800)
+            if proc.returncode != 0:
+                tail = (proc.stdout or "")[-400:] + (proc.stderr or "")[-400:]
+                raise RuntimeError(f"eval exited {proc.returncode}: {tail.strip()[:600]}")
+            # 서브프로세스가 직접 append 하므로 마지막 줄을 되읽어 요약을 얻는다.
+            if RUNS_PATH.exists() and RUNS_PATH.stat().st_size > before:
+                lines = [ln for ln in RUNS_PATH.read_text(encoding="utf-8").splitlines() if ln.strip()]
+                if lines:
+                    summary = json.loads(lines[-1])
     except Exception as e:  # noqa: BLE001  — 실패 사유를 상태로 노출
         error = f"{type(e).__name__}: {e}"
     finally:
@@ -146,5 +174,8 @@ def run_eval(req: RunEvalReq, admin: User = Depends(require_admin)) -> dict:
     return {
         "status": "started",
         "tag": tag,
-        "message": "RAG 평가를 시작했습니다 (백그라운드). 49개 질문 검색에 보통 10~60초 걸립니다.",
+        # 문항 수를 하드코딩하지 않는다 — 실제로는 50문항인데 49로 적혀 있었다(파일 끝 개행 누락
+        # 때문에 wc -l 이 49로 나온 것을 그대로 옮긴 오류). 골든셋이 바뀌면 또 어긋난다.
+        "message": ("RAG 평가를 시작했습니다 (백그라운드). 별도 프로세스·CPU로 돌며 보통 1~3분 걸립니다. "
+                    "운영과 동일한 게이트(리랭커·임계·top_k)로 재므로 예전 런보다 점수가 낮게 나옵니다."),
     }

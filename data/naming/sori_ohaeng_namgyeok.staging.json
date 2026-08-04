@@ -1,0 +1,648 @@
+{
+ "rule_summary": "소리오행(=발음오행=음령오행) 名格 판정 원리. 한글 초성(경우에 따라 종성 포함)을 오행으로 치환해 성+이름 3자를 오행 3배열로 만든 뒤, 이웃한 글자끼리의 관계로 길흉을 본다. (1) 초성→오행 치환: 木=ㄱㅋ / 火=ㄴㄷㄹㅌ / 土=ㅇㅎ / 金=ㅅㅈㅊ / 水=ㅁㅂㅍ (술가오행 기준, 실무 70~80%가 사용). (2) 오행 상생 순환 木生火→火生土→土生金→金生水→水生木 이면 '길', 상극(木克土·土克水·水克火·火克金·金克木) 이면 '흉', 같은 오행 연속(비화)은 중립. (3) 3자 배열의 인접 2쌍이 모두 상생이면 대길(경쟁사 '매우좋음' 배지), 한 쌍이라도 상극이면 흉. 실제 사이트 예로 김기동(木木火 계열, 상생)=길, 홍길동(土火火→土克? 실제 상극 포함)=흉으로 판정. 파생 계산으로 金水金=매우좋음이 나와 경쟁사 '금수금=부귀공명격·매우좋음'과 일치한다. ※주의: '부귀공명격'처럼 특정 배열에 붙는 고유 名格 명칭 자체는 전통 문헌·성명학 자료에서 교차확인되지 않았고, 상업 작명프로그램의 마케팅성 라벨로 보인다. 아래 combos의 name_ko는 상생/상극 구조에서 파생한 등급 라벨(전통 고유명 아님)이다.",
+ "relation_rule": "3자 오행 배열 e1e2e3에서 인접쌍 (e1,e2),(e2,e3) 각각 판정: 상생(한쪽이 다른쪽을 生, 방향 무관)=+, 비화(동일 오행)=중립, 상극=−. 종합: 상생+상생→매우좋음(순환상생 대길), 상생+비화→좋음, 비화+비화(동일오행 3연속)→보통, 어느 한 쌍이라도 상극 포함→나쁨, 상극+상극→매우나쁨. 상생 순환: 木生火·火生土·土生金·金生水·水生木. 상극: 木克土·土克水·水克火·火克金·金克木. (학설: A=초성만 상생, B=초성+종성 모두 상생, C=A·B 동시충족. 다수 학자는 3학설 병용 인정.)",
+ "combos": [
+  {
+   "pattern": "木木木",
+   "name_ko": "비화평격",
+   "fortune": "보통"
+  },
+  {
+   "pattern": "木木火",
+   "name_ko": "상생길격",
+   "fortune": "좋음"
+  },
+  {
+   "pattern": "木木土",
+   "name_ko": "상극흉격",
+   "fortune": "나쁨"
+  },
+  {
+   "pattern": "木木金",
+   "name_ko": "상극흉격",
+   "fortune": "나쁨"
+  },
+  {
+   "pattern": "木木水",
+   "name_ko": "상생길격",
+   "fortune": "좋음"
+  },
+  {
+   "pattern": "木火木",
+   "name_ko": "상생대길격",
+   "fortune": "매우좋음"
+  },
+  {
+   "pattern": "木火火",
+   "name_ko": "상생길격",
+   "fortune": "좋음"
+  },
+  {
+   "pattern": "木火土",
+   "name_ko": "상생대길격",
+   "fortune": "매우좋음"
+  },
+  {
+   "pattern": "木火金",
+   "name_ko": "상극흉격",
+   "fortune": "나쁨"
+  },
+  {
+   "pattern": "木火水",
+   "name_ko": "상극흉격",
+   "fortune": "나쁨"
+  },
+  {
+   "pattern": "木土木",
+   "name_ko": "상극대흉격",
+   "fortune": "매우나쁨"
+  },
+  {
+   "pattern": "木土火",
+   "name_ko": "상극흉격",
+   "fortune": "나쁨"
+  },
+  {
+   "pattern": "木土土",
+   "name_ko": "상극흉격",
+   "fortune": "나쁨"
+  },
+  {
+   "pattern": "木土金",
+   "name_ko": "상극흉격",
+   "fortune": "나쁨"
+  },
+  {
+   "pattern": "木土水",
+   "name_ko": "상극대흉격",
+   "fortune": "매우나쁨"
+  },
+  {
+   "pattern": "木金木",
+   "name_ko": "상극대흉격",
+   "fortune": "매우나쁨"
+  },
+  {
+   "pattern": "木金火",
+   "name_ko": "상극대흉격",
+   "fortune": "매우나쁨"
+  },
+  {
+   "pattern": "木金土",
+   "name_ko": "상극흉격",
+   "fortune": "나쁨"
+  },
+  {
+   "pattern": "木金金",
+   "name_ko": "상극흉격",
+   "fortune": "나쁨"
+  },
+  {
+   "pattern": "木金水",
+   "name_ko": "상극흉격",
+   "fortune": "나쁨"
+  },
+  {
+   "pattern": "木水木",
+   "name_ko": "상생대길격",
+   "fortune": "매우좋음"
+  },
+  {
+   "pattern": "木水火",
+   "name_ko": "상극흉격",
+   "fortune": "나쁨"
+  },
+  {
+   "pattern": "木水土",
+   "name_ko": "상극흉격",
+   "fortune": "나쁨"
+  },
+  {
+   "pattern": "木水金",
+   "name_ko": "상생대길격",
+   "fortune": "매우좋음"
+  },
+  {
+   "pattern": "木水水",
+   "name_ko": "상생길격",
+   "fortune": "좋음"
+  },
+  {
+   "pattern": "火木木",
+   "name_ko": "상생길격",
+   "fortune": "좋음"
+  },
+  {
+   "pattern": "火木火",
+   "name_ko": "상생대길격",
+   "fortune": "매우좋음"
+  },
+  {
+   "pattern": "火木土",
+   "name_ko": "상극흉격",
+   "fortune": "나쁨"
+  },
+  {
+   "pattern": "火木金",
+   "name_ko": "상극흉격",
+   "fortune": "나쁨"
+  },
+  {
+   "pattern": "火木水",
+   "name_ko": "상생대길격",
+   "fortune": "매우좋음"
+  },
+  {
+   "pattern": "火火木",
+   "name_ko": "상생길격",
+   "fortune": "좋음"
+  },
+  {
+   "pattern": "火火火",
+   "name_ko": "비화평격",
+   "fortune": "보통"
+  },
+  {
+   "pattern": "火火土",
+   "name_ko": "상생길격",
+   "fortune": "좋음"
+  },
+  {
+   "pattern": "火火金",
+   "name_ko": "상극흉격",
+   "fortune": "나쁨"
+  },
+  {
+   "pattern": "火火水",
+   "name_ko": "상극흉격",
+   "fortune": "나쁨"
+  },
+  {
+   "pattern": "火土木",
+   "name_ko": "상극흉격",
+   "fortune": "나쁨"
+  },
+  {
+   "pattern": "火土火",
+   "name_ko": "상생대길격",
+   "fortune": "매우좋음"
+  },
+  {
+   "pattern": "火土土",
+   "name_ko": "상생길격",
+   "fortune": "좋음"
+  },
+  {
+   "pattern": "火土金",
+   "name_ko": "상생대길격",
+   "fortune": "매우좋음"
+  },
+  {
+   "pattern": "火土水",
+   "name_ko": "상극흉격",
+   "fortune": "나쁨"
+  },
+  {
+   "pattern": "火金木",
+   "name_ko": "상극대흉격",
+   "fortune": "매우나쁨"
+  },
+  {
+   "pattern": "火金火",
+   "name_ko": "상극대흉격",
+   "fortune": "매우나쁨"
+  },
+  {
+   "pattern": "火金土",
+   "name_ko": "상극흉격",
+   "fortune": "나쁨"
+  },
+  {
+   "pattern": "火金金",
+   "name_ko": "상극흉격",
+   "fortune": "나쁨"
+  },
+  {
+   "pattern": "火金水",
+   "name_ko": "상극흉격",
+   "fortune": "나쁨"
+  },
+  {
+   "pattern": "火水木",
+   "name_ko": "상극흉격",
+   "fortune": "나쁨"
+  },
+  {
+   "pattern": "火水火",
+   "name_ko": "상극대흉격",
+   "fortune": "매우나쁨"
+  },
+  {
+   "pattern": "火水土",
+   "name_ko": "상극대흉격",
+   "fortune": "매우나쁨"
+  },
+  {
+   "pattern": "火水金",
+   "name_ko": "상극흉격",
+   "fortune": "나쁨"
+  },
+  {
+   "pattern": "火水水",
+   "name_ko": "상극흉격",
+   "fortune": "나쁨"
+  },
+  {
+   "pattern": "土木木",
+   "name_ko": "상극흉격",
+   "fortune": "나쁨"
+  },
+  {
+   "pattern": "土木火",
+   "name_ko": "상극흉격",
+   "fortune": "나쁨"
+  },
+  {
+   "pattern": "土木土",
+   "name_ko": "상극대흉격",
+   "fortune": "매우나쁨"
+  },
+  {
+   "pattern": "土木金",
+   "name_ko": "상극대흉격",
+   "fortune": "매우나쁨"
+  },
+  {
+   "pattern": "土木水",
+   "name_ko": "상극흉격",
+   "fortune": "나쁨"
+  },
+  {
+   "pattern": "土火木",
+   "name_ko": "상생대길격",
+   "fortune": "매우좋음"
+  },
+  {
+   "pattern": "土火火",
+   "name_ko": "상생길격",
+   "fortune": "좋음"
+  },
+  {
+   "pattern": "土火土",
+   "name_ko": "상생대길격",
+   "fortune": "매우좋음"
+  },
+  {
+   "pattern": "土火金",
+   "name_ko": "상극흉격",
+   "fortune": "나쁨"
+  },
+  {
+   "pattern": "土火水",
+   "name_ko": "상극흉격",
+   "fortune": "나쁨"
+  },
+  {
+   "pattern": "土土木",
+   "name_ko": "상극흉격",
+   "fortune": "나쁨"
+  },
+  {
+   "pattern": "土土火",
+   "name_ko": "상생길격",
+   "fortune": "좋음"
+  },
+  {
+   "pattern": "土土土",
+   "name_ko": "비화평격",
+   "fortune": "보통"
+  },
+  {
+   "pattern": "土土金",
+   "name_ko": "상생길격",
+   "fortune": "좋음"
+  },
+  {
+   "pattern": "土土水",
+   "name_ko": "상극흉격",
+   "fortune": "나쁨"
+  },
+  {
+   "pattern": "土金木",
+   "name_ko": "상극흉격",
+   "fortune": "나쁨"
+  },
+  {
+   "pattern": "土金火",
+   "name_ko": "상극흉격",
+   "fortune": "나쁨"
+  },
+  {
+   "pattern": "土金土",
+   "name_ko": "상생대길격",
+   "fortune": "매우좋음"
+  },
+  {
+   "pattern": "土金金",
+   "name_ko": "상생길격",
+   "fortune": "좋음"
+  },
+  {
+   "pattern": "土金水",
+   "name_ko": "상생대길격",
+   "fortune": "매우좋음"
+  },
+  {
+   "pattern": "土水木",
+   "name_ko": "상극흉격",
+   "fortune": "나쁨"
+  },
+  {
+   "pattern": "土水火",
+   "name_ko": "상극대흉격",
+   "fortune": "매우나쁨"
+  },
+  {
+   "pattern": "土水土",
+   "name_ko": "상극대흉격",
+   "fortune": "매우나쁨"
+  },
+  {
+   "pattern": "土水金",
+   "name_ko": "상극흉격",
+   "fortune": "나쁨"
+  },
+  {
+   "pattern": "土水水",
+   "name_ko": "상극흉격",
+   "fortune": "나쁨"
+  },
+  {
+   "pattern": "金木木",
+   "name_ko": "상극흉격",
+   "fortune": "나쁨"
+  },
+  {
+   "pattern": "金木火",
+   "name_ko": "상극흉격",
+   "fortune": "나쁨"
+  },
+  {
+   "pattern": "金木土",
+   "name_ko": "상극대흉격",
+   "fortune": "매우나쁨"
+  },
+  {
+   "pattern": "金木金",
+   "name_ko": "상극대흉격",
+   "fortune": "매우나쁨"
+  },
+  {
+   "pattern": "金木水",
+   "name_ko": "상극흉격",
+   "fortune": "나쁨"
+  },
+  {
+   "pattern": "金火木",
+   "name_ko": "상극흉격",
+   "fortune": "나쁨"
+  },
+  {
+   "pattern": "金火火",
+   "name_ko": "상극흉격",
+   "fortune": "나쁨"
+  },
+  {
+   "pattern": "金火土",
+   "name_ko": "상극흉격",
+   "fortune": "나쁨"
+  },
+  {
+   "pattern": "金火金",
+   "name_ko": "상극대흉격",
+   "fortune": "매우나쁨"
+  },
+  {
+   "pattern": "金火水",
+   "name_ko": "상극대흉격",
+   "fortune": "매우나쁨"
+  },
+  {
+   "pattern": "金土木",
+   "name_ko": "상극흉격",
+   "fortune": "나쁨"
+  },
+  {
+   "pattern": "金土火",
+   "name_ko": "상생대길격",
+   "fortune": "매우좋음"
+  },
+  {
+   "pattern": "金土土",
+   "name_ko": "상생길격",
+   "fortune": "좋음"
+  },
+  {
+   "pattern": "金土金",
+   "name_ko": "상생대길격",
+   "fortune": "매우좋음"
+  },
+  {
+   "pattern": "金土水",
+   "name_ko": "상극흉격",
+   "fortune": "나쁨"
+  },
+  {
+   "pattern": "金金木",
+   "name_ko": "상극흉격",
+   "fortune": "나쁨"
+  },
+  {
+   "pattern": "金金火",
+   "name_ko": "상극흉격",
+   "fortune": "나쁨"
+  },
+  {
+   "pattern": "金金土",
+   "name_ko": "상생길격",
+   "fortune": "좋음"
+  },
+  {
+   "pattern": "金金金",
+   "name_ko": "비화평격",
+   "fortune": "보통"
+  },
+  {
+   "pattern": "金金水",
+   "name_ko": "상생길격",
+   "fortune": "좋음"
+  },
+  {
+   "pattern": "金水木",
+   "name_ko": "상생대길격",
+   "fortune": "매우좋음"
+  },
+  {
+   "pattern": "金水火",
+   "name_ko": "상극흉격",
+   "fortune": "나쁨"
+  },
+  {
+   "pattern": "金水土",
+   "name_ko": "상극흉격",
+   "fortune": "나쁨"
+  },
+  {
+   "pattern": "金水金",
+   "name_ko": "상생대길격(경쟁사 富貴功名格 상당)",
+   "fortune": "매우좋음"
+  },
+  {
+   "pattern": "金水水",
+   "name_ko": "상생길격",
+   "fortune": "좋음"
+  },
+  {
+   "pattern": "水木木",
+   "name_ko": "상생길격",
+   "fortune": "좋음"
+  },
+  {
+   "pattern": "水木火",
+   "name_ko": "상생대길격",
+   "fortune": "매우좋음"
+  },
+  {
+   "pattern": "水木土",
+   "name_ko": "상극흉격",
+   "fortune": "나쁨"
+  },
+  {
+   "pattern": "水木金",
+   "name_ko": "상극흉격",
+   "fortune": "나쁨"
+  },
+  {
+   "pattern": "水木水",
+   "name_ko": "상생대길격",
+   "fortune": "매우좋음"
+  },
+  {
+   "pattern": "水火木",
+   "name_ko": "상극흉격",
+   "fortune": "나쁨"
+  },
+  {
+   "pattern": "水火火",
+   "name_ko": "상극흉격",
+   "fortune": "나쁨"
+  },
+  {
+   "pattern": "水火土",
+   "name_ko": "상극흉격",
+   "fortune": "나쁨"
+  },
+  {
+   "pattern": "水火金",
+   "name_ko": "상극대흉격",
+   "fortune": "매우나쁨"
+  },
+  {
+   "pattern": "水火水",
+   "name_ko": "상극대흉격",
+   "fortune": "매우나쁨"
+  },
+  {
+   "pattern": "水土木",
+   "name_ko": "상극대흉격",
+   "fortune": "매우나쁨"
+  },
+  {
+   "pattern": "水土火",
+   "name_ko": "상극흉격",
+   "fortune": "나쁨"
+  },
+  {
+   "pattern": "水土土",
+   "name_ko": "상극흉격",
+   "fortune": "나쁨"
+  },
+  {
+   "pattern": "水土金",
+   "name_ko": "상극흉격",
+   "fortune": "나쁨"
+  },
+  {
+   "pattern": "水土水",
+   "name_ko": "상극대흉격",
+   "fortune": "매우나쁨"
+  },
+  {
+   "pattern": "水金木",
+   "name_ko": "상극흉격",
+   "fortune": "나쁨"
+  },
+  {
+   "pattern": "水金火",
+   "name_ko": "상극흉격",
+   "fortune": "나쁨"
+  },
+  {
+   "pattern": "水金土",
+   "name_ko": "상생대길격",
+   "fortune": "매우좋음"
+  },
+  {
+   "pattern": "水金金",
+   "name_ko": "상생길격",
+   "fortune": "좋음"
+  },
+  {
+   "pattern": "水金水",
+   "name_ko": "상생대길격",
+   "fortune": "매우좋음"
+  },
+  {
+   "pattern": "水水木",
+   "name_ko": "상생길격",
+   "fortune": "좋음"
+  },
+  {
+   "pattern": "水水火",
+   "name_ko": "상극흉격",
+   "fortune": "나쁨"
+  },
+  {
+   "pattern": "水水土",
+   "name_ko": "상극흉격",
+   "fortune": "나쁨"
+  },
+  {
+   "pattern": "水水金",
+   "name_ko": "상생길격",
+   "fortune": "좋음"
+  },
+  {
+   "pattern": "水水水",
+   "name_ko": "비화평격",
+   "fortune": "보통"
+  }
+ ],
+ "coverage_note": "확보: (1) 초성→오행 치환표(교차확인 5개 출처, 일치), (2) 상생/상극 인접판정 규칙(교차확인, miso·irum·sajuforum·namesoft·daum), (3) 3학설(A초성/B초성+종성/C병용) 개념, (4) 위 규칙을 적용해 파생 계산한 5×5×5=125개 3자 오행배열 전체의 길흉 등급표. 파생 계산 검증: 金水金=매우좋음, 木火土=매우좋음이 나와 경쟁사 '금수금=부귀공명격·매우좋음'과 일치. 미확보/한계: '부귀공명격' 같은 배열별 고유 名格 명칭 자체는 어느 전통·학술 출처에서도 교차확인 실패 — 상업 작명프로그램 고유 라벨로 판단됨. 따라서 combos의 name_ko는 상생/상극 구조에서 파생한 등급 라벨(상생대길격·상생길격·비화평격·상극흉격·상극대흉격)이며 전통 고유명이 아님. 실제 배열 예는 2건 확인(김기동=상생 길, 홍길동=상극 흉, doc.8-codes 예시). 등급 세분(매우좋음/좋음/보통/나쁨/매우나쁨) 경계는 파생 규칙이라 프로그램마다 상이할 수 있음.",
+ "disagreements": "중대한 이견 2건. (1) 土/水 초성 배정: '술가오행'은 土=ㅇㅎ, 水=ㅁㅂㅍ(실무 70~80% 채택, 검색 상위 대다수 출처); '정음오행(훈민정음 제자원리)'은 정반대로 土=ㅁㅂㅍ, 水=ㅇㅎ. 어느 체계를 쓰느냐에 따라 같은 이름의 오행배열·길흉이 뒤바뀐다(도경이름연구소, 김만태 계열). 본 combos는 다수설인 술가오행(土=ㅇㅎ) 기준. (2) 판정 범위 학설: A(초성만)/B(초성+종성 모두)/C(둘 다 충족). 종성까지 보면 같은 3자라도 결과가 달라질 수 있음. 다수 학자는 3학설 병용 인정 입장이라 단정 불가.",
+ "sources": [
+  "https://www.miso.co.kr/Resource/Theory/20254",
+  "https://www.miso.co.kr/Support/Faq/20290",
+  "https://www.irum.com/Resource/Notify/10141",
+  "https://www.namesoft.co.kr/namemake/nameclass_View.asp?No=5",
+  "https://doc.8-codes.com/docs/naming/sound_ohhang/",
+  "https://m.cafe.daum.net/nameclub/LET8/9",
+  "https://m.cafe.daum.net/DGSAJU/W6L7/18",
+  "https://www.sajuforum.com/01forum/nm/baleum.php"
+ ],
+ "_meta": {
+  "status": "1차 리서치(적대적 검증 미완 — 워크플로 spend limit)·재검증+감수 대기",
+  "confidence": "중(규칙은 결정적, 검증 1회 미실시)",
+  "apply_note": "초성→오행 치환이 우리 엔진 _CHO_ELEM 과 동일(술가오행 ㅇㅎ=土·ㅁㅂㅍ=水). 名格은 인접 오행 상생/상극으로 알고리즘 산출(125조합 결정적). 우리 _score_baleum 이 이미 상극 감점을 하므로, 名格 명칭·배지만 얹으면 됨. 단 검증 1회 부족분은 재확인 권장."
+ }
+}

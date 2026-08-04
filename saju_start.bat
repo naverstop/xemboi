@@ -100,6 +100,8 @@ REM 16GB 활용: flash attention + KV 캐시 q8 양자화 → KV VRAM 절반(num
 REM   (KV q8는 flash attention 활성 전제. 8GB 3050 시절엔 불가, 5060Ti 16GB 교체로 적용.)
 set "OLLAMA_FLASH_ATTENTION=1"
 set "OLLAMA_KV_CACHE_TYPE=q8_0"
+REM qwen3:14b: np3 + KV q4_0 (verified 2026-07-22: 3x 11.5k-tok concurrent, VRAM peak 14.1GB, no spill).
+set "OLLAMA_NUM_PARALLEL=6"
 powershell -NoProfile -Command "if(Get-NetTCPConnection -LocalPort 11434 -State Listen -EA SilentlyContinue){exit 0}else{exit 1}" >nul 2>&1
 if errorlevel 1 (
     if exist "%SAJU_HOME%\infra\ollama\ollama.exe" (
@@ -117,12 +119,16 @@ REM -- Ollama "응답 가능(query-ready)" 대기 (2026-06-13) -----------------
 REM   포트 열림(:11434 LISTEN)만으로는 모델 워밍업 전이라, 콜드 기동 시 saju 가
 REM   ollama 에 연결하다 실패해 죽는 레이스가 있었다. API 응답 + 모델 워밍업까지
 REM   확인한 뒤에 uvicorn 을 띄운다. (모델명은 .env 의 OLLAMA_MODEL 과 일치 유지)
-set "SAJU_OLLAMA_MODEL=exaone3.5:7.8b"
+set "SAJU_OLLAMA_MODEL=qwen3:14b"
+REM [필수] 워밍업 num_ctx 는 config.py ollama_num_ctx 와 반드시 동일하게 유지할 것.
+REM   불일치 시 ollama 가 다른 ctx 의 러너를 새로 띄우려다 VRAM 부족으로 교착 → 워밍업 무한대기
+REM   (2026-07-23 장애: 상주 ctx 16384 vs 워밍업 기본 4096 → 여유 3.2GB로 재적재 불가 → 기동 실패).
+set "SAJU_OLLAMA_NUM_CTX=24576"
 echo   - Ollama API 응답 대기 중...
 powershell -NoProfile -Command "$ok=$false; for($i=0;$i -lt 30;$i++){ try{ if((Invoke-WebRequest -UseBasicParsing -TimeoutSec 3 'http://127.0.0.1:11434/api/tags').StatusCode -eq 200){$ok=$true;break} }catch{}; Start-Sleep 2 }; if($ok){exit 0}else{exit 1}"
 if errorlevel 1 ( echo   [!] Ollama API 응답 대기 시간초과 - logs\ollama.log 확인 ) else ( echo   [v] Ollama API 응답 가능 )
 echo   - Ollama 모델 워밍업 중 ^(%SAJU_OLLAMA_MODEL%, 최초 로드 시 수십초 소요^)...
-powershell -NoProfile -Command "$b=@{model='%SAJU_OLLAMA_MODEL%';prompt='ping';stream=$false;options=@{num_predict=1}} | ConvertTo-Json -Compress; try{ Invoke-RestMethod -Uri 'http://127.0.0.1:11434/api/generate' -Method Post -Body $b -ContentType 'application/json' -TimeoutSec 180 | Out-Null; exit 0 }catch{ exit 1 }"
+powershell -NoProfile -Command "$b=@{model='%SAJU_OLLAMA_MODEL%';prompt='ping';stream=$false;options=@{num_predict=1;num_ctx=%SAJU_OLLAMA_NUM_CTX%}} | ConvertTo-Json -Compress; try{ Invoke-RestMethod -Uri 'http://127.0.0.1:11434/api/generate' -Method Post -Body $b -ContentType 'application/json' -TimeoutSec 180 | Out-Null; exit 0 }catch{ exit 1 }"
 if errorlevel 1 ( echo   [!] 모델 워밍업 실패/시간초과 - 기동은 계속 진행 ) else ( echo   [v] Ollama 모델 워밍업 완료 ^(응답 가능^) )
 
 sc query %CF_SERVICE% | findstr /i RUNNING > nul

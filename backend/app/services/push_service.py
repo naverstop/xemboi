@@ -87,14 +87,39 @@ def _send_one(sub: PushSubscription, payload: dict[str, Any]) -> bool:
 
 
 def send_to_user(
-    db: Session, user_id: int, title: str, body: str, url: str = "/chat"
+    db: Session, user_id: int, title: str, body: str, url: str = "/chat",
+    tag: str | None = None,
 ) -> int:
-    """특정 사용자의 모든 구독에 발송. 발송 성공 개수 반환."""
+    """특정 사용자의 모든 구독에 발송. 발송 성공 개수 반환.
+    tag를 주면 SW가 같은 태그 알림을 갱신(renotify) — 반복 알림이 쌓이지 않으면서 매번 소리/진동."""
     if not is_enabled():
         return 0
     subs = db.execute(
         select(PushSubscription).where(PushSubscription.user_id == user_id)
     ).scalars().all()
+    payload = {"title": title, "body": body, "url": url}
+    if tag:
+        payload["tag"] = tag
+    sent = 0
+    stale: list[str] = []
+    for sub in subs:
+        ok = _send_one(sub, payload)
+        if ok:
+            sub.last_sent_at = datetime.utcnow()
+            sent += 1
+        else:
+            stale.append(sub.endpoint)
+    for ep in stale:
+        remove_subscription(db, ep)
+    if sent:
+        db.commit()
+    return sent
+
+
+def _deliver(db: Session, subs: list[PushSubscription], title: str, body: str, url: str = "/chat") -> int:
+    """주어진 구독 목록에 발송(공용 루프). 만료 구독 정리 포함. 발송 성공 개수 반환."""
+    if not is_enabled() or not subs:
+        return 0
     payload = {"title": title, "body": body, "url": url}
     sent = 0
     stale: list[str] = []
@@ -113,25 +138,32 @@ def send_to_user(
 
 
 def broadcast(db: Session, title: str, body: str, url: str = "/chat") -> int:
-    """전체 구독에 발송(데일리 운세 등). 발송 성공 개수 반환."""
+    """전체 구독에 발송. 발송 성공 개수 반환.
+
+    ※ 광고성(영리목적) 데일리 푸시는 broadcast 가 아니라 marketing_subscriptions()
+      로 '마케팅 수신 동의' 회원만 대상으로 발송해야 한다(정보통신망법 §50). broadcast 는
+      서비스 공지 등 비광고성 전체발송 용도로만 사용할 것.
+    """
     if not is_enabled():
         return 0
     subs = db.execute(select(PushSubscription)).scalars().all()
-    payload = {"title": title, "body": body, "url": url}
-    sent = 0
-    stale: list[str] = []
-    for sub in subs:
-        ok = _send_one(sub, payload)
-        if ok:
-            sub.last_sent_at = datetime.utcnow()
-            sent += 1
-        else:
-            stale.append(sub.endpoint)
-    for ep in stale:
-        remove_subscription(db, ep)
-    if sent:
-        db.commit()
-    return sent
+    return _deliver(db, list(subs), title, body, url)
+
+
+def marketing_subscriptions(db: Session) -> list[PushSubscription]:
+    """마케팅 수신 동의(marketing_opt_in=True) 회원의 구독만 반환.
+
+    '오늘의 운세/일진' 등 영리목적 광고성 데일리 푸시(정보통신망법 §50)의 발송 대상.
+    비로그인(user_id=None) 구독은 동의 근거가 없어 제외한다.
+    """
+    from backend.app.repositories.auth_models import User
+
+    rows = db.execute(
+        select(PushSubscription)
+        .join(User, User.id == PushSubscription.user_id)
+        .where(User.marketing_opt_in.is_(True))
+    ).scalars().all()
+    return list(rows)
 
 
 # -------- 오늘의 운세 데일리 푸시(계획 7-D.2) --------
@@ -157,11 +189,11 @@ def daily_fortune_message(today: Optional[Any] = None) -> str:
 
 
 def send_daily_fortune(db: Session) -> int:
-    """전체 구독자에게 오늘의 운세 1줄 발송. 설정/키 미충족 시 0 반환."""
+    """마케팅 수신 동의 구독자에게 오늘의 운세 1줄 발송(정보통신망법 §50). 설정/키 미충족 시 0 반환."""
     s = get_settings()
     if not s.daily_fortune_enabled or not is_enabled():
         return 0
-    return broadcast(db, "오늘의 운세 🔮", daily_fortune_message(), url="/chat")
+    return _deliver(db, marketing_subscriptions(db), "오늘의 운세 🔮", daily_fortune_message(), url="/today")
 
 
 # -------- 개인화 일진 데일리 푸시(#4) --------
@@ -179,20 +211,6 @@ _ILJIN_LINES: dict[str, str] = {
     "正印": "귀인·문서·안정의 기운. 공부·계약·도움에 길한 날입니다.",
 }
 
-# 十神(십성) 본질 의미 — vi(한월음/베트남어). _ILJIN_LINES 의 vi 미러(같은 의미).
-_ILJIN_LINES_VI: dict[str, str] = {
-    "比肩": "Khí cạnh tranh·tự lập. Hợp tác với đồng sự thì lợi, nên tiết chế chi tiêu quá mức.",
-    "劫財": "Khí thúc đẩy·cạnh tranh. Quyết đoán nhưng cẩn thận tranh chấp tiền bạc và chi tiêu bốc đồng.",
-    "食神": "Khí thư thái·biểu đạt·ăn uống dư dả. Ngày tốt để tận hưởng và làm việc đều đặn.",
-    "傷官": "Khí tài năng·ngôn từ. Tốt cho biểu đạt sáng tạo nhưng cẩn thận lời nói thị phi.",
-    "偏財": "Khí hoạt động·cơ hội·tài lộc. Chủ động thì tốt, cẩn thận đầu tư bốc đồng.",
-    "正財": "Khí chăm chỉ·thực lợi. Ngày mà sự kiên trì mang lại kết quả.",
-    "偏官": "Khí quyết đoán·thử thách. Quyết đoán nhưng tránh làm quá sức và tranh cãi.",
-    "正官": "Khí trách nhiệm·danh dự·quy củ. Ngày tốt cho việc công và các cam kết.",
-    "偏印": "Khí trực giác·học hỏi·biến hóa. Tốt để tiếp thu kiến thức và ý tưởng mới.",
-    "正印": "Khí quý nhân·văn thư·ổn định. Ngày tốt cho học hành, hợp đồng và nhận trợ giúp.",
-}
-
 # saju_profile(저장된 본인 사주) 에서 BirthInput 으로 넘길 수 있는 키만 추림.
 _BIRTH_KEYS = (
     "birth_date", "birth_time", "calendar", "is_leap_month", "gender",
@@ -200,36 +218,12 @@ _BIRTH_KEYS = (
 )
 
 
-def _iljin_body_vi(d, u_stem: str, t_stem: str, t_branch: str, tg: str,
-                   conflict: bool, combine: bool) -> tuple[str, str]:
-    """vi 일진 메시지(제목, 본문) — 한월음(Hán-Việt) 독음 + 베트남어 템플릿. 한자/한글 미노출."""
-    from backend.app.saju.constants import stem_reading, branch_reading, ten_god_reading
-    tg_vi = ten_god_reading(tg, "vi")
-    line = _ILJIN_LINES_VI.get(tg, "")
-    note = ""
-    if conflict:
-        note = " ※ Chi ngày hôm nay xung với chi ngày của bạn — dễ biến động·di chuyển, hãy thận trọng."
-    elif combine:
-        note = " ※ Chi ngày hôm nay hợp với chi ngày của bạn — khí duyên lành và hợp tác."
-    today_gz = f"{stem_reading(t_stem, 'vi')} {branch_reading(t_branch, 'vi')}"
-    title = "Nhật thần hôm nay 🗓"
-    body = (
-        f"{d.isoformat()} nhật thần {today_gz}. "
-        f"Theo nhật chủ {stem_reading(u_stem, 'vi')} của bạn, hôm nay mang khí '{tg_vi}' — {line}{note}"
-    )
-    return title, body
-
-
-def build_personal_iljin(
-    profile: dict[str, Any], today: Optional[Any] = None, locale: str = "ko"
-) -> Optional[tuple[str, str]]:
+def build_personal_iljin(profile: dict[str, Any], today: Optional[Any] = None) -> Optional[tuple[str, str]]:
     """저장된 본인 사주(profile)와 오늘 날짜로 개인화 일진 메시지(제목, 본문)를 만든다.
 
     - 일진 간지: 오늘(양력) 일주(엔진 산출).
     - 십성: 본인 일간 기준 오늘 일간의 십성(엔진 산출).
     - 충/합: 본인 일지와 오늘 일지의 지지충/육합(엔진 상수).
-    - locale: 'vi' 면 BirthInput 이 105°E·hongoc_duc 경로로 진태양시를 계산하고, 메시지도
-      한월음 독음+베트남어 템플릿으로 만든다. 'ko'(기본)는 기존과 byte-identical.
     파싱/계산 실패 시 None.
     """
     from datetime import date as _date
@@ -242,26 +236,22 @@ def build_personal_iljin(
     try:
         d = today or _date.today()
         kw = {k: profile[k] for k in _BIRTH_KEYS if profile.get(k) is not None}
-        user_birth = BirthInput(**kw, locale=locale)
+        user_birth = BirthInput(**kw)
         user_fp, *_ = compute_pillars(user_birth)
-        today_fp, *_ = compute_pillars(BirthInput(birth_date=d, locale=locale))
+        today_fp, *_ = compute_pillars(BirthInput(birth_date=d))
         u_stem = user_fp.day.stem
         u_branch = user_fp.day.branch
         t_stem = today_fp.day.stem
         t_branch = today_fp.day.branch
         tg = compute_ten_god(u_stem, t_stem)             # 본인 일간 기준 오늘 일간의 십성
-        # 충/합 부가 노트(본인 일지 ↔ 오늘 일지)
-        pair = frozenset({u_branch, t_branch})
-        conflict = u_branch != t_branch and pair in BRANCH_CONFLICTS
-        combine = u_branch != t_branch and pair in BRANCH_SIX_COMBINATIONS
-        if locale == "vi":
-            return _iljin_body_vi(d, u_stem, t_stem, t_branch, tg, conflict, combine)
         tg_ko = TEN_GODS_KO.get(tg, tg)
         line = _ILJIN_LINES.get(tg, "")
+        # 충/합 부가 노트(본인 일지 ↔ 오늘 일지)
+        pair = frozenset({u_branch, t_branch})
         note = ""
-        if conflict:
+        if u_branch != t_branch and pair in BRANCH_CONFLICTS:
             note = " ※ 오늘 일지가 본인 일지를 충(沖) — 변동·이동수, 신중히."
-        elif combine:
+        elif u_branch != t_branch and pair in BRANCH_SIX_COMBINATIONS:
             note = " ※ 오늘 일지가 본인 일지와 합(合) — 인연·협조의 기운."
         today_gz = f"{stem_korean(t_stem)}{branch_korean(t_branch)}({t_stem}{t_branch})"
         title = "오늘의 일진 🗓"
@@ -276,8 +266,9 @@ def build_personal_iljin(
 
 
 def send_daily_iljin(db: Session) -> int:
-    """구독자별 발송: saju_profile 보유자는 개인화 일진, 미보유자는 일반 운세.
+    """마케팅 수신 동의 구독자별 발송: saju_profile 보유자는 개인화 일진, 미보유자는 일반 운세.
 
+    광고성 데일리 푸시라 marketing_opt_in=True 회원만 대상(정보통신망법 §50).
     구독은 user_id 로 묶이며, 동일 사용자의 여러 기기에 모두 발송.
     설정(daily_iljin_enabled)·키 미충족 시 0 반환(일반 운세는 호출측에서 처리).
     """
@@ -287,12 +278,12 @@ def send_daily_iljin(db: Session) -> int:
         return 0
     from backend.app.repositories.auth_models import User
 
-    subs = db.execute(select(PushSubscription)).scalars().all()
+    # 광고성 데일리 푸시 → 마케팅 수신 동의 회원만(정보통신망법 §50)
+    subs = marketing_subscriptions(db)
     if not subs:
         return 0
-    # user_id → saju_profile(dict|None)·locale 캐시
+    # user_id → saju_profile(dict|None) 캐시
     prof_cache: dict[int, Optional[dict]] = {}
-    loc_cache: dict[int, str] = {}
 
     def _profile_for(uid: Optional[int]) -> Optional[dict]:
         if uid is None:
@@ -301,7 +292,6 @@ def send_daily_iljin(db: Session) -> int:
             return prof_cache[uid]
         u = db.get(User, uid)
         raw = getattr(u, "saju_profile", None) if u else None
-        loc_cache[uid] = getattr(u, "locale", "ko") if u else "ko"
         parsed = None
         if raw:
             try:
@@ -322,12 +312,12 @@ def send_daily_iljin(db: Session) -> int:
             if sub.user_id in msg_cache:
                 title, body = msg_cache[sub.user_id]
             else:
-                built = build_personal_iljin(prof, locale=loc_cache.get(sub.user_id, "ko"))
+                built = build_personal_iljin(prof)
                 title, body = built or (generic_title, generic_body)
                 msg_cache[sub.user_id] = (title, body)
         else:
             title, body = generic_title, generic_body
-        ok = _send_one(sub, {"title": title, "body": body, "url": "/chat"})
+        ok = _send_one(sub, {"title": title, "body": body, "url": "/today"})  # B-2 오늘의 운세 페이지 랜딩
         if ok:
             sub.last_sent_at = datetime.utcnow()
             sent += 1

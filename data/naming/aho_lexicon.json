@@ -1,0 +1,657 @@
+{
+  "version": "draft-1 (감수 전)",
+  "note": "아호 후보 생성 전용 글자 풀. 신생아 이름 allowlist(name_hanja.json)와 절대 섞지 않는다 — 섞으면 아호에 '시우·하준' 같은 신생아 이름이 나온다(실측 라이브 15건 전건). 독음·획수·자원오행은 이 파일에 손으로 적지 않고 hanja_dict.json / radical_element.json 에서 생성했다. element 가 빈 문자열이면 부수표 미매핑(=불명)이며, 브리핑에 '불명'으로 그대로 싣는다.",
+  "source": "글자 선정: 실존 호 사례 귀납 — 한국민족문화대백과사전 '호'(E0063656), '삼은'(E0026752), '김홍도'(E0011079), '서경덕'(E0027580), '정약용'(E0050549), 우리역사넷 이황 항목 등. 독음·획수: data/naming/hanja_dict.json / 자원오행: data/naming/radical_element.json",
+  "groups": {
+    "terrain": "지형 — 산·물·들",
+    "sky": "기상·천체·계절",
+    "plant": "식물",
+    "dwelling": "거처 접미(당호 계열)",
+    "virtue": "덕목·태도",
+    "direction": "색·방위",
+    "honorific": "호칭 접미"
+  },
+  "excluded_note": "접미자 子·老·居는 실존 호 사례로 검증되지 않았고 '○자/○로/○거'가 일상어와 광범위하게 충돌해(서자·목자·강자·계자 실측) 제외했다. 덕목 글자 淡·素·樸·謙·拙·默·誠·敬·直 9자는 실존 호 사례로 개별 확인되지 않아 일부러 넣지 않았다(조사 2026-07-22). 넣으려면 사례 확인이 먼저다.",
+  "chars": [
+    {
+      "char": "中",
+      "reading": "중",
+      "reading_tail": "중",
+      "strokes": 4,
+      "group": "direction",
+      "role": "head",
+      "gloss_ko": "가운데",
+      "element": ""
+    },
+    {
+      "char": "丹",
+      "reading": "단",
+      "reading_tail": "단",
+      "strokes": 4,
+      "group": "direction",
+      "role": "head",
+      "gloss_ko": "붉다",
+      "element": ""
+    },
+    {
+      "char": "北",
+      "reading": "북",
+      "reading_tail": "북",
+      "strokes": 5,
+      "group": "direction",
+      "role": "head",
+      "gloss_ko": "북녘",
+      "element": ""
+    },
+    {
+      "char": "南",
+      "reading": "남",
+      "reading_tail": "남",
+      "strokes": 9,
+      "group": "direction",
+      "role": "head",
+      "gloss_ko": "남녘",
+      "element": "金"
+    },
+    {
+      "char": "東",
+      "reading": "동",
+      "reading_tail": "동",
+      "strokes": 8,
+      "group": "direction",
+      "role": "head",
+      "gloss_ko": "동녘",
+      "element": "木"
+    },
+    {
+      "char": "玄",
+      "reading": "현",
+      "reading_tail": "현",
+      "strokes": 5,
+      "group": "direction",
+      "role": "head",
+      "gloss_ko": "검다·그윽하다",
+      "element": ""
+    },
+    {
+      "char": "白",
+      "reading": "백",
+      "reading_tail": "백",
+      "strokes": 5,
+      "group": "direction",
+      "role": "head",
+      "gloss_ko": "희다",
+      "element": ""
+    },
+    {
+      "char": "蒼",
+      "reading": "창",
+      "reading_tail": "창",
+      "strokes": 13,
+      "group": "direction",
+      "role": "head",
+      "gloss_ko": "짙푸르다",
+      "element": "木"
+    },
+    {
+      "char": "西",
+      "reading": "서",
+      "reading_tail": "서",
+      "strokes": 6,
+      "group": "direction",
+      "role": "head",
+      "gloss_ko": "서녘",
+      "element": "木"
+    },
+    {
+      "char": "靑",
+      "reading": "청",
+      "reading_tail": "청",
+      "strokes": 8,
+      "group": "direction",
+      "role": "head",
+      "gloss_ko": "푸르다",
+      "element": "木"
+    },
+    {
+      "char": "亭",
+      "reading": "정",
+      "reading_tail": "정",
+      "strokes": 9,
+      "group": "dwelling",
+      "role": "suffix",
+      "gloss_ko": "정자",
+      "element": ""
+    },
+    {
+      "char": "堂",
+      "reading": "당",
+      "reading_tail": "당",
+      "strokes": 11,
+      "group": "dwelling",
+      "role": "suffix",
+      "gloss_ko": "집",
+      "element": "土"
+    },
+    {
+      "char": "庵",
+      "reading": "암",
+      "reading_tail": "암",
+      "strokes": 11,
+      "group": "dwelling",
+      "role": "suffix",
+      "gloss_ko": "암자",
+      "element": "土"
+    },
+    {
+      "char": "樓",
+      "reading": "누",
+      "reading_tail": "루",
+      "strokes": 15,
+      "group": "dwelling",
+      "role": "suffix",
+      "gloss_ko": "다락집",
+      "element": "木"
+    },
+    {
+      "char": "軒",
+      "reading": "헌",
+      "reading_tail": "헌",
+      "strokes": 10,
+      "group": "dwelling",
+      "role": "suffix",
+      "gloss_ko": "마루 있는 집",
+      "element": "火"
+    },
+    {
+      "char": "閣",
+      "reading": "각",
+      "reading_tail": "각",
+      "strokes": 14,
+      "group": "dwelling",
+      "role": "suffix",
+      "gloss_ko": "누각",
+      "element": "木"
+    },
+    {
+      "char": "齋",
+      "reading": "재",
+      "reading_tail": "재",
+      "strokes": 17,
+      "group": "dwelling",
+      "role": "suffix",
+      "gloss_ko": "집·재실",
+      "element": ""
+    },
+    {
+      "char": "士",
+      "reading": "사",
+      "reading_tail": "사",
+      "strokes": 3,
+      "group": "honorific",
+      "role": "suffix",
+      "gloss_ko": "선비",
+      "element": "土"
+    },
+    {
+      "char": "翁",
+      "reading": "옹",
+      "reading_tail": "옹",
+      "strokes": 10,
+      "group": "honorific",
+      "role": "suffix",
+      "gloss_ko": "늙은이(자겸)",
+      "element": "火"
+    },
+    {
+      "char": "木",
+      "reading": "목",
+      "reading_tail": "목",
+      "strokes": 4,
+      "group": "plant",
+      "role": "head",
+      "gloss_ko": "나무",
+      "element": "木"
+    },
+    {
+      "char": "松",
+      "reading": "송",
+      "reading_tail": "송",
+      "strokes": 8,
+      "group": "plant",
+      "role": "both",
+      "gloss_ko": "소나무",
+      "element": "木"
+    },
+    {
+      "char": "桂",
+      "reading": "계",
+      "reading_tail": "계",
+      "strokes": 10,
+      "group": "plant",
+      "role": "both",
+      "gloss_ko": "계수나무",
+      "element": "木"
+    },
+    {
+      "char": "梅",
+      "reading": "매",
+      "reading_tail": "매",
+      "strokes": 11,
+      "group": "plant",
+      "role": "both",
+      "gloss_ko": "매화",
+      "element": "木"
+    },
+    {
+      "char": "竹",
+      "reading": "죽",
+      "reading_tail": "죽",
+      "strokes": 6,
+      "group": "plant",
+      "role": "both",
+      "gloss_ko": "대나무",
+      "element": "木"
+    },
+    {
+      "char": "草",
+      "reading": "초",
+      "reading_tail": "초",
+      "strokes": 9,
+      "group": "plant",
+      "role": "both",
+      "gloss_ko": "풀",
+      "element": "木"
+    },
+    {
+      "char": "荷",
+      "reading": "하",
+      "reading_tail": "하",
+      "strokes": 10,
+      "group": "plant",
+      "role": "both",
+      "gloss_ko": "연",
+      "element": "木"
+    },
+    {
+      "char": "菊",
+      "reading": "국",
+      "reading_tail": "국",
+      "strokes": 11,
+      "group": "plant",
+      "role": "both",
+      "gloss_ko": "국화",
+      "element": "木"
+    },
+    {
+      "char": "蓮",
+      "reading": "연",
+      "reading_tail": "련",
+      "strokes": 13,
+      "group": "plant",
+      "role": "both",
+      "gloss_ko": "연꽃",
+      "element": "木"
+    },
+    {
+      "char": "蘭",
+      "reading": "난",
+      "reading_tail": "란",
+      "strokes": 20,
+      "group": "plant",
+      "role": "both",
+      "gloss_ko": "난초",
+      "element": "木"
+    },
+    {
+      "char": "日",
+      "reading": "일",
+      "reading_tail": "일",
+      "strokes": 4,
+      "group": "sky",
+      "role": "head",
+      "gloss_ko": "해",
+      "element": "火"
+    },
+    {
+      "char": "星",
+      "reading": "성",
+      "reading_tail": "성",
+      "strokes": 9,
+      "group": "sky",
+      "role": "both",
+      "gloss_ko": "별",
+      "element": "火"
+    },
+    {
+      "char": "春",
+      "reading": "춘",
+      "reading_tail": "춘",
+      "strokes": 9,
+      "group": "sky",
+      "role": "head",
+      "gloss_ko": "봄",
+      "element": "火"
+    },
+    {
+      "char": "月",
+      "reading": "월",
+      "reading_tail": "월",
+      "strokes": 4,
+      "group": "sky",
+      "role": "both",
+      "gloss_ko": "달",
+      "element": "水"
+    },
+    {
+      "char": "秋",
+      "reading": "추",
+      "reading_tail": "추",
+      "strokes": 9,
+      "group": "sky",
+      "role": "both",
+      "gloss_ko": "가을",
+      "element": "木"
+    },
+    {
+      "char": "陽",
+      "reading": "양",
+      "reading_tail": "양",
+      "strokes": 11,
+      "group": "sky",
+      "role": "both",
+      "gloss_ko": "볕",
+      "element": "土"
+    },
+    {
+      "char": "雪",
+      "reading": "설",
+      "reading_tail": "설",
+      "strokes": 11,
+      "group": "sky",
+      "role": "both",
+      "gloss_ko": "눈",
+      "element": "水"
+    },
+    {
+      "char": "雲",
+      "reading": "운",
+      "reading_tail": "운",
+      "strokes": 12,
+      "group": "sky",
+      "role": "both",
+      "gloss_ko": "구름",
+      "element": "水"
+    },
+    {
+      "char": "霜",
+      "reading": "상",
+      "reading_tail": "상",
+      "strokes": 17,
+      "group": "sky",
+      "role": "both",
+      "gloss_ko": "서리",
+      "element": "水"
+    },
+    {
+      "char": "露",
+      "reading": "노",
+      "reading_tail": "로",
+      "strokes": 21,
+      "group": "sky",
+      "role": "both",
+      "gloss_ko": "이슬",
+      "element": "水"
+    },
+    {
+      "char": "風",
+      "reading": "풍",
+      "reading_tail": "풍",
+      "strokes": 9,
+      "group": "sky",
+      "role": "both",
+      "gloss_ko": "바람",
+      "element": "木"
+    },
+    {
+      "char": "山",
+      "reading": "산",
+      "reading_tail": "산",
+      "strokes": 3,
+      "group": "terrain",
+      "role": "both",
+      "gloss_ko": "산",
+      "element": "土"
+    },
+    {
+      "char": "岳",
+      "reading": "악",
+      "reading_tail": "악",
+      "strokes": 8,
+      "group": "terrain",
+      "role": "both",
+      "gloss_ko": "큰 산",
+      "element": "土"
+    },
+    {
+      "char": "峯",
+      "reading": "봉",
+      "reading_tail": "봉",
+      "strokes": 10,
+      "group": "terrain",
+      "role": "suffix",
+      "gloss_ko": "산봉우리",
+      "element": "土"
+    },
+    {
+      "char": "島",
+      "reading": "도",
+      "reading_tail": "도",
+      "strokes": 10,
+      "group": "terrain",
+      "role": "suffix",
+      "gloss_ko": "섬",
+      "element": "土"
+    },
+    {
+      "char": "巖",
+      "reading": "암",
+      "reading_tail": "암",
+      "strokes": 22,
+      "group": "terrain",
+      "role": "both",
+      "gloss_ko": "바위",
+      "element": "土"
+    },
+    {
+      "char": "川",
+      "reading": "천",
+      "reading_tail": "천",
+      "strokes": 3,
+      "group": "terrain",
+      "role": "suffix",
+      "gloss_ko": "내",
+      "element": "水"
+    },
+    {
+      "char": "江",
+      "reading": "강",
+      "reading_tail": "강",
+      "strokes": 6,
+      "group": "terrain",
+      "role": "both",
+      "gloss_ko": "강",
+      "element": "水"
+    },
+    {
+      "char": "沙",
+      "reading": "사",
+      "reading_tail": "사",
+      "strokes": 7,
+      "group": "terrain",
+      "role": "head",
+      "gloss_ko": "모래",
+      "element": "水"
+    },
+    {
+      "char": "泉",
+      "reading": "천",
+      "reading_tail": "천",
+      "strokes": 9,
+      "group": "terrain",
+      "role": "suffix",
+      "gloss_ko": "샘",
+      "element": "水"
+    },
+    {
+      "char": "海",
+      "reading": "해",
+      "reading_tail": "해",
+      "strokes": 10,
+      "group": "terrain",
+      "role": "both",
+      "gloss_ko": "바다",
+      "element": "水"
+    },
+    {
+      "char": "湖",
+      "reading": "호",
+      "reading_tail": "호",
+      "strokes": 12,
+      "group": "terrain",
+      "role": "both",
+      "gloss_ko": "호수",
+      "element": "水"
+    },
+    {
+      "char": "溪",
+      "reading": "계",
+      "reading_tail": "계",
+      "strokes": 13,
+      "group": "terrain",
+      "role": "suffix",
+      "gloss_ko": "시내",
+      "element": "水"
+    },
+    {
+      "char": "潭",
+      "reading": "담",
+      "reading_tail": "담",
+      "strokes": 15,
+      "group": "terrain",
+      "role": "suffix",
+      "gloss_ko": "못",
+      "element": "水"
+    },
+    {
+      "char": "石",
+      "reading": "석",
+      "reading_tail": "석",
+      "strokes": 5,
+      "group": "terrain",
+      "role": "both",
+      "gloss_ko": "돌",
+      "element": "土"
+    },
+    {
+      "char": "谷",
+      "reading": "곡",
+      "reading_tail": "곡",
+      "strokes": 7,
+      "group": "terrain",
+      "role": "suffix",
+      "gloss_ko": "골짜기",
+      "element": "水"
+    },
+    {
+      "char": "野",
+      "reading": "야",
+      "reading_tail": "야",
+      "strokes": 11,
+      "group": "terrain",
+      "role": "both",
+      "gloss_ko": "들",
+      "element": "土"
+    },
+    {
+      "char": "冶",
+      "reading": "야",
+      "reading_tail": "야",
+      "strokes": 7,
+      "group": "virtue",
+      "role": "head",
+      "gloss_ko": "쇠 불리다",
+      "element": "水"
+    },
+    {
+      "char": "孤",
+      "reading": "고",
+      "reading_tail": "고",
+      "strokes": 8,
+      "group": "virtue",
+      "role": "head",
+      "gloss_ko": "외롭다",
+      "element": "水"
+    },
+    {
+      "char": "心",
+      "reading": "심",
+      "reading_tail": "심",
+      "strokes": 4,
+      "group": "virtue",
+      "role": "both",
+      "gloss_ko": "마음",
+      "element": "火"
+    },
+    {
+      "char": "愚",
+      "reading": "우",
+      "reading_tail": "우",
+      "strokes": 13,
+      "group": "virtue",
+      "role": "head",
+      "gloss_ko": "어리석다(자겸)",
+      "element": "火"
+    },
+    {
+      "char": "淸",
+      "reading": "청",
+      "reading_tail": "청",
+      "strokes": 11,
+      "group": "virtue",
+      "role": "both",
+      "gloss_ko": "맑다",
+      "element": "水"
+    },
+    {
+      "char": "牧",
+      "reading": "목",
+      "reading_tail": "목",
+      "strokes": 8,
+      "group": "virtue",
+      "role": "head",
+      "gloss_ko": "기르다·다스리다",
+      "element": ""
+    },
+    {
+      "char": "隱",
+      "reading": "은",
+      "reading_tail": "은",
+      "strokes": 16,
+      "group": "virtue",
+      "role": "suffix",
+      "gloss_ko": "숨다",
+      "element": "土"
+    },
+    {
+      "char": "靜",
+      "reading": "정",
+      "reading_tail": "정",
+      "strokes": 16,
+      "group": "virtue",
+      "role": "both",
+      "gloss_ko": "고요하다",
+      "element": "木"
+    }
+  ]
+}

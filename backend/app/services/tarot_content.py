@@ -8,12 +8,17 @@
 """
 from __future__ import annotations
 
-from datetime import datetime
+import hashlib
+import json
+import threading
+from datetime import date, datetime
+from pathlib import Path
 from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from backend.app.repositories.auth_models import AppSetting
 from backend.app.repositories.models import TarotCardOverride
 from backend.app.services import tarot_deck
 
@@ -148,3 +153,134 @@ def reset_card(db: Session, code: str) -> dict[str, Any]:
         db.commit()
     refresh_cache(db)
     return get_card(db, code)
+
+
+# ============================================================
+# 재학습(운영자 요구, 2026-07-11) — 유효 덱 '확정 스냅샷' 버전화
+#
+# 타로는 RAG/임베딩 색인이 없어 편집분이 프롬프트에 즉시 주입되지만, 운영자는 편집 누적분을
+# 명시적 '학습' 단위로 확정·추적하길 원한다. 재학습 = ①라이브 캐시 전체 재적재(refresh_cache)
+# ②유효 덱(시드+오버레이 병합 78장×정/역) 스냅샷을 버전 파일로 영구 보존(=백업)
+# ③버전·학습일시·내용해시 기록. 야간 배치는 해시 패리티가 어긋나면(편집 발생) 자동 수행한다.
+# ============================================================
+_LEARN_VERSION_KEY = "tarot_deck_learn_version"
+_LEARN_AT_KEY = "tarot_deck_learned_at"
+_LEARN_HASH_KEY = "tarot_deck_learn_hash"
+_LEARN_MANUAL_DATE_KEY = "tarot_deck_manual_learn_date"   # 수동 1일 1회 가드
+_LEARN_SNAP_DIR = Path(__file__).resolve().parents[1] / "data" / "backups"
+
+
+def _effective_content(db: Session) -> dict[str, dict[str, Any]]:
+    """유효 덱 내용(시드+오버레이 병합) — 재적재 후 78장×정/역 키워드·해석."""
+    refresh_cache(db)
+    out: dict[str, dict[str, Any]] = {}
+    for c in tarot_deck.all_cards():
+        code = c["code"]
+        out[code] = {
+            "name_kr": c["name_kr"],
+            "keywords_up": tarot_deck.effective_keywords(code, False),
+            "keywords_rev": tarot_deck.effective_keywords(code, True),
+            "interp_up": tarot_deck.interp_for(code, False),
+            "interp_rev": tarot_deck.interp_for(code, True),
+        }
+    return out
+
+
+def _content_hash(content: dict[str, Any]) -> str:
+    blob = json.dumps(content, ensure_ascii=False, sort_keys=True)
+    return hashlib.sha256(blob.encode("utf-8")).hexdigest()[:16]
+
+
+def _get_meta(db: Session, key: str, default: str = "") -> str:
+    row = db.get(AppSetting, key)
+    return row.value if (row is not None and row.value is not None) else default
+
+
+def _set_meta(db: Session, items: dict[str, str]) -> None:
+    from backend.app.services import settings_service
+    for key, val in items.items():
+        row = db.get(AppSetting, key)
+        if row is None:
+            db.add(AppSetting(key=key, value=val))
+        else:
+            row.value = val
+    db.commit()
+    settings_service.invalidate()  # app_settings 전량 캐시와 정합 유지
+
+
+def learn_status(db: Session) -> dict[str, Any]:
+    """최종 학습일자·버전·패리티(현재 내용 해시 vs 학습본 해시) — 관리자 표시/야간 배치 공용."""
+    cur = _content_hash(_effective_content(db))
+    learned_hash = _get_meta(db, _LEARN_HASH_KEY) or None
+    try:
+        version = int(_get_meta(db, _LEARN_VERSION_KEY, "0") or 0)
+    except ValueError:
+        version = 0
+    return {
+        "version": version,
+        "learned_at": _get_meta(db, _LEARN_AT_KEY) or None,
+        "changed": learned_hash != cur,     # 패리티 체크: 학습 이후 편집 발생 여부
+        "current_hash": cur,
+        "learned_hash": learned_hash,
+        "manual_done_today": _get_meta(db, _LEARN_MANUAL_DATE_KEY) == date.today().isoformat(),
+    }
+
+
+# 재학습 직렬화 — 동시 클릭/야간 배치 경합으로 같은 내용이 두 번 학습(버전 중복)되는 것 방지.
+# 관리자 API·스케줄러 모두 :8008 단일 프로세스에서 돌므로 프로세스 내 락으로 충분하다.
+_RELEARN_LOCK = threading.Lock()
+
+
+def relearn(db: Session, *, mode: str = "manual", admin_id: int | None = None) -> dict[str, Any]:
+    """재학습 실행 — 캐시 재적재 + 확정 스냅샷 저장 + 버전/일시/해시 기록.
+
+    중복학습 원천 차단(운영자 지시 2026-07-11):
+    - 변경분(패리티 불일치)이 있을 때만 학습한다. 없으면 manual=예외(버튼도 비활성),
+      auto=skipped 반환 — 같은 내용을 두 번 스냅샷/버전업하지 않는다.
+    - '1일 1회'는 변경분 게이트로 대체: 수정·저장이 발생하면 같은 날에도 다시 학습 가능
+      (버튼 재활성), 변경이 없으면 그날 몇 번을 눌러도 학습되지 않는다.
+    - 프로세스 내 락으로 동시 실행(더블클릭·04:15 배치 경합)을 직렬화한다.
+    """
+    with _RELEARN_LOCK:
+        content = _effective_content(db)        # refresh_cache 포함 — 라이브 재적재
+        h = _content_hash(content)
+        learned_hash = _get_meta(db, _LEARN_HASH_KEY) or None
+        if h == learned_hash:
+            if mode == "manual":
+                raise ValueError("변경분이 없어 재학습할 내용이 없습니다. 카드 수정·저장 후 버튼이 다시 활성화됩니다.")
+            st = learn_status(db)
+            st["skipped"] = True                # 야간 배치: 변경 없음 → 학습 생략(중복 방지)
+            st["mode"] = mode
+            return st
+
+        try:
+            version = int(_get_meta(db, _LEARN_VERSION_KEY, "0") or 0) + 1
+        except ValueError:
+            version = 1
+        now = datetime.now()
+
+        _LEARN_SNAP_DIR.mkdir(parents=True, exist_ok=True)
+        snap = _LEARN_SNAP_DIR / f"tarot_deck_learned_v{version}_{now:%Y%m%d_%H%M%S}.json"
+        snap.write_text(json.dumps({
+            "version": version,
+            "learned_at": now.isoformat(timespec="seconds"),
+            "mode": mode,
+            "admin_id": admin_id,
+            "hash": h,
+            "cards": content,
+        }, ensure_ascii=False, indent=1), encoding="utf-8")
+
+        items = {
+            _LEARN_VERSION_KEY: str(version),
+            _LEARN_AT_KEY: now.isoformat(timespec="seconds"),
+            _LEARN_HASH_KEY: h,
+        }
+        if mode == "manual":
+            items[_LEARN_MANUAL_DATE_KEY] = date.today().isoformat()  # 표시/이력용(차단 용도 아님)
+        _set_meta(db, items)
+
+        st = learn_status(db)
+        st["skipped"] = False
+        st["snapshot"] = snap.name
+        st["mode"] = mode
+        return st

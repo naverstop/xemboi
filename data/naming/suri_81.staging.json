@@ -1,0 +1,658 @@
+{
+  "meta": {
+    "sources": [
+      "kimtaku",
+      "irum(한국작명연구원)",
+      "sajuabc",
+      "천궁명리",
+      "웹검색 양운목록",
+      "RAG 자산 u00677_작명-현명.pdf(교차확인)"
+    ],
+    "decisions": "논쟁수→중립(평)+양론표기 / 다수결 길 정정 / 5출처",
+    "stage_map": {
+      "won": "초년",
+      "hyung": "청년",
+      "i": "중년",
+      "jeong": "말년"
+    },
+    "status": "5출처 다수결 확정, 전문가 감수 대기, 산문해설 미포함, 엔진 미연결(staging)",
+    "engine_diff_count": 8
+  },
+  "table": [
+    {
+      "n": 1,
+      "name_ko": "기본격",
+      "name_hanja": "基本格",
+      "fortune": "길",
+      "agreement": "full"
+    },
+    {
+      "n": 2,
+      "name_ko": "분리격",
+      "name_hanja": "分離格",
+      "fortune": "흉",
+      "agreement": "full"
+    },
+    {
+      "n": 3,
+      "name_ko": "성형격",
+      "name_hanja": "成形格",
+      "fortune": "길",
+      "agreement": "full"
+    },
+    {
+      "n": 4,
+      "name_ko": "부정격",
+      "name_hanja": "不定格",
+      "fortune": "흉",
+      "agreement": "full"
+    },
+    {
+      "n": 5,
+      "name_ko": "정성격",
+      "name_hanja": "定成格",
+      "fortune": "길",
+      "agreement": "full"
+    },
+    {
+      "n": 6,
+      "name_ko": "계성격",
+      "name_hanja": "繼成格",
+      "fortune": "길",
+      "agreement": "full",
+      "hanja_variant": "繼姓格(kimtaku)"
+    },
+    {
+      "n": 7,
+      "name_ko": "독립격",
+      "name_hanja": "獨立格",
+      "fortune": "길",
+      "agreement": "full"
+    },
+    {
+      "n": 8,
+      "name_ko": "개물격",
+      "name_hanja": "開物格",
+      "fortune": "길",
+      "agreement": "full"
+    },
+    {
+      "n": 9,
+      "name_ko": "궁박격",
+      "name_hanja": "窮迫格",
+      "fortune": "흉",
+      "agreement": "majority",
+      "votes": {
+        "A": "평",
+        "B": "흉",
+        "C": "흉",
+        "D": "흉",
+        "E": null
+      }
+    },
+    {
+      "n": 10,
+      "name_ko": "공허격",
+      "name_hanja": "空虛格",
+      "fortune": "흉",
+      "agreement": "full"
+    },
+    {
+      "n": 11,
+      "name_ko": "신성격",
+      "name_hanja": "新成格",
+      "fortune": "길",
+      "agreement": "full"
+    },
+    {
+      "n": 12,
+      "name_ko": "박약격",
+      "name_hanja": "薄弱格",
+      "fortune": "흉",
+      "agreement": "full"
+    },
+    {
+      "n": 13,
+      "name_ko": "지모격",
+      "name_hanja": "智謀格",
+      "fortune": "길",
+      "agreement": "full"
+    },
+    {
+      "n": 14,
+      "name_ko": "이산격",
+      "name_hanja": "離散格",
+      "fortune": "흉",
+      "agreement": "full"
+    },
+    {
+      "n": 15,
+      "name_ko": "통솔격",
+      "name_hanja": "統率格",
+      "fortune": "길",
+      "agreement": "full"
+    },
+    {
+      "n": 16,
+      "name_ko": "덕망격",
+      "name_hanja": "德望格",
+      "fortune": "길",
+      "agreement": "full"
+    },
+    {
+      "n": 17,
+      "name_ko": "건창격",
+      "name_hanja": "健暢格",
+      "fortune": "길",
+      "agreement": "full",
+      "hanja_variant": "建暢格(kimtaku); 健暢=irum·경쟁사·RAG"
+    },
+    {
+      "n": 18,
+      "name_ko": "발전격",
+      "name_hanja": "發展格",
+      "fortune": "길",
+      "agreement": "full"
+    },
+    {
+      "n": 19,
+      "name_ko": "고난격",
+      "name_hanja": "苦難格",
+      "fortune": "흉",
+      "agreement": "full"
+    },
+    {
+      "n": 20,
+      "name_ko": "허망격",
+      "name_hanja": "虛望格",
+      "fortune": "흉",
+      "agreement": "full"
+    },
+    {
+      "n": 21,
+      "name_ko": "두령격",
+      "name_hanja": "頭領格",
+      "fortune": "길",
+      "agreement": "full"
+    },
+    {
+      "n": 22,
+      "name_ko": "중절격",
+      "name_hanja": "中折格",
+      "fortune": "흉",
+      "agreement": "full"
+    },
+    {
+      "n": 23,
+      "name_ko": "공명격",
+      "name_hanja": "功名格",
+      "fortune": "길",
+      "agreement": "full",
+      "hanja_variant": "攻名格(일부)"
+    },
+    {
+      "n": 24,
+      "name_ko": "입신격",
+      "name_hanja": "立身格",
+      "fortune": "길",
+      "agreement": "full"
+    },
+    {
+      "n": 25,
+      "name_ko": "안전격",
+      "name_hanja": "安全格",
+      "fortune": "길",
+      "agreement": "full"
+    },
+    {
+      "n": 26,
+      "name_ko": "시비격",
+      "name_hanja": "是非格",
+      "fortune": "흉",
+      "agreement": "full",
+      "hanja_variant": "英雄是非格(kimtaku)"
+    },
+    {
+      "n": 27,
+      "name_ko": "중단격",
+      "name_hanja": "中斷格",
+      "fortune": "흉",
+      "agreement": "full"
+    },
+    {
+      "n": 28,
+      "name_ko": "파란격",
+      "name_hanja": "波亂格",
+      "fortune": "흉",
+      "agreement": "full"
+    },
+    {
+      "n": 29,
+      "name_ko": "성공격",
+      "name_hanja": "成功格",
+      "fortune": "길",
+      "agreement": "full"
+    },
+    {
+      "n": 30,
+      "name_ko": "부몽격",
+      "name_hanja": "浮夢格",
+      "fortune": "흉",
+      "agreement": "full"
+    },
+    {
+      "n": 31,
+      "name_ko": "융창격",
+      "name_hanja": "隆昌格",
+      "fortune": "길",
+      "agreement": "full"
+    },
+    {
+      "n": 32,
+      "name_ko": "요행격",
+      "name_hanja": "僥倖格",
+      "fortune": "길",
+      "agreement": "full"
+    },
+    {
+      "n": 33,
+      "name_ko": "승천격",
+      "name_hanja": "昇天格",
+      "fortune": "길",
+      "agreement": "full"
+    },
+    {
+      "n": 34,
+      "name_ko": "파멸격",
+      "name_hanja": "破滅格",
+      "fortune": "흉",
+      "agreement": "full"
+    },
+    {
+      "n": 35,
+      "name_ko": "평범격",
+      "name_hanja": "平凡格",
+      "fortune": "길",
+      "agreement": "full"
+    },
+    {
+      "n": 36,
+      "name_ko": "실패격",
+      "name_hanja": "失敗格",
+      "fortune": "흉",
+      "agreement": "full",
+      "hanja_variant": "英傑是非格(kimtaku)"
+    },
+    {
+      "n": 37,
+      "name_ko": "인덕격",
+      "name_hanja": "仁德格",
+      "fortune": "길",
+      "agreement": "full"
+    },
+    {
+      "n": 38,
+      "name_ko": "복록격",
+      "name_hanja": "福祿格",
+      "fortune": "길",
+      "agreement": "full",
+      "votes": {
+        "A": "길",
+        "B": "길",
+        "C": "길",
+        "D": "길",
+        "E": "길"
+      }
+    },
+    {
+      "n": 39,
+      "name_ko": "안락격",
+      "name_hanja": "安樂格",
+      "fortune": "길",
+      "agreement": "full"
+    },
+    {
+      "n": 40,
+      "name_ko": "무상격",
+      "name_hanja": "無常格",
+      "fortune": "흉",
+      "agreement": "full"
+    },
+    {
+      "n": 41,
+      "name_ko": "대공격",
+      "name_hanja": "大功格",
+      "fortune": "길",
+      "agreement": "full"
+    },
+    {
+      "n": 42,
+      "name_ko": "고행격",
+      "name_hanja": "苦行格",
+      "fortune": "흉",
+      "agreement": "full"
+    },
+    {
+      "n": 43,
+      "name_ko": "미혹격",
+      "name_hanja": "迷惑格",
+      "fortune": "흉",
+      "agreement": "full"
+    },
+    {
+      "n": 44,
+      "name_ko": "마장격",
+      "name_hanja": "魔障格",
+      "fortune": "흉",
+      "agreement": "full"
+    },
+    {
+      "n": 45,
+      "name_ko": "대지격",
+      "name_hanja": "大智格",
+      "fortune": "길",
+      "agreement": "full"
+    },
+    {
+      "n": 46,
+      "name_ko": "부지격",
+      "name_hanja": "不知格",
+      "fortune": "흉",
+      "agreement": "full"
+    },
+    {
+      "n": 47,
+      "name_ko": "출세격",
+      "name_hanja": "出世格",
+      "fortune": "길",
+      "agreement": "full"
+    },
+    {
+      "n": 48,
+      "name_ko": "유덕격",
+      "name_hanja": "有德格",
+      "fortune": "길",
+      "agreement": "full"
+    },
+    {
+      "n": 49,
+      "name_ko": "은퇴격",
+      "name_hanja": "隱退格",
+      "fortune": "평",
+      "agreement": "disputed",
+      "votes": {
+        "A": "평",
+        "B": "흉",
+        "C": "흉",
+        "D": "길",
+        "E": null
+      }
+    },
+    {
+      "n": 50,
+      "name_ko": "불행격",
+      "name_hanja": "不幸格",
+      "fortune": "흉",
+      "agreement": "full"
+    },
+    {
+      "n": 51,
+      "name_ko": "춘추격",
+      "name_hanja": "春秋格",
+      "fortune": "평",
+      "agreement": "disputed",
+      "votes": {
+        "A": "평",
+        "B": "길",
+        "C": "평",
+        "D": null,
+        "E": null
+      }
+    },
+    {
+      "n": 52,
+      "name_ko": "능직격",
+      "name_hanja": "能直格",
+      "fortune": "길",
+      "agreement": "full"
+    },
+    {
+      "n": 53,
+      "name_ko": "불화격",
+      "name_hanja": "不和格",
+      "fortune": "흉",
+      "agreement": "full"
+    },
+    {
+      "n": 54,
+      "name_ko": "신고격",
+      "name_hanja": "辛苦格",
+      "fortune": "흉",
+      "agreement": "full"
+    },
+    {
+      "n": 55,
+      "name_ko": "불인격",
+      "name_hanja": "不忍格",
+      "fortune": "흉",
+      "agreement": "full"
+    },
+    {
+      "n": 56,
+      "name_ko": "부족격",
+      "name_hanja": "不足格",
+      "fortune": "흉",
+      "agreement": "full"
+    },
+    {
+      "n": 57,
+      "name_ko": "노력격",
+      "name_hanja": "努力格",
+      "fortune": "길",
+      "agreement": "full"
+    },
+    {
+      "n": 58,
+      "name_ko": "자력격",
+      "name_hanja": "自力格",
+      "fortune": "길",
+      "agreement": "full",
+      "votes": {
+        "A": "길",
+        "B": "길",
+        "C": "길",
+        "D": "길",
+        "E": "길"
+      }
+    },
+    {
+      "n": 59,
+      "name_ko": "불우격",
+      "name_hanja": "不遇格",
+      "fortune": "흉",
+      "agreement": "full"
+    },
+    {
+      "n": 60,
+      "name_ko": "암흑격",
+      "name_hanja": "暗黑格",
+      "fortune": "흉",
+      "agreement": "full"
+    },
+    {
+      "n": 61,
+      "name_ko": "영화격",
+      "name_hanja": "榮華格",
+      "fortune": "길",
+      "agreement": "full"
+    },
+    {
+      "n": 62,
+      "name_ko": "고독격",
+      "name_hanja": "孤獨格",
+      "fortune": "흉",
+      "agreement": "full"
+    },
+    {
+      "n": 63,
+      "name_ko": "길상격",
+      "name_hanja": "吉祥格",
+      "fortune": "길",
+      "agreement": "full"
+    },
+    {
+      "n": 64,
+      "name_ko": "침체격",
+      "name_hanja": "沈滯格",
+      "fortune": "흉",
+      "agreement": "full"
+    },
+    {
+      "n": 65,
+      "name_ko": "완미격",
+      "name_hanja": "完美格",
+      "fortune": "길",
+      "agreement": "full"
+    },
+    {
+      "n": 66,
+      "name_ko": "역난격",
+      "name_hanja": "逆難格",
+      "fortune": "흉",
+      "agreement": "full"
+    },
+    {
+      "n": 67,
+      "name_ko": "성장격",
+      "name_hanja": "成長格",
+      "fortune": "길",
+      "agreement": "full"
+    },
+    {
+      "n": 68,
+      "name_ko": "달성격",
+      "name_hanja": "達成格",
+      "fortune": "길",
+      "agreement": "full"
+    },
+    {
+      "n": 69,
+      "name_ko": "쇠약격",
+      "name_hanja": "衰弱格",
+      "fortune": "흉",
+      "agreement": "full"
+    },
+    {
+      "n": 70,
+      "name_ko": "암난격",
+      "name_hanja": "暗難格",
+      "fortune": "흉",
+      "agreement": "full"
+    },
+    {
+      "n": 71,
+      "name_ko": "불안격",
+      "name_hanja": "不安格",
+      "fortune": "길",
+      "agreement": "majority",
+      "votes": {
+        "A": "길",
+        "B": "흉",
+        "C": "길",
+        "D": "길",
+        "E": "길"
+      }
+    },
+    {
+      "n": 72,
+      "name_ko": "상반격",
+      "name_hanja": "相半格",
+      "fortune": "흉",
+      "agreement": "full"
+    },
+    {
+      "n": 73,
+      "name_ko": "형통격",
+      "name_hanja": "亨通格",
+      "fortune": "길",
+      "agreement": "full",
+      "votes": {
+        "A": "길",
+        "B": "길",
+        "C": "길",
+        "D": "길",
+        "E": "길"
+      }
+    },
+    {
+      "n": 74,
+      "name_ko": "불교격",
+      "name_hanja": "不交格",
+      "fortune": "흉",
+      "agreement": "full"
+    },
+    {
+      "n": 75,
+      "name_ko": "왕성격",
+      "name_hanja": "旺盛格",
+      "fortune": "길",
+      "agreement": "full",
+      "votes": {
+        "A": "길",
+        "B": "길",
+        "C": "길",
+        "D": "길",
+        "E": "길"
+      }
+    },
+    {
+      "n": 76,
+      "name_ko": "이산격",
+      "name_hanja": "離散格",
+      "fortune": "흉",
+      "agreement": "full"
+    },
+    {
+      "n": 77,
+      "name_ko": "길흉상반격",
+      "name_hanja": "吉凶相半格",
+      "fortune": "길",
+      "agreement": "full",
+      "votes": {
+        "A": "길",
+        "B": null,
+        "C": "길",
+        "D": "길",
+        "E": "길"
+      }
+    },
+    {
+      "n": 78,
+      "name_ko": "무력격",
+      "name_hanja": "無力格",
+      "fortune": "흉",
+      "agreement": "full"
+    },
+    {
+      "n": 79,
+      "name_ko": "불신격",
+      "name_hanja": "不信格",
+      "fortune": "흉",
+      "agreement": "full"
+    },
+    {
+      "n": 80,
+      "name_ko": "음영격",
+      "name_hanja": "陰影格",
+      "fortune": "흉",
+      "agreement": "full"
+    },
+    {
+      "n": 81,
+      "name_ko": "환희격",
+      "name_hanja": "還喜格",
+      "fortune": "길",
+      "agreement": "full"
+    }
+  ]
+}

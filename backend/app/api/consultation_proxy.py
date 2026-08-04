@@ -68,9 +68,14 @@ async def _ws_proxy(client_ws: WebSocket, upstream_url: str) -> None:
     await client_ws.accept()
     try:
         up = await websockets.connect(upstream_url, ping_interval=None, max_size=None)
-    except Exception:  # noqa: BLE001 — 상담 프로세스 미기동/불가 → 재연결에 맡김
+    except Exception as e:  # noqa: BLE001
+        # 업스트림이 핸드셰이크 단계에서 401/403 으로 거부 = 인증/권한 실패(만료·무효 토큰, 비참여자).
+        # 이 경우 4403 으로 닫아 클라이언트가 '재연결 무의미'를 인지하게 한다. 그 외(프로세스 미기동 등)는
+        # 1011 로 닫아 재연결에 맡긴다(인증 실패와 일시적 서비스 중단을 구분 — 만료 토큰 무한 재연결 방지).
+        status = getattr(getattr(e, "response", None), "status_code", None) or getattr(e, "status_code", None)
+        code = 4403 if status in (401, 403) else 1011
         try:
-            await client_ws.close(code=1011)
+            await client_ws.close(code=code)
         except Exception:  # noqa: BLE001
             pass
         return

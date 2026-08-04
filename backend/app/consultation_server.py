@@ -25,6 +25,21 @@ def create_consultation_app() -> FastAPI:
     def _health() -> dict[str, str]:
         return {"status": "ok", "service": "consultation"}
 
+    @app.on_event("startup")
+    def _reset_presence() -> None:
+        # 기동 시 in-memory 콘솔 연결이 전무하므로 DB 의 presence(online/busy) 는 전부 stale.
+        # 모두 offline 로 리셋 → 상담사가 콘솔을 다시 열면 online 으로 복구. '가짜 대기중' 방지.
+        try:
+            from backend.app.core.db import get_session_factory
+            from backend.app.services import consultation_service as svc
+            with get_session_factory()() as db:
+                n = svc.reset_presence_all(db)
+            import logging
+            logging.getLogger("saju.consultation").info("presence reset on startup: %d rows", n)
+        except Exception as e:  # noqa: BLE001
+            import logging
+            logging.getLogger("saju.consultation").warning("presence reset failed: %s", e)
+
     # 사용자 상담 라우터(REST 세션 lifecycle + WebSocket). 관리자 라우터는 메인 앱에 둔다(순수 DB).
     app.include_router(consultation.router)
     return app

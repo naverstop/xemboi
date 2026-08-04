@@ -84,12 +84,17 @@ def adjust_credit(
     delta: int,
     reason: str,
     ref_id: Optional[str] = None,
+    idem_key: Optional[str] = None,
 ) -> int:
     """잔액 조정(원자적). delta는 +충전/-차감. 부족 시 ValueError.
 
     동시 차감/적립 lost-update·이중차감·음수잔액 방지: read-modify-write 대신 단일
     UPDATE ... WHERE balance+delta>=0 + rowcount 검사. PostgreSQL이 행잠금+EvalPlanQual로
     최신 잔액에 WHERE를 재평가하므로, 동시 요청이 같은 잔액을 두 번 쓰는 일이 없다.
+
+    idem_key 지정 시 멱등: 같은 키의 거래가 이미 있으면 재적용하지 않고 현재 잔액을 그대로 반환한다.
+    idem 거래행을 SAVEPOINT 안에서 먼저 선점(부분 UNIQUE 인덱스 ux_credit_tx_idem)하므로, 리컨실 재실행·
+    재시도·동시요청이 이중차감/이중환불로 번지지 않는다. (idem_key=None 이면 기존 비멱등 경로 그대로 — 회귀 없음)
     """
     from sqlalchemy import select as _sel, update as _upd
     c = db.get(Credit, user_id)
@@ -97,6 +102,38 @@ def adjust_credit(
         c = Credit(user_id=user_id, balance=0)
         db.add(c)
         db.flush()
+
+    if idem_key is not None:
+        from sqlalchemy.exc import IntegrityError
+        # 게이트+잔액반영을 하나의 SAVEPOINT 로 원자화 — 유니크 위반=이미 수행됨(no-op),
+        #   잔액부족이면 게이트행까지 원복(향후 같은 키 재시도가 유령 no-op 되는 오염 방지).
+        sp = db.begin_nested()
+        txn = CreditTransaction(
+            user_id=user_id, delta=delta, reason=reason, ref_id=ref_id,
+            idem_key=idem_key, balance_after=0,   # 게이트 통과 후 실제 잔액으로 갱신
+        )
+        try:
+            db.add(txn)
+            db.flush()                    # 중복 idem_key → IntegrityError
+        except IntegrityError:
+            sp.rollback()
+            return db.execute(_sel(Credit.balance).where(Credit.user_id == user_id)).scalar() or 0
+        res = db.execute(
+            _upd(Credit)
+            .where(Credit.user_id == user_id, Credit.balance + delta >= 0)
+            .values(balance=Credit.balance + delta, updated_at=datetime.utcnow())
+        )
+        if res.rowcount == 0:
+            sp.rollback()                 # 잔액부족 → 게이트행 원복 후 실패
+            cur = db.execute(_sel(Credit.balance).where(Credit.user_id == user_id)).scalar() or 0
+            raise ValueError(f"insufficient credits: balance={cur}, delta={delta}")
+        db.expire(c)
+        new_balance = c.balance
+        txn.balance_after = new_balance
+        db.flush()
+        sp.commit()                       # 게이트행+잔액변경 함께 확정(SAVEPOINT 릴리스)
+        return new_balance
+
     res = db.execute(
         _upd(Credit)
         .where(Credit.user_id == user_id, Credit.balance + delta >= 0)
@@ -154,6 +191,25 @@ def claim_free_quota(db: Session, user: User, quota: int) -> bool:
     )
     db.expire(user, ["free_used_count"])
     return res.rowcount > 0
+
+
+def reset_monthly_free_if_needed(db: Session, user: User) -> None:
+    """free_quota_reset='monthly' 전용 — 월이 바뀌면 free_used_count 를 원자적으로 0 리셋(daily 패턴 미러).
+
+    저장된 free_quota_period('YYYY-MM')가 현재 월과 다르면(또는 NULL) 리셋+기간 갱신. 동시요청이 있어도
+    단일 UPDATE ... WHERE period<>cur 라 하나만 리셋(rowcount1)하고 나머지는 no-op → lost-update 안전.
+    이후 claim_free_quota 가 원자적으로 재선점하므로 '매월 N회' 가 정확히 재부여된다."""
+    from datetime import date as _date
+    from sqlalchemy import update as _upd, or_ as _or
+    cur = _date.today().strftime("%Y-%m")
+    db.execute(
+        _upd(User)
+        .where(User.id == user.id, _or(User.free_quota_period.is_(None), User.free_quota_period != cur))
+        .values(free_used_count=0, free_quota_period=cur)
+    )
+    # rowcount 무관하게 항상 만료 후 재조회 — 동시요청에서 '다른 요청이 이미 리셋'(rowcount0)한 경우에도
+    #   세션 캐시가 지난달 stale 값을 들고 있으면 무료가 잘못 차단(402)되므로, 커밋된 최신값을 다시 읽게 한다.
+    db.expire(user, ["free_used_count", "free_quota_period"])
 
 
 def claim_membership_quota(db: Session, user: User, quota: int) -> bool:
@@ -245,6 +301,13 @@ def is_ads_hidden(db: Session, user: Optional[User]) -> bool:
         return True
     if get_balance(db, user.id) > 0:
         return True
+    # B-7 월 패스(라이트/플러스) 이용 중: 무광고
+    try:
+        from backend.app.services import pass_service
+        if pass_service.get_pass(db, user.id) is not None:
+            return True
+    except Exception:  # noqa: BLE001
+        pass
     return False
 
 
@@ -291,5 +354,7 @@ def seed_admins(db: Session) -> int:
                 s.admin_seed_credits - bal,
                 reason="admin_seed",
             )
+    # ※ H1 자동강등(허용목록 밖 admin→user)은 제거됨 — 운영자가 관리자 계정을 직접 고정 관리(id 1·2·28·41).
+    #   seed_admins 는 '승격/시드'만 하고 기존 role 을 강등하지 않는다(운영자 복원본을 재기동 시 되돌리지 않도록).
     db.commit()
     return created

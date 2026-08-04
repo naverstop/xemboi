@@ -37,6 +37,11 @@ NEW_DIR = PROJECT_ROOT / "학습자료_new"
 QUAR_DIR = PROJECT_ROOT / "data" / "rag" / "quarantine"
 OCR_DIR = PROJECT_ROOT / "data" / "ocr"
 
+# 백로그 자동 재시도 상한 — 이 횟수만큼 비전 재전사에도 색인 실패하면 auto 대상에서 제외(무한 재전사 비용 방지).
+#   순수 표·색인 페이지 등 재전사해도 안 되는 자료를 매일 Claude 로 다시 부르지 않게 한다.
+#   (명시 인자로 호출하면 상한 무시 — 운영자 강제 재시도용.)
+MAX_VISION_ATTEMPTS = 3
+
 
 def _auto_targets() -> list[str]:
     """비전 재OCR 대상 자동 수집: 최신 quarantine summary의 reocr_sources + DB의 failed 업로드.
@@ -55,13 +60,40 @@ def _auto_targets() -> list[str]:
         from backend.app.core.db import get_session_factory
         from backend.app.repositories import upload_repo
         from backend.app.services.upload_service import _safe_title
+        exhausted = 0
         with get_session_factory()() as db:
             for u in upload_repo.list_uploads(db, status="failed", limit=200):
-                if u.file_kind in ("pdf", "image"):
-                    out.append(f"u{u.id:05d}_{_safe_title(u.title)[:60]}")
+                if u.file_kind not in ("pdf", "image"):
+                    continue
+                if (getattr(u, "vision_attempts", 0) or 0) >= MAX_VISION_ATTEMPTS:
+                    exhausted += 1        # 상한 도달 — auto 재시도 제외(무한 재전사 방지)
+                    continue
+                out.append(f"u{u.id:05d}_{_safe_title(u.title)[:60]}")
+        if exhausted:
+            print(f"[vision] 재시도 상한({MAX_VISION_ATTEMPTS}) 도달 {exhausted}건 auto 제외 "
+                  "— 순수 표/색인 페이지 가능성. 수동 강제 재시도는 stem 인자로.")
     except Exception as e:  # noqa: BLE001 — DB 불가 시 summary 분만이라도 진행
         print(f"[vision] failed 업로드 조회 건너뜀: {e}")
     return sorted(set(out))
+
+
+def _bump_attempts(stems: list[str]) -> None:
+    """이번에 시도하는 u접두 업로드의 vision_attempts +1 — 상한 도달분이 다음 auto 대상에서 빠지게 한다."""
+    import re as _re
+    uids = [int(m.group(1)) for s in stems if (m := _re.match(r"^u(\d{5})_", s))]
+    if not uids:
+        return
+    try:
+        from sqlalchemy import update as _upd
+
+        from backend.app.core.db import get_session_factory
+        from backend.app.repositories.upload_models import Upload
+        with get_session_factory()() as db:
+            db.execute(_upd(Upload).where(Upload.id.in_(uids))
+                       .values(vision_attempts=Upload.vision_attempts + 1))
+            db.commit()
+    except Exception as e:  # noqa: BLE001 — 카운트 실패가 전사를 막지 않는다
+        print(f"[vision] 시도횟수 기록 건너뜀: {e}")
 
 
 def _find_pdf(stem: str) -> Path | None:
@@ -220,8 +252,9 @@ def main() -> int:
 
     stems = args or _auto_targets()
     if not stems:
-        print("[vision] 대상 소스 없음(격리 reocr_sources 비어있음).")
+        print("[vision] 대상 소스 없음(격리 reocr_sources·failed 백로그 비어있음).")
         return 0
+    _bump_attempts(stems)               # 시도 +1 (상한 도달분은 다음 auto 대상에서 제외)
     print(f"[vision] 대상 {len(stems)}건: {stems}")
     written = transcribe_phase(stems)   # fitz + Claude
     if not written:

@@ -14,7 +14,7 @@ from typing import Any
 from urllib.parse import urlencode
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 
@@ -57,10 +57,19 @@ def _provider_cfg(provider: str) -> dict[str, Any]:
     raise HTTPException(status_code=404, detail=f"unknown provider: {provider}")
 
 
+def _prod_cookie() -> bool:
+    return (get_settings().app_env or "").lower() == "production"
+
+
 @router.get("/{provider}/start")
-def oauth_start(provider: str) -> dict[str, Any]:
+def oauth_start(provider: str, response: Response) -> dict[str, Any]:
     cfg = _provider_cfg(provider)
     state = secrets.token_urlsafe(16)
+    # CSRF 방지(M9) — state 를 HttpOnly 쿠키로 저장하고 콜백에서 쿼리 state 와 대조한다(double-submit).
+    response.set_cookie(
+        key=f"oauth_state_{provider}", value=state, max_age=600, httponly=True,
+        samesite="lax", secure=_prod_cookie(), path="/",
+    )
     params = {
         "client_id": cfg["client_id"],
         "redirect_uri": cfg["redirect_uri"],
@@ -182,12 +191,18 @@ def _upsert_user(db: Session, provider: str, profile: dict[str, Any]):
 @router.get("/{provider}/callback")
 def oauth_callback(
     provider: str,
+    request: Request,
     code: str = Query(...),
     state: str = Query(""),
     db: Session = Depends(get_db),
 ):
     """provider OAuth 콜백 → 자체 JWT 발급 → 프론트로 redirect (해시에 토큰)."""
     s = get_settings()
+    # CSRF 방지(M9) — /start 가 심은 쿠키 state 와 콜백 쿼리 state 일치 검증. 불일치/누락 시 거부.
+    expected = request.cookies.get(f"oauth_state_{provider}")
+    if not _is_dummy(_provider_cfg(provider)["client_id"]):
+        if not state or not expected or not secrets.compare_digest(state, expected):
+            raise HTTPException(status_code=400, detail="로그인 요청이 유효하지 않아요. 다시 시도해 주세요.")
     tok = _exchange_token(provider, code)
     profile = _fetch_profile(provider, tok.get("access_token", ""), code_hint=code)
     user = _upsert_user(db, provider, profile)

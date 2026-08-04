@@ -6,7 +6,6 @@
  *  이 컴포넌트로 통일한다.
  */
 import { useEffect, useState } from "react";
-import { useTranslation } from "react-i18next";
 
 type AmPm = "AM" | "PM";
 
@@ -31,7 +30,6 @@ export default function TimeSelect({
   onChange: (v: string) => void;
   disabled?: boolean;
 }) {
-  const { t: tr } = useTranslation();
   const p = parse12(value);
   const [ampm, setAmpm] = useState<AmPm>(p?.ampm ?? "AM");
   const [h12, setH12] = useState<number | "">(p?.h12 ?? "");
@@ -55,32 +53,32 @@ export default function TimeSelect({
 
   return (
     <div className={`timesel${disabled ? " is-disabled" : ""}`}>
-      <div className="timesel-ampm" role="group" aria-label={tr("birth.ampm_aria")}>
+      <div className="timesel-ampm" role="group" aria-label="오전/오후 선택">
         <button
           type="button" className={ampm === "AM" ? "on" : ""} disabled={disabled}
           onClick={() => { setAmpm("AM"); emit("AM", h12, min); }}
-        >{tr("birth.am")}</button>
+        >오전</button>
         <button
           type="button" className={ampm === "PM" ? "on" : ""} disabled={disabled}
           onClick={() => { setAmpm("PM"); emit("PM", h12, min); }}
-        >{tr("birth.pm")}</button>
+        >오후</button>
       </div>
       <div className="timesel-hm">
         <select
-          className="timesel-sel" aria-label={tr("birth.hour")} value={h12} disabled={disabled}
+          className="timesel-sel" aria-label="시" value={h12} disabled={disabled}
           onChange={(e) => { const v = e.target.value === "" ? "" : +e.target.value; setH12(v); emit(ampm, v, min); }}
         >
-          <option value="">{tr("birth.hour")}</option>
+          <option value="">시</option>
           {Array.from({ length: 12 }, (_, i) => i + 1).map((h) => (
-            <option key={h} value={h}>{tr("birth.hour_n", { h })}</option>
+            <option key={h} value={h}>{h}시</option>
           ))}
         </select>
         <select
-          className="timesel-sel" aria-label={tr("birth.minute")} value={min} disabled={disabled || h12 === ""}
+          className="timesel-sel" aria-label="분" value={min} disabled={disabled || h12 === ""}
           onChange={(e) => { setMin(e.target.value); emit(ampm, h12, e.target.value); }}
         >
           {Array.from({ length: 60 }, (_, i) => String(i).padStart(2, "0")).map((mm) => (
-            <option key={mm} value={mm}>{tr("birth.minute_n", { mm })}</option>
+            <option key={mm} value={mm}>{mm}분</option>
           ))}
         </select>
       </div>

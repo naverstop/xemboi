@@ -27,8 +27,6 @@ class Base(DeclarativeBase):
 class ChatSession(Base):
     __tablename__ = "chat_sessions"
 
-    # 로케일(ko|vi) — 세션 생성 시 확정. 익명 세션도 언어를 유지(응답·독음·역법).
-    locale: Mapped[str] = mapped_column(String(2), nullable=False, default="ko", server_default="ko")
     session_id: Mapped[str] = mapped_column(String(64), primary_key=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
     top_k: Mapped[int] = mapped_column(Integer, nullable=False, default=6)
@@ -128,6 +126,9 @@ class RetrievalLog(Base):
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False, index=True)
     session_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    # [P3-D1] 메뉴 태그('chat'·'compat'·'naming/jakmyeong'·'dream'…). 세션이 지워지면 4개 테이블을
+    # 조인해도 메뉴를 알 수 없어 추적이 끊긴다(전기간 orphan 39%) → 로그 자체에 남긴다.
+    menu: Mapped[str | None] = mapped_column(String(32), nullable=True, index=True)
     question: Mapped[str] = mapped_column(Text, nullable=False)
     top_k: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     max_score: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
@@ -140,8 +141,6 @@ class CompatibilitySession(Base):
 
     __tablename__ = "compat_sessions"
 
-    # 로케일(ko|vi) — 세션 생성 시 확정(응답·독음·역법)
-    locale: Mapped[str] = mapped_column(String(2), nullable=False, default="ko", server_default="ko")
     compat_id: Mapped[str] = mapped_column(String(64), primary_key=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
     user_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True, index=True)
@@ -218,8 +217,6 @@ class ToolSession(Base):
 
     __tablename__ = "tool_sessions"
 
-    # 로케일(ko|vi) — 세션 생성 시 확정(응답·독음·역법)
-    locale: Mapped[str] = mapped_column(String(2), nullable=False, default="ko", server_default="ko")
     tool_id: Mapped[str] = mapped_column(String(64), primary_key=True)
     tool: Mapped[str] = mapped_column(String(16), nullable=False, index=True)   # naming | taekil
     kind: Mapped[str] = mapped_column(String(24), nullable=False)               # jakmyeong|gaemyeong|aho|wedding|moving|...
@@ -277,8 +274,6 @@ class TarotSession(Base):
 
     __tablename__ = "tarot_sessions"
 
-    # 로케일(ko|vi) — 세션 생성 시 확정(응답·독음·역법)
-    locale: Mapped[str] = mapped_column(String(2), nullable=False, default="ko", server_default="ko")
     tarot_id: Mapped[str] = mapped_column(String(64), primary_key=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
     user_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True, index=True)

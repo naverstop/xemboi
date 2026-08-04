@@ -67,20 +67,24 @@ async def submit(
     title: str | None = Form(None),
     category: str | None = Form(None),
     note: str | None = Form(None),
-    submitter: str | None = Form(None),
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),   # 무인증 제출 차단(검수큐 오염·스토리지 소진·RAG 오염)
 ) -> UploadDTO:
     content = await file.read()
+    # 회원 제출은 관리자/코퍼스 예약 카테고리를 사칭할 수 없다(파기 우회 방지, 제21조) — user_upload 로 강제.
+    _cat = (category or "").strip() or "user_upload"
+    if _cat in upload_service.RESERVED_UPLOAD_CATEGORIES:
+        _cat = "user_upload"
     try:
         row = upload_service.submit_upload(
             db,
             filename=file.filename or "untitled",
             content=content,
             title=title,
-            category=category,
+            category=_cat,
             note=note,
-            submitter=submitter or user.email,   # 제출 계정 귀속(추적성)
+            # submitter 는 로그인 계정으로 강제 — 클라이언트가 보낸 값을 신뢰하면 탈퇴 파기(제21조) 우회 가능(위조).
+            submitter=user.email,
         )
     except FileExistsError as e:
         raise HTTPException(status_code=409, detail=str(e))

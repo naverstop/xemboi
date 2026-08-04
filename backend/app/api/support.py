@@ -132,6 +132,17 @@ def admin_refund_ticket(
             status_code=400,
             detail="주문번호가 없는 문의는 자동 환불할 수 없어요. 주문번호를 확인하거나 수동 처리해 주세요.",
         )
+    # 접수자(t.user_id)와 참조 주문의 소유자 일치 검증 — 남의 주문번호를 적어 타인 결제를 환불시키는 것 차단.
+    # (로그인 접수 문의만 검증. 비로그인 문의는 접수자 식별 불가라 관리자 수동 판단에 맡긴다.)
+    from backend.app.repositories.auth_models import Payment as _Payment
+    from sqlalchemy import select as _select
+
+    _pay = db.execute(_select(_Payment).where(_Payment.order_id == t.order_id)).scalar_one_or_none()
+    if _pay is not None and t.user_id is not None and _pay.user_id != t.user_id:
+        raise HTTPException(
+            status_code=400,
+            detail="문의 접수자와 결제 주문의 소유자가 달라 자동 환불할 수 없어요. 주문번호를 확인해 주세요.",
+        )
     from backend.app.services import payment_service
     reason = (req.reason or "").strip() or f"고객센터 환불승인 #{ticket_id}"
     try:
@@ -144,7 +155,11 @@ def admin_refund_ticket(
         raise HTTPException(status_code=502, detail=str(e))
     recovered = int(result.get("recovered_credits", 0) or 0)
     mock = " (mock)" if result.get("mock") else ""
-    note = f"환불 처리 완료{mock} — 주문 {t.order_id}, 크레딧 {recovered:,}P 회수"
+    if result.get("already"):
+        # 이미 환불된 주문 — 신규 환불이 일어나지 않았음을 정확히 기록(감사기록 오도 방지, 이중환불 없음).
+        note = f"이미 환불된 주문이에요 — 주문 {t.order_id} (추가 환불 없음)"
+    else:
+        note = f"환불 처리 완료{mock} — 주문 {t.order_id}, 크레딧 {recovered:,}P 회수"
     ticket = svc.update_ticket(db, ticket_id, status="resolved", admin_note=note)
     return {"ticket": ticket, "refund": result}
 

@@ -49,6 +49,58 @@ def compute_wuxing(pillars: FourPillars) -> tuple[WuxingDistribution, WuxingDist
     return WuxingDistribution(**full), WuxingDistribution(**branch_only)
 
 
+def compute_wuxing_eight(pillars: FourPillars) -> WuxingDistribution:
+    """팔자(八字) 8글자 기준 오행 개수 — 천간4 + 지지 '본기'4 (합 8, 시 모름이면 6).
+
+    [2026-07-22 운영자 지적] 화면 명식표의 오행 막대가 full(천간+지지본기+지장간 여기·중기, 합 14)
+    을 그려 사용자가 읽는 8글자와 어긋났다. 예: 시丁卯·일己丑·월壬寅·년壬子 는 팔자에 금(金)이
+    하나도 없는데 화면·프롬프트는 '금 1'(丑 중기 辛)로 표시 → LLM 이 없는 금을 있다고 서술.
+
+    ⚠️ 이 분포는 **표시·프롬프트 전용**이다. 신강/신약(determine_strength)은 지장간 통근을 반영해야
+    하는 억부 정설이라 계속 full 을 쓴다. 여기를 강약에 넣으면 중화(neutral)가 수학적으로 0%가 되고
+    판정이 대량 뒤집힌다(시뮬 3만건: strong 25.6%→40.2%, neutral 16.3%→0%).
+    """
+    d = WuxingDistribution().model_dump()
+    for s in pillars.all_stems():
+        _add(d, STEM_TO_WUXING[s])
+    for b in pillars.all_branches():
+        _add(d, BRANCH_TO_WUXING[b])
+    return WuxingDistribution(**d)
+
+
+def wuxing_eight_of(chart) -> WuxingDistribution:
+    """차트에서 팔자8 분포를 얻는다 — 필드가 없는 '옛 저장 chart_json' 도 pillars 로 즉시 재계산.
+
+    저장된 세션(chat_sessions.chart_json / compat a·b / tool_sessions)에는 wuxing_eight 가 없으므로
+    마이그레이션 없이도 항상 올바른 값이 나오게 한다.
+    """
+    w = getattr(chart, "wuxing_eight", None)
+    return w if w is not None else compute_wuxing_eight(chart.pillars)
+
+
+def wuxing_eight_ko_from_json(chart_json: dict) -> dict[str, int]:
+    """저장된 chart_json(dict) → 팔자8 오행 개수(한글 키). pillars 만 있으면 동작.
+
+    실패 시 빈 dict 를 돌려 호출부가 기존 표기로 안전하게 폴백하도록 한다.
+    """
+    try:
+        p = (chart_json or {}).get("pillars") or {}
+        ko = {"木": "목", "火": "화", "土": "토", "金": "금", "水": "수"}
+        out = {"목": 0, "화": 0, "토": 0, "금": 0, "수": 0}
+        for pos in ("year", "month", "day", "hour"):
+            pil = p.get(pos)
+            if not pil:
+                continue
+            st, br = pil.get("stem"), pil.get("branch")
+            if st in STEM_TO_WUXING:
+                out[ko[STEM_TO_WUXING[st]]] += 1
+            if br in BRANCH_TO_WUXING:
+                out[ko[BRANCH_TO_WUXING[br]]] += 1
+        return out if sum(out.values()) else {}
+    except Exception:  # noqa: BLE001 — 표시용 보조값이라 실패해도 답변 생성을 막지 않는다
+        return {}
+
+
 def compute_ten_gods(pillars: FourPillars) -> TenGodAssignment:
     dm = pillars.day_master
 

@@ -12,7 +12,11 @@ from backend.app.services import chat_service as cs
 def test_compose_sys_includes_question_focus_rule():
     sys = cs._compose_sys_content("기본 시스템", dialect="standard", explain_level="normal")
     assert "[핵심 질문 집중" in sys
-    assert "이전 주제를 이어가지 말고" in sys
+    assert "이어가지 말고" in sys
+    # [2026-07-25] 연애 예시 지뢰 제거 후 신설된 '한 낱말 넘겨짚기 금지' 가드가 들어가는지 고정
+    assert "넘겨짚어 다른 주제로 바꾸지 마세요" in sys
+    # 규칙 본문에 연애 편중 예시('남자친구→연애·인연')를 다시 넣지 않았는지(동문서답 재발 방지)
+    assert "남자친구는 언제 생길까요" not in sys
 
 
 def test_user_prompt_focuses_on_current_question_and_is_last():

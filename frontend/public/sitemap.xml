@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>https://saju.songstock.art/</loc><changefreq>weekly</changefreq><priority>1.0</priority></url>
+  <url><loc>https://saju.songstock.art/chat</loc><changefreq>weekly</changefreq><priority>0.9</priority></url>
+  <url><loc>https://saju.songstock.art/today</loc><changefreq>daily</changefreq><priority>0.8</priority></url>
+  <url><loc>https://saju.songstock.art/calendar</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://saju.songstock.art/sinnyeon</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://saju.songstock.art/compatibility</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://saju.songstock.art/taekil</loc><changefreq>monthly</changefreq><priority>0.6</priority></url>
+  <url><loc>https://saju.songstock.art/naming/jakmyeong</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://saju.songstock.art/naming/gaemyeong</loc><changefreq>monthly</changefreq><priority>0.6</priority></url>
+  <url><loc>https://saju.songstock.art/naming/aho</loc><changefreq>monthly</changefreq><priority>0.5</priority></url>
+  <url><loc>https://saju.songstock.art/amulet</loc><changefreq>monthly</changefreq><priority>0.5</priority></url>
+  <url><loc>https://saju.songstock.art/dream</loc><changefreq>monthly</changefreq><priority>0.6</priority></url>
+  <url><loc>https://saju.songstock.art/tarot</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://saju.songstock.art/snack</loc><changefreq>weekly</changefreq><priority>0.6</priority></url>
+  <url><loc>https://saju.songstock.art/reviews</loc><changefreq>weekly</changefreq><priority>0.6</priority></url>
+  <url><loc>https://saju.songstock.art/support</loc><changefreq>monthly</changefreq><priority>0.4</priority></url>
+</urlset>

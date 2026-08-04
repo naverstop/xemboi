@@ -9,7 +9,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from backend.app.core.db import get_db
-from backend.app.core.deps import get_locale, get_optional_user
+from backend.app.core.deps import get_current_user, get_optional_user
 from backend.app.domain.compat_dto import CreateCompatRequest
 from backend.app.repositories.auth_models import User
 from backend.app.services import chat_service, compat_service
@@ -29,12 +29,11 @@ def create_compatibility(
     req: CreateCompatRequest,
     db: Session = Depends(get_db),
     user: Optional[User] = Depends(get_optional_user),
-    locale: str = Depends(get_locale),
 ) -> dict[str, Any]:
     try:
         return compat_service.create_compatibility(
             db, req.person_a, req.person_b, user=user,
-            depth=req.depth, explain_level=req.explain_level, locale=locale,
+            depth=req.depth, explain_level=req.explain_level,
         )
     except PermissionError as e:
         raise HTTPException(status_code=401, detail=str(e))
@@ -123,6 +122,27 @@ def compat_suggestions(
 def compatibility_average(db: Session = Depends(get_db)) -> dict[str, Any]:
     """궁합 본 사람들의 평균(요소점수·관법총점) — 펜타곤 '전체 평균' 오버레이용."""
     return compat_service.get_average(db)
+
+
+@router.get("")
+def my_compat(
+    limit: int = 30,
+    offset: int = 0,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> dict[str, Any]:
+    """회원 본인 궁합 세션 목록(최신순) — '지난 결과' 무차감 재열람용. 비로그인 401.
+
+    경로는 정확히 GET /api/compatibility(빈 path) — /average·/{compat_id}와 별개(FastAPI 정확 매칭).
+    """
+    rows = compat_service.list_user_compat(db, user.id, limit=limit, offset=offset)
+    items = [{
+        "compat_id": r["compat_id"],
+        "created_at": r["created_at"].isoformat() if r["created_at"] else "",
+        "a_label": r["a_label"], "b_label": r["b_label"],
+        "a_birth_date": r["a_birth_date"], "b_birth_date": r["b_birth_date"],
+    } for r in rows]
+    return {"items": items, "total": len(items)}
 
 
 @router.get("/{compat_id}")

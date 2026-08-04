@@ -33,10 +33,20 @@ def db():
         engine.dispose()
 
 
-def _mk_session(db, sid: str, user_id: int | None) -> ChatSession:
+def _mk_session(db, sid: str, user_id: int | None, age_min: int = 0) -> ChatSession:
+    """세션 행 생성. age_min>0 이면 created_at 을 그만큼 과거로 백데이트한다.
+
+    delete_empty_sessions 는 '최근 2분 이내' 빈 세션을 스트림 레이스 방지(N1)로 제외하므로,
+    '삭제되어야 하는 빈 세션'은 유예 밖(2분 초과)으로 백데이트해야 실제 삭제 경로를 검증한다.
+    """
     row = ChatSession(session_id=sid, user_id=user_id, birth_date=date(1990, 1, 1))
     db.add(row)
     db.commit()
+    if age_min:
+        from datetime import datetime, timedelta
+        row.created_at = datetime.utcnow() - timedelta(minutes=age_min)
+        db.add(row)
+        db.commit()
     return row
 
 
@@ -50,11 +60,11 @@ def _add_message(db, sid: str, role: str = "user", content: str = "질문") -> C
 # ---- repo 레벨 ----
 
 def test_delete_empty_sessions_removes_only_empty(db):
-    _mk_session(db, "empty1", 1)
-    _mk_session(db, "empty2", 1)
+    _mk_session(db, "empty1", 1, age_min=5)   # 유예(2분) 밖 → 삭제 대상
+    _mk_session(db, "empty2", 1, age_min=5)
     _mk_session(db, "real1", 1)
     _add_message(db, "real1")
-    _mk_session(db, "other_empty", 2)  # 다른 회원 — 영향 없어야
+    _mk_session(db, "other_empty", 2, age_min=5)  # 다른 회원 — 영향 없어야
 
     removed = chat_repo.delete_empty_sessions(db, 1)
 
@@ -62,6 +72,15 @@ def test_delete_empty_sessions_removes_only_empty(db):
     assert {r.session_id for r in chat_repo.list_user_sessions(db, 1)} == {"real1"}
     # 다른 회원의 빈 세션은 보존
     assert {r.session_id for r in chat_repo.list_user_sessions(db, 2)} == {"other_empty"}
+
+
+def test_delete_empty_sessions_spares_recent(db):
+    # N1 레이스 방지: 최근(2분 이내) 빈 세션은 답변 스트림이 진행 중일 수 있어 삭제하지 않는다.
+    _mk_session(db, "fresh_empty", 1, age_min=0)   # 갓 생성 → 유예로 보존
+    _mk_session(db, "old_empty", 1, age_min=5)     # 유예 밖 → 삭제
+    removed = chat_repo.delete_empty_sessions(db, 1)
+    assert removed == 1
+    assert {r.session_id for r in chat_repo.list_user_sessions(db, 1)} == {"fresh_empty"}
 
 
 def test_delete_empty_sessions_noop_when_none(db):
@@ -113,12 +132,12 @@ def test_create_session_prunes_empty_then_succeeds(db, monkeypatch):
     _patch_limit(monkeypatch, 3)
     _stub_insert(monkeypatch)
 
-    # 실제 상담 2개 + 빈 세션 3개(상담시작 반복으로 쌓인 것)
+    # 실제 상담 2개 + 빈 세션 3개(상담시작 반복으로 쌓인 것; 유예 밖으로 백데이트)
     for i in range(2):
         _mk_session(db, f"real{i}", 1)
         _add_message(db, f"real{i}")
     for i in range(3):
-        _mk_session(db, f"empty{i}", 1)
+        _mk_session(db, f"empty{i}", 1, age_min=5)
 
     sid, summary, chart = chat_service.create_session(db, _birth(), top_k=4, user=user)
 
@@ -136,8 +155,8 @@ def test_create_session_raises_when_real_sessions_at_limit(db, monkeypatch):
     for i in range(2):
         _mk_session(db, f"real{i}", 1)
         _add_message(db, f"real{i}")
-    # 빈 세션이 끼어 있어도 정리 후 실제 2개 == 한도 2 → 초과
-    _mk_session(db, "empty", 1)
+    # 빈 세션이 끼어 있어도 정리 후 실제 2개 == 한도 2 → 초과 (유예 밖으로 백데이트)
+    _mk_session(db, "empty", 1, age_min=5)
 
     with pytest.raises(chat_service.SessionLimitError) as ei:
         chat_service.create_session(db, _birth(), top_k=4, user=user)

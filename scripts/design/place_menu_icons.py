@@ -11,13 +11,22 @@ SRC = r"D:\saju_agent\image\menu_icons"
 DST = r"D:\saju_agent\frontend\public\icons\menu"
 os.makedirs(DST, exist_ok=True)
 
-# key -> 채택 seed (육안 선별 2026-07-04: 통일감·모티프 가독·텍스트 아티팩트 없음 기준)
+# key -> 채택 seed (육안 선별 2026-07-04 / 신규 7종 2026-07-08: 통일감·모티프 가독·텍스트 아티팩트 없음 기준)
 SELECT = {
     "chat": 7, "gunghap": 42, "taekil": 7, "jakmyeong": 7, "gaemyeong": 42,
     "aho": 7, "tarot": 7, "bolt": 7, "gear": 7, "folder": 7,
     "chart": 7, "wrench": 7, "mail": 7,
+    # 2026-07 로드맵 신규 메뉴 7종
+    "today": 42, "fcalendar": 42, "sinnyeon": 7, "amulet": 7,
+    "dream": 42, "snack": 7, "reviews": 42,
+    # 2026-07-11 앱 설치(사이드바 통일 UI)
+    "install": 42,
+    # 2026-07-11 입점 신청
+    "partner": 7,
 }
 CROP = 0.86  # 중앙 86% — 모서리 문양·하단 잔글씨(FLUX 가장자리 아티팩트) 제거, 메달리온은 안쪽에 안착
+# 사이드바는 원형 크롭(border-radius 50%) — 세로형 모티프는 중앙을 더 당겨 원 안에 가득 차게
+CROP_OVERRIDE = {"amulet": 0.63, "today": 0.80, "reviews": 0.80, "install": 0.62, "partner": 0.40}
 
 n = 0
 for key, seed in SELECT.items():
@@ -27,7 +36,7 @@ for key, seed in SELECT.items():
         continue
     img = Image.open(src).convert("RGB")
     w, h = img.size
-    side = int(min(w, h) * CROP)
+    side = int(min(w, h) * CROP_OVERRIDE.get(key, CROP))
     left, top = (w - side) // 2, (h - side) // 2
     img = img.crop((left, top, left + side, top + side))
     # → 96px — 사이드바 26px 표시의 레티나(2~3x)용

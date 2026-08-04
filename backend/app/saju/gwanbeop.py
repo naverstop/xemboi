@@ -221,18 +221,24 @@ def match_rules(topics: list[str], f: GwanbeopFacts, *, is_male: bool | None = N
 def gwanbeop_block(question: str, chart_json: dict | None, *, seun_stem: str,
                    seun_branch: str, wolun_stem: str | None = None,
                    wolun_branch: str | None = None, is_male: bool | None = None,
-                   include_unreviewed: bool = False) -> str | None:
+                   include_unreviewed: bool = False,
+                   seun_label: str = "올해 세운",
+                   wolun_label: str = "이번 달 월운") -> str | None:
     """성립한 관법 룰 프롬프트 블록. 주제 미매칭·명식 없음·성립 룰 없음이면 None(기존 흐름).
 
     선생님 원칙(카톡정리): 지속적인 사안은 '세운' 기준, 매매·취업처럼 일시적(단발) 사안은
     세운을 무시하고 '월운'을 원국에 바로 대입한다 → 두 스코프를 모두 계산해 각 룰이 어느
-    시점 기준으로 성립했는지 라벨로 밝힌다(판단은 결정적, 서술만 LLM)."""
+    시점 기준으로 성립했는지 라벨로 밝힌다(판단은 결정적, 서술만 LLM).
+
+    seun_label/wolun_label: 스코프 표기 — 실측(전수감사): '내년/2023년' 질문에도 '올해 세운'
+    라벨로 2026년 공식을 주입해 자기모순 프롬프트가 됐다. 호출부가 질문 대상 연도의 세운을
+    넣을 때 라벨도 그 해로 밝힌다(공식 자체는 세운 일반 룰이라 대입 연도만 달라짐)."""
     topics = route_topics(question)
     if not topics:
         return None
-    scopes: list[tuple[str, str, str]] = [("올해 세운", seun_stem, seun_branch)]
+    scopes: list[tuple[str, str, str]] = [(seun_label, seun_stem, seun_branch)]
     if wolun_stem and wolun_branch:
-        scopes.append(("이번 달 월운", wolun_stem, wolun_branch))
+        scopes.append((wolun_label, wolun_stem, wolun_branch))
     hits: dict[str, tuple[dict, list[str]]] = {}
     for label, st, br in scopes:
         f = build_facts(chart_json, st, br)

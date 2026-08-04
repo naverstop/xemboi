@@ -1,0 +1,170 @@
+{
+ "rule_summary": "성명학 수리(81수)는 옥편의 필획(筆劃, 실제 쓰는 획수)이 아니라 원획법(原劃法)으로 센다. 원획법은 강희자전·옥편을 근본으로, 편방에서 약자·변형된 부수를 '원래 부수 본래 글자의 획수'로 되돌려 계산하는 방식이다(다른 말로 正劃法). 즉 부수가 편방에서 모양이 줄어들었어도 원래 부수 글자의 획수로 센다(예: 삼수변 氵는 실제 3획이지만 원래 글자 水의 4획, 초두 艹는 艸의 6획, 책받침 辶는 辵의 7획). 한국 작명의 99% 이상이 이 원획법을 따른다. 필획법(실제 획수)·곡획법(꺾임까지 세는 88수용)과 구분된다. 변형되지 않은 부수(예: 연화발 灬는 火와 같은 4획)는 원획=필획이라 보정 대상이 아니다. 별도로 숫자 한자(一~十)는 '그 글자가 뜻하는 수'를 획수로 삼는 특례가 있다(四=4, 七=7, 十=10 등).",
+ "radicals": [
+  {
+   "variant": "氵",
+   "original": "水",
+   "orig_strokes": 4,
+   "common_strokes": 3,
+   "note": "삼수변. 洙·源·浩 등 물수 편방은 4획으로 계산. 다수 출처 교차확인(knaming·irum·kimtaku·sajuforum, confidence 높음)"
+  },
+  {
+   "variant": "忄",
+   "original": "心",
+   "orig_strokes": 4,
+   "common_strokes": 3,
+   "note": "심방변(수). 원래 부수 心 4획. 교차확인(confidence 높음)"
+  },
+  {
+   "variant": "扌",
+   "original": "手",
+   "orig_strokes": 4,
+   "common_strokes": 3,
+   "note": "재방변(손수). 扶 등. 원래 부수 手 4획. 교차확인(confidence 높음)"
+  },
+  {
+   "variant": "月",
+   "original": "肉",
+   "orig_strokes": 6,
+   "common_strokes": 4,
+   "note": "육달월(고기육 月)에 한함. 진짜 달월(月, 明·期 등)은 4획 그대로이며 보정하지 않음 — 글자 뜻으로 구분. 다수 출처가 이 구분을 명시(confidence 높음)"
+  },
+  {
+   "variant": "艹",
+   "original": "艸",
+   "orig_strokes": 6,
+   "common_strokes": 4,
+   "note": "초두머리(풀초). 英·花 등. 필획은 자형에 따라 3획(艹)~4획으로 보나 원획은 艸의 6획. 교차확인(confidence 높음)"
+  },
+  {
+   "variant": "辶",
+   "original": "辵",
+   "orig_strokes": 7,
+   "common_strokes": 4,
+   "note": "책받침(쉬엄쉬엄갈 착). 進 등. 필획은 점 개수에 따라 3~4획으로 보나 원획 7획. 교차확인(confidence 높음)"
+  },
+  {
+   "variant": "罒",
+   "original": "网",
+   "orig_strokes": 6,
+   "common_strokes": 5,
+   "note": "그물망머리. 원래 부수 网(그물망, =罔의 본자)의 6획으로 계산. 통상 필획 5획. 교차확인(confidence 높음)"
+  },
+  {
+   "variant": "犭",
+   "original": "犬",
+   "orig_strokes": 4,
+   "common_strokes": 3,
+   "note": "개사슴록변. 원래 부수 犬 4획. 교차확인(confidence 높음)"
+  },
+  {
+   "variant": "王",
+   "original": "玉",
+   "orig_strokes": 5,
+   "common_strokes": 4,
+   "note": "구슬옥변. 편방의 王(임금왕 모양)은 부수로 玉이라 5획. 珍·珉 등이 옥편획→원획 +1획이 되는 근거. 교차확인(confidence 높음)"
+  },
+  {
+   "variant": "礻",
+   "original": "示",
+   "orig_strokes": 5,
+   "common_strokes": 4,
+   "note": "보일시변(제사시). 통상 필획 4획, 원획 示 5획. 교차확인(confidence 높음)"
+  },
+  {
+   "variant": "衤",
+   "original": "衣",
+   "orig_strokes": 6,
+   "common_strokes": 5,
+   "note": "옷의변. 통상 필획 5획, 원획 衣 6획. 교차확인(confidence 높음)"
+  },
+  {
+   "variant": "阝(우)",
+   "original": "邑",
+   "orig_strokes": 7,
+   "common_strokes": 3,
+   "note": "우부방. 글자 오른쪽의 阝는 邑(고을읍) 7획. 위치로 좌/우 구분(오른쪽=邑7). 교차확인(confidence 높음)"
+  },
+  {
+   "variant": "阝(좌)",
+   "original": "阜",
+   "orig_strokes": 8,
+   "common_strokes": 3,
+   "note": "좌부방. 글자 왼쪽의 阝는 阜(언덕부) 8획. 위치로 좌/우 구분(왼쪽=阜8). 교차확인(confidence 높음)"
+  },
+  {
+   "variant": "耂",
+   "original": "老",
+   "orig_strokes": 6,
+   "common_strokes": 4,
+   "note": "늙을로엄(考·者 등). 원래 부수 老의 6획. 교차확인(confidence 높음)"
+  }
+ ],
+ "number_special": [
+  {
+   "char": "一",
+   "counted_as": 1,
+   "note": "뜻하는 수=필획(1획)으로 동일"
+  },
+  {
+   "char": "二",
+   "counted_as": 2,
+   "note": "필획 2획과 동일"
+  },
+  {
+   "char": "三",
+   "counted_as": 3,
+   "note": "필획 3획과 동일"
+  },
+  {
+   "char": "四",
+   "counted_as": 4,
+   "note": "필획은 5획이나 원획은 뜻하는 수 4로 계산. knaming·irum·kimtaku 교차확인(confidence 높음)"
+  },
+  {
+   "char": "五",
+   "counted_as": 5,
+   "note": "필획 4획 → 뜻하는 수 5획. 교차확인(confidence 높음)"
+  },
+  {
+   "char": "六",
+   "counted_as": 6,
+   "note": "필획 4획 → 6획. 교차확인(confidence 높음)"
+  },
+  {
+   "char": "七",
+   "counted_as": 7,
+   "note": "필획 2획 → 7획. 교차확인(confidence 높음)"
+  },
+  {
+   "char": "八",
+   "counted_as": 8,
+   "note": "필획 2획 → 8획. 교차확인(confidence 높음)"
+  },
+  {
+   "char": "九",
+   "counted_as": 9,
+   "note": "필획 2획 → 9획. 교차확인(confidence 높음)"
+  },
+  {
+   "char": "十",
+   "counted_as": 10,
+   "note": "필획 2획 → 10획. 교차확인(confidence 높음)"
+  }
+ ],
+ "disagreements": "숫자 한자를 '뜻하는 수대로' 세는 규칙(四=4, 七=7, 十=10 등)은 2차 교차검증에서 knaming.org·irum.com·kimtaku 등 주요 성명학 출처가 원획법의 정통 규칙으로 일관되게 명시하여 1차보다 confidence를 상향(높음)했다. 다만 일부 소수 유파는 숫자 한자도 그냥 필획(四=5획, 七=2획, 十=2획)으로 세므로, 채택 시 어느 관법(원획=뜻수 vs 필획)을 따르는지 명시하는 것이 안전하다(잔여 이견 소). 변형 부수 14건(氵→水4, 艹→艸6, 辶→辵7, 阝→邑7/阜8, 王→玉5, 月肉→6 등)의 원획 대응은 출처 간 이견 없이 완전 일치(confidence 높음). 검증 과정에서 일부 페이지 자동요약이 좌부방/우부방(阜8·邑7)과 耂→老·罒→网을 뒤섞어 표기한 사례가 있었으나, 이는 원문 표가 아니라 요약 오류이며 다수 원출처로 대조해 1차 값(阝우=邑7, 阝좌=阜8, 耂=老6, 罒=网6)이 옳음을 확인했다. 艹·辶의 통상 필획수(3 vs 4) 표기는 자형·옥편판본에 따라 갈리나 원획 결론에는 영향 없음. 표준 원획 보정 부수 목록은 위 14건으로 완결적이며(누락 부수 미발견), 灬(=火4)·攵(=攴4)처럼 원획=필획인 부수는 보정 대상이 아니다.",
+ "sources": [
+  "https://kimtaku.com/news/6125",
+  "https://www.knaming.org/05_2.html",
+  "https://www.irum.com/Resource/Theory/10132",
+  "https://yesname.co.kr/new/info_ccn.html",
+  "https://www.sajuforum.com/01forum/nm/07_byun.php",
+  "http://www.agiirum.com/name/name_su.php",
+  "https://wooriname.com/bbs/content.php?co_id=mbox_02"
+ ],
+ "_meta": {
+  "status": "검증 완료(적대적 교차검증 통과)·전문가 감수 대기",
+  "confidence": "높음",
+  "apply_note": "변형부수 원획 보정은 이견 없음. 숫자 특수획(四=4·七=7·十=10)은 소수 유파가 필획을 쓰므로 관법 선택 명시 필요. ★격 결과가 바뀌는 근본 수정 — 감수 필수."
+ }
+}

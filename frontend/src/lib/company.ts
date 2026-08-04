@@ -16,13 +16,11 @@
  *    VITE_BIZ_PRIVACY_OFFICER="홍길동"
  *    VITE_BIZ_HOSTING="○○클라우드(주)"
  */
-import i18n from "../i18n";
-
 const _env = import.meta.env as Record<string, string | undefined>;
 const _v = (key: string, fallback = ""): string => (_env[key]?.trim() || fallback);
 
 export const COMPANY = {
-  serviceName: _v("VITE_SERVICE_NAME", "Xem Bói"),
+  serviceName: _v("VITE_SERVICE_NAME", "인생상담 친구"),
   bizName: _v("VITE_BIZ_NAME"),                       // 상호
   ceo: _v("VITE_BIZ_CEO"),                            // 대표자 성명
   regNo: _v("VITE_BIZ_REG_NO"),                       // 사업자등록번호
@@ -36,7 +34,7 @@ export const COMPANY = {
 
 export const PLACEHOLDER = "(운영자 설정 전)";
 
-/** 값이 있으면 그대로, 없으면 로케일 미설정 표기. 운영자가 채우면 자동 반영된다. */
+/** 값이 있으면 그대로, 없으면 미설정 표기. 운영자가 채우면 자동 반영된다. */
 export function show(val: string): string {
-  return val && val.length > 0 ? val : i18n.t("misc.biz_unset");
+  return val && val.length > 0 ? val : PLACEHOLDER;
 }

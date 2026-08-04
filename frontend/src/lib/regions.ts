@@ -1,14 +1,13 @@
-/** 출생지 경도 데이터 — 진태양시 보정용. (ko=시·도→시·군·구 / VN=miền→tỉnh·thành)
+/** 출생지(시·도 → 시·군·구) 경도 데이터 — 진태양시 보정용.
  *
- * 경도(°E)는 중심 근사값. 진태양시 보정 = (표준자오선 − 경도)×4분으로 백엔드가 처리하며
- * 표준자오선은 로케일별로 다르다: ko=135°E(KST) / VN=105°E(ICT, 하노이 105.85°E → 약 +3분).
- * 0.1° ≈ 0.4분 → '시(時)' 경계에서만 의미. 성(省)/시·군·구 단위면 충분히 정밀하다.
+ * 경도(°E)는 각 시·군·구 중심 근사값. 진태양시 보정은 (135 − 경도)×4분으로 시각을 당기므로
+ * 0.1° 차이는 약 0.4분 → '시(時)' 경계에서만 의미. 시·군·구 단위면 충분히 정밀하다.
  * 한 곳(AdvancedBirthSettings)에서만 쓰여 전 메뉴 입력화면에 공통 반영된다.
  */
-import { IS_VN_BUILD } from "../i18n";
-
 export type Gun = { name: string; lon: number };
 export type Sido = { name: string; short: string; guns: Gun[] };
+
+export const DEFAULT_LON = 126.98; // 서울 종로 기준(미선택 시)
 
 export const KR_REGIONS: Sido[] = [
   { name: "서울특별시", short: "서울", guns: [
@@ -128,54 +127,17 @@ export const KR_REGIONS: Sido[] = [
   ] },
 ];
 
-/** 베트남 63 tỉnh·thành — 3 miền(Bắc/Trung/Nam) → tỉnh/thành. 성도(省都) 경도 근사(°E). */
-export const VN_REGIONS: Sido[] = [
-  { name: "Miền Bắc", short: "Bắc", guns: [
-    { name: "Hà Nội", lon: 105.85 }, { name: "Hải Phòng", lon: 106.68 }, { name: "Quảng Ninh", lon: 107.08 },
-    { name: "Bắc Ninh", lon: 106.08 }, { name: "Hải Dương", lon: 106.33 }, { name: "Hưng Yên", lon: 106.05 },
-    { name: "Vĩnh Phúc", lon: 105.60 }, { name: "Bắc Giang", lon: 106.19 }, { name: "Phú Thọ", lon: 105.40 },
-    { name: "Thái Nguyên", lon: 105.83 }, { name: "Bắc Kạn", lon: 105.83 }, { name: "Cao Bằng", lon: 106.25 },
-    { name: "Lạng Sơn", lon: 106.76 }, { name: "Hà Giang", lon: 104.98 }, { name: "Tuyên Quang", lon: 105.21 },
-    { name: "Lào Cai", lon: 103.97 }, { name: "Yên Bái", lon: 104.87 }, { name: "Điện Biên", lon: 103.02 },
-    { name: "Lai Châu", lon: 103.46 }, { name: "Sơn La", lon: 103.92 }, { name: "Hòa Bình", lon: 105.34 },
-    { name: "Thái Bình", lon: 106.34 }, { name: "Nam Định", lon: 106.18 }, { name: "Hà Nam", lon: 105.91 },
-    { name: "Ninh Bình", lon: 105.97 },
-  ] },
-  { name: "Miền Trung", short: "Trung", guns: [
-    { name: "Thanh Hóa", lon: 105.78 }, { name: "Nghệ An", lon: 105.68 }, { name: "Hà Tĩnh", lon: 105.90 },
-    { name: "Quảng Bình", lon: 106.62 }, { name: "Quảng Trị", lon: 107.10 }, { name: "Thừa Thiên Huế", lon: 107.58 },
-    { name: "Đà Nẵng", lon: 108.22 }, { name: "Quảng Nam", lon: 108.49 }, { name: "Quảng Ngãi", lon: 108.80 },
-    { name: "Bình Định", lon: 109.22 }, { name: "Phú Yên", lon: 109.30 }, { name: "Khánh Hòa", lon: 109.19 },
-    { name: "Ninh Thuận", lon: 108.99 }, { name: "Bình Thuận", lon: 108.10 }, { name: "Kon Tum", lon: 108.00 },
-    { name: "Gia Lai", lon: 108.00 }, { name: "Đắk Lắk", lon: 108.05 }, { name: "Đắk Nông", lon: 107.69 },
-    { name: "Lâm Đồng", lon: 108.44 },
-  ] },
-  { name: "Miền Nam", short: "Nam", guns: [
-    { name: "TP. Hồ Chí Minh", lon: 106.70 }, { name: "Bà Rịa - Vũng Tàu", lon: 107.08 }, { name: "Bình Dương", lon: 106.65 },
-    { name: "Đồng Nai", lon: 106.82 }, { name: "Bình Phước", lon: 106.91 }, { name: "Tây Ninh", lon: 106.11 },
-    { name: "Long An", lon: 106.41 }, { name: "Tiền Giang", lon: 106.36 }, { name: "Bến Tre", lon: 106.38 },
-    { name: "Trà Vinh", lon: 106.34 }, { name: "Vĩnh Long", lon: 105.97 }, { name: "Đồng Tháp", lon: 105.63 },
-    { name: "An Giang", lon: 105.44 }, { name: "Kiên Giang", lon: 105.08 }, { name: "Cần Thơ", lon: 105.78 },
-    { name: "Hậu Giang", lon: 105.47 }, { name: "Sóc Trăng", lon: 105.97 }, { name: "Bạc Liêu", lon: 105.72 },
-    { name: "Cà Mau", lon: 105.15 },
-  ] },
-];
-
-/** 빌드별 활성 지역 테이블 + 기본 경도(미선택 시). VN=하노이 105.85 / ko=서울 126.98. */
-export const REGIONS: Sido[] = IS_VN_BUILD ? VN_REGIONS : KR_REGIONS;
-export const DEFAULT_LON = IS_VN_BUILD ? 105.85 : 126.98;
-
-/** 시·도(또는 miền) 이름 → Sido */
+/** 시·도 이름 → Sido */
 export function sidoByName(name: string): Sido | undefined {
-  return REGIONS.find((s) => s.name === name);
+  return KR_REGIONS.find((s) => s.name === name);
 }
 
 /** 경도로 가장 가까운 (시·도, 시·군·구) 역추적 — 저장된 birth_longitude로 드롭다운 복원용 */
 export function nearestRegion(lon: number | null | undefined): { sido: string; gun: string } {
   const target = lon ?? DEFAULT_LON;
-  let best = { sido: REGIONS[0].name, gun: REGIONS[0].guns[0].name };
+  let best = { sido: "서울특별시", gun: "종로구" };
   let bestD = Infinity;
-  for (const s of REGIONS) {
+  for (const s of KR_REGIONS) {
     for (const g of s.guns) {
       const d = Math.abs(g.lon - target);
       if (d < bestD) { bestD = d; best = { sido: s.name, gun: g.name }; }

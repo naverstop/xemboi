@@ -1,0 +1,386 @@
+{
+  "meta": {
+    "version": "draft-2 (감수 재확인 2026-07-22)",
+    "note": "한국 민속 해몽 상징 사전. ⚠️전통 해몽은 백과사전이 직접 '일정한 이론적 근거를 가지고 있지 않다'고 서술하는 영역이라, 연역 규칙이 아니라 **관용구 lookup table** 로 설계했다. 항목 간 일관성을 기대하지 말 것. 엔진은 '이 항목이 걸렸다'까지만 하고 길흉 종합 판정은 하지 않는다 — 전통이 '반대해석'과 '해몽자 재해석'을 축으로 삼으므로 엔진이 최종 길흉을 계산하면 그게 전통 왜곡이다.",
+    "categories": [
+      "인체",
+      "인사",
+      "자연물",
+      "가옥",
+      "기물",
+      "동물",
+      "식물",
+      "기타"
+    ],
+    "categories_source": "한국민족문화대백과사전 '꿈' https://encykorea.aks.ac.kr/Article/E0011278 — 이 8분류가 공식 체계다. 인터넷 해몽 사이트의 자의적 분류보다 이쪽을 쓴다.",
+    "tiers": {
+      "1": "민속학 연구·백과사전 기반(국립민속박물관 민속학 채록, 한국민족문화대백과)",
+      "2": "국가 사전이되 참고문헌이 1998~2023년 시중 해몽서인 항목",
+      "3": "현대 인터넷 통설 — 넣지 않는다"
+    },
+    "copyright_note": "시중 해몽사전(한건덕·홍순래 계열 등)의 문장은 저작권 대상이라 전재하지 않았다. 공공 출처의 내용을 요약해 다시 썼다.",
+    "not_included": "꿈꾼 시각(새벽꿈이 잘 맞는다)·반복몽 적중률·六夢(정몽·악몽·사몽…) 분류는 한국 민속 근거가 확인되지 않아 **일부러 넣지 않았다**. 六夢은 중국 『주례』 계통이라 한국 민속 축과 섞으면 안 된다. 또한 호랑이 태몽 뒤 여아가 태어나면 팔자가 사납다는 채록 조항은 **의도적으로 넣지 않았다**(전통 기록이긴 하나 서비스로 내보낼 서술이 아니다)."
+  },
+  "meta_rules": [
+    {
+      "code": "opposite",
+      "title": "반대로 풀기",
+      "text": "전통 해몽의 판단 축은 둘뿐입니다 — 상징의 뜻을 읽는 것과, 현실과 반대로 푸는 것. 흉한 꿈을 길하게 뒤집어 읽는 관습이 있습니다.",
+      "tier": 1,
+      "source": "https://encykorea.aks.ac.kr/Article/E0011278"
+    },
+    {
+      "code": "haemong_over_dream",
+      "title": "꿈보다 해몽",
+      "text": "같은 꿈도 풀이하는 사람에 따라 길몽도 흉몽도 됩니다. 설화 「돼지꿈」에서 세 사람이 똑같은 돼지꿈을 꿨는데 각각 다르게 풀렸고 모두 그대로 되었다고 전합니다. 길몽 상징이라도 무조건 좋다고 확정하지 않습니다.",
+      "tier": 1,
+      "source": "https://folkency.nfm.go.kr/kr/topic/detail/5794 (<돼지꿈>) · https://folkency.nfm.go.kr/kr/topic/detail/6005 (<해몽 덕분에 잘된 사람>)"
+    },
+    {
+      "code": "gaekkum",
+      "title": "개꿈",
+      "text": "민간에서 현실성을 기대할 수 없는 헛된 꿈을 '개꿈'이라 불렀습니다. 모든 꿈이 풀이 대상은 아니라는 뜻입니다.",
+      "tier": 1,
+      "source": "https://encykorea.aks.ac.kr/Article/E0011278"
+    },
+    {
+      "code": "taemong_relation",
+      "title": "태몽은 관계·행위가 본체",
+      "text": "태몽은 상징이 나왔다는 것만으로 성립하지 않습니다. 꿈꾼 이와 상징 사이의 관계와 행위가 핵심입니다 — 호랑이가 무언가를 물고 오는지, 구렁이가 몸을 감는지, 잡은 물고기에 무엇이 있었는지 같은 것입니다.",
+      "tier": 1,
+      "source": "https://folkency.nfm.go.kr/kr/topic/detail/492"
+    },
+    {
+      "code": "taemong_who",
+      "title": "태몽은 산모만 꾸는 게 아니다",
+      "text": "남편·조부모·외조부모, 때로는 같은 마을 사람이 대신 꾸기도 합니다. 꾸는 시기도 임신을 알기 전·임신 중·출산 후로 다양합니다.",
+      "tier": 1,
+      "source": "https://folkency.nfm.go.kr/kr/topic/detail/492"
+    },
+    {
+      "code": "maemong",
+      "title": "꿈을 사고파는 관행",
+      "text": "좋은 꿈을 사고파는 매몽(買夢) 관행이 실제로 있었습니다. 『삼국유사』의 문희·보희 이야기가 원형이고, 조선시대 꿈 매매문서도 남아 있습니다.",
+      "tier": 1,
+      "source": "한국국학진흥원 공개 조선시대 꿈 매매문서(1814·1840)"
+    }
+  ],
+  "gender_lore": {
+    "note": "⚠️태몽으로 성별을 가리는 관습은 실재하지만, 백과사전이 지역·기준 충돌을 **결함이 아니라 특징으로** 기술한다. 그래서 이 사전은 단일 성별 값을 저장하지 않는다 — 배열과 conflict 표시로만 둔다. 서비스는 '전통에서는 A로도 B로도 풀었다'까지만 말하고 단정하지 않는다.",
+    "principles": [
+      {
+        "code": "sympathetic",
+        "text": "생김새가 닮은 것으로 봅니다(유감주술)"
+      },
+      {
+        "code": "size",
+        "text": "크고 힘센 것은 아들, 아기자기하고 예쁜 것은 딸로 봅니다"
+      },
+      {
+        "code": "color",
+        "text": "붉은색·누런색은 아들, 푸른색·흰색은 딸로 봅니다(색의 음양)"
+      }
+    ],
+    "conflict_examples": [
+      "애호박은 길쭉한 형태로는 아들, 푸른 색으로는 딸이라 양쪽 해석이 다 전합니다.",
+      "밤송이는 알밤이 튀어나왔으면 아들, 그냥 벌어졌으면 딸로 갈립니다.",
+      "대추는 지역에 따라 아들로도 딸로도 풀었습니다."
+    ],
+    "disclaimer": "태몽으로 아이의 성별을 가리는 것은 전통 해석이며 의학적 근거는 없습니다.",
+    "tier": 1,
+    "source": "https://folkency.nfm.go.kr/kr/topic/detail/492 · https://encykorea.aks.ac.kr/Article/E0058917"
+  },
+  "symbols": [
+    {
+      "code": "animal-dragon",
+      "key": "용",
+      "aliases": [
+        "용꿈",
+        "승천",
+        "황룡",
+        "청룡",
+        "흑룡",
+        "이무기"
+      ],
+      "category": "동물",
+      "interp": "전통에서 가장 높이 치는 길몽입니다. 승천하거나 용을 타고 나는 꿈은 입신출세·승진·귀인을 만나는 일로 풀었습니다. 잉어가 용문을 올라 용이 된다는 어변성룡은 과거 급제의 비유였습니다.",
+      "polarity": "길",
+      "taemong": "often",
+      "taemong_note": "태몽 중 으뜸으로 칩니다. 신혼 이불·베갯모·병풍에 용을 새겨 용꿈 꾸기를 빌었습니다.",
+      "tier": 1,
+      "source": "https://folkency.nfm.go.kr/kr/topic/detail/10430"
+    },
+    {
+      "code": "animal-tiger",
+      "key": "호랑이",
+      "aliases": [
+        "호랑이",
+        "백호",
+        "범"
+      ],
+      "category": "동물",
+      "interp": "읽는 방향에 따라 갈립니다. 용맹·신성 쪽으로 보면 높은 신분과 권세·명예·사업의 융성이고, 포악·경솔 쪽으로 보면 흉합니다. 물리거나 싸워 이기는 등 직접 부딪치는 꿈은 길몽으로, 흰 호랑이가 집이나 방에 들어오면 최고의 길몽으로 쳤습니다. 호랑이가 마구 날뛰는 꿈은 집안이나 직장에 불미스러운 일이 생길 징조로, 호랑이를 보고 크게 두려움을 느꼈다면 대개 흉몽으로 보았습니다.",
+      "polarity": "맥락의존",
+      "taemong": "often",
+      "tier": 1,
+      "source": "https://folkency.nfm.go.kr/kr/topic/detail/9155"
+    },
+    {
+      "code": "animal-pig",
+      "key": "돼지",
+      "aliases": [
+        "돼지",
+        "멧돼지"
+      ],
+      "category": "동물",
+      "interp": "재물의 대표 상징이자 대표적인 길몽입니다. '용꿈을 꾸면 아들을 낳고 돼지꿈을 꾸면 재물이 들어온다', '용꿈이나 돼지꿈을 꾸면 횡재한다'는 속담이 전합니다.",
+      "polarity": "길",
+      "taemong": "often",
+      "caution": "다만 설화 「돼지꿈」은 같은 돼지꿈도 풀이에 따라 흉이 될 수 있음을 가르칩니다 — 무조건 길하다고 확정하지 않습니다.",
+      "tier": 1,
+      "source": "https://folkency.nfm.go.kr/kr/topic/detail/10430 (속담 2건) · https://folkency.nfm.go.kr/kr/topic/detail/5794 (설화 <돼지꿈>) · https://encykorea.aks.ac.kr/Article/E0011278 ('돼지를 보면 먹을 것이 생긴다')",
+      "taemong_note": "태몽 남아 상징 목록에도 들어 있습니다."
+    },
+    {
+      "code": "animal-snake",
+      "key": "뱀",
+      "aliases": [
+        "뱀",
+        "구렁이",
+        "실뱀",
+        "살모사"
+      ],
+      "category": "동물",
+      "interp": "대부분 태몽으로 풀이되는 상징입니다. 큰 뱀은 이익이 나는 일이나 효성 깊은 자식으로, 몸을 감으면 혼인·임신·결실로 보았습니다. 물리는 것은 부와 명성으로 읽었습니다. 반대 방향으로는 유혹과 파멸을 뜻해, 감았던 뱀이 스스로 풀려 사라지면 재산이 흩어진다고 보았습니다.",
+      "polarity": "맥락의존",
+      "taemong": "often",
+      "tier": 2,
+      "conflict_note": "한국민족문화대백과는 '뱀이 남을 따라가면 아내가 악심을 품는다'는 전혀 다른 조항을 싣습니다 — 출처마다 갈리는 대표 사례입니다.",
+      "source": "https://folkency.nfm.go.kr/kr/topic/detail/12247 · https://encykorea.aks.ac.kr/Article/E0011278"
+    },
+    {
+      "code": "body-teeth-fall",
+      "key": "이가 빠지는",
+      "aliases": [
+        "이가 빠",
+        "이빨이 빠",
+        "치아가 빠",
+        "이를 뽑"
+      ],
+      "category": "인체",
+      "interp": "집안 어른에게 궂은일이 생긴다고 보는 대표적인 흉몽 조항입니다.",
+      "polarity": "흉",
+      "taemong": "no",
+      "sensitive": [
+        "death"
+      ],
+      "tier": 1,
+      "source": "https://encykorea.aks.ac.kr/Article/E0011278"
+    },
+    {
+      "code": "object-gold-hairpin",
+      "key": "금비녀",
+      "aliases": [
+        "금비녀"
+      ],
+      "category": "기물",
+      "interp": "금비녀가 빛나는 꿈은 자식을 잃는 흉조로 보았습니다. 금과 빛남을 재물로 읽으면 정반대가 되는, 뜻이 뒤집히는 대표적인 조항입니다.",
+      "polarity": "흉",
+      "taemong": "also",
+      "taemong_note": "태몽 맥락에서 금비녀 자체는 남아 상징으로 따로 전합니다 — 층이 다릅니다.",
+      "sensitive": [
+        "death"
+      ],
+      "tier": 1,
+      "source": "https://encykorea.aks.ac.kr/Article/E0011278 · https://encykorea.aks.ac.kr/Article/E0058917"
+    },
+    {
+      "code": "animal-rabbit",
+      "key": "토끼",
+      "aliases": [
+        "토끼"
+      ],
+      "category": "동물",
+      "interp": "민간에서 토끼는 순하고 착한 사람, 어린이나 아랫사람, 그리고 재물과 번식을 상징합니다. 토끼를 기르거나 수가 늘어나는 꿈은 재물이 느는 것으로, 기르던 토끼가 달아나면 재물이나 일자리를 잃는 것으로 풀었습니다. 산에서 토끼를 잡으면 뜻한 일이 이루어지고, 놓치면 큰돈을 눈앞에서 놓친다고 보았습니다. 토끼가 떡방아를 찧는 꿈은 혼담이 성사되거나 귀인을 만날 징조로 보았습니다. 반대로 토끼가 방 안에 들어와 앉으면 근심이 생길 징조입니다.",
+      "polarity": "맥락의존",
+      "taemong": "also",
+      "tier": 2,
+      "source": "https://folkency.nfm.go.kr/kr/topic/detail/9735"
+    },
+    {
+      "code": "animal-horse",
+      "key": "말",
+      "aliases": [
+        "말이 나오",
+        "말을 타",
+        "백마",
+        "준마"
+      ],
+      "category": "동물",
+      "interp": "꿈에서 말은 배우자·협조자·사업·취직·재물·권세를 상징합니다. 말을 타는 꿈은 하는 일이 순조롭게 풀리는 것으로, 수험생은 합격, 미혼자는 혼인으로 풀었습니다. 준마를 타거나 말을 타고 하늘·산에 오르는 꿈은 지위가 오르고 크게 출세하는 것으로 보았습니다. 반대로 놀란 말을 타거나 달리던 말이 쓰러지는 꿈은 일이 갑자기 막히는 것으로, 말에서 떨어지는 꿈은 실패나 가까운 사람의 배신으로 보았습니다. 말에게 물리는 꿈은 오히려 주도권을 잡는 길몽으로 풀었습니다.",
+      "polarity": "맥락의존",
+      "taemong": "also",
+      "tier": 2,
+      "source": "https://folkency.nfm.go.kr/kr/topic/detail/12470"
+    },
+    {
+      "code": "animal-fish",
+      "key": "물고기",
+      "aliases": [
+        "물고기",
+        "잉어",
+        "붕어"
+      ],
+      "category": "동물",
+      "interp": "잉어는 태몽 남아 상징 목록에 들어 있고, 잉어가 용문을 올라 용이 된다는 어변성룡은 과거 급제의 비유로 쓰였습니다. 태몽에서는 잡은 잉어의 배에 무엇이 있었는지 같은 '행위'가 함께 이야기됩니다.",
+      "polarity": "맥락의존",
+      "taemong": "often",
+      "caution": "물 없는 곳의 물고기를 본 것은 나쁜 태몽으로 보는 채록이 있습니다.",
+      "tier": 1,
+      "source": "https://folkency.nfm.go.kr/kr/topic/detail/492 · https://encykorea.aks.ac.kr/Article/E0058917 · /10430"
+    },
+    {
+      "code": "body-excrement",
+      "key": "똥",
+      "aliases": [
+        "똥",
+        "오줌",
+        "대변",
+        "소변",
+        "분뇨"
+      ],
+      "category": "인체",
+      "interp": "똥이나 오줌을 뒤집어쓰는 꿈은 큰 행운이 오는 길몽으로 보았습니다. 흉해 보이는 소재가 길함으로 뒤집히는 대표적인 예입니다.",
+      "polarity": "길",
+      "taemong": "no",
+      "tier": 1,
+      "source": "https://encykorea.aks.ac.kr/Article/E0011278"
+    },
+    {
+      "code": "human-funeral",
+      "key": "상여",
+      "aliases": [
+        "상여",
+        "관(棺)",
+        "문상",
+        "장례",
+        "영정"
+      ],
+      "category": "인사",
+      "interp": "죽음과 관련된 꿈을 전통에서는 일관되게 길하게 풀었습니다. 상여를 보면 재물을 얻고, 집으로 관이 들어오면 하는 일이 잘 되며, 상가에 문상을 가면 자식을 얻는다고 보았습니다.",
+      "polarity": "길",
+      "taemong": "no",
+      "sensitive": [
+        "death"
+      ],
+      "tier": 1,
+      "caution": "불안한 마음으로 묻는 분이 많은 소재입니다 — 전통이 길하게 풀었다는 점을 먼저 전하세요.",
+      "source": "https://encykorea.aks.ac.kr/Article/E0011278"
+    },
+    {
+      "code": "house-fire",
+      "key": "불",
+      "aliases": [
+        "불이 나",
+        "화재",
+        "불길",
+        "불타"
+      ],
+      "category": "가옥",
+      "interp": "집에 불이 나는 꿈은 집안이 번창할 징조로 보았습니다. 다만 부엌에서 불이 나면 급한 일이 생긴다고 하여, 어디서 난 불인지에 따라 달리 풀었습니다.",
+      "polarity": "맥락의존",
+      "taemong": "no",
+      "tier": 1,
+      "source": "https://encykorea.aks.ac.kr/Article/E0011278"
+    },
+    {
+      "code": "human-ancestor",
+      "key": "조상",
+      "aliases": [
+        "조상",
+        "돌아가신",
+        "선친",
+        "할아버지",
+        "할머니",
+        "제사"
+      ],
+      "category": "인사",
+      "interp": "조상이 나타나 음식을 권하거나 말을 건네는 꿈은 좋은 일이 있을 징조로 보았습니다.",
+      "polarity": "길",
+      "taemong": "no",
+      "tier": 1,
+      "source": "https://encykorea.aks.ac.kr/Article/E0011278"
+    },
+    {
+      "code": "nature-water",
+      "key": "물",
+      "aliases": [
+        "물이 흘러",
+        "물이 넘",
+        "샘",
+        "우물",
+        "홍수"
+      ],
+      "category": "자연물",
+      "interp": "물이 흘러넘치는 꿈은 혼인이 있을 징조로 보았습니다. 반대로 샘이 마르는 꿈은 재산이 줄어드는 것으로 풀었습니다.",
+      "polarity": "맥락의존",
+      "taemong": "no",
+      "tier": 1,
+      "source": "https://encykorea.aks.ac.kr/Article/E0011278"
+    },
+    {
+      "code": "object-mirror",
+      "key": "거울",
+      "aliases": [
+        "거울이 깨",
+        "거울을 깨",
+        "거울"
+      ],
+      "category": "기물",
+      "interp": "거울이 깨지는 꿈은 부부가 헤어지게 된다고 보는 대표적인 흉몽 조항입니다.",
+      "polarity": "흉",
+      "taemong": "no",
+      "tier": 1,
+      "source": "https://encykorea.aks.ac.kr/Article/E0011278"
+    },
+    {
+      "code": "nature-sky-ascend",
+      "key": "하늘에 오르는",
+      "aliases": [
+        "하늘로 오르",
+        "하늘을 나",
+        "하늘을 날",
+        "날개가 생",
+        "하늘에 올라",
+        "하늘로 날",
+        "공중에 뜨"
+      ],
+      "category": "자연물",
+      "interp": "하늘로 오르는 꿈은 높은 자리에 오를 징조로, 몸에 날개가 생기는 꿈은 크게 길한 것으로 보았습니다.",
+      "polarity": "길",
+      "taemong": "no",
+      "tier": 1,
+      "source": "https://encykorea.aks.ac.kr/Article/E0011278"
+    },
+    {
+      "code": "plant-tree",
+      "key": "나무",
+      "aliases": [
+        "나무에 올라",
+        "큰 나무",
+        "아름드리",
+        "나뭇가지"
+      ],
+      "category": "식물",
+      "interp": "큰 나무에 오르는 꿈은 이름을 날릴 징조로, 아름드리 나무를 베어 오는 꿈은 큰 재물이 생기는 것으로 보았습니다.",
+      "polarity": "맥락의존",
+      "taemong": "no",
+      "sensitive": [
+        "death"
+      ],
+      "caution": "나무에 올라가 가지가 부러지는 꿈은 흉하게 보는 조항이 따로 있습니다 — 묻지 않았다면 먼저 꺼내지 마세요.",
+      "tier": 1,
+      "source": "https://encykorea.aks.ac.kr/Article/E0011278"
+    }
+  ]
+}

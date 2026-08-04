@@ -18,13 +18,11 @@ def create_session(
     saju_summary: str | None,
     chart_json: dict | None,
     user_id: int | None = None,
-    locale: str = "ko",
 ) -> ChatSession:
     row = ChatSession(
         session_id=session_id,
         top_k=top_k,
         user_id=user_id,
-        locale=locale,
         birth_date=birth_dict["birth_date"],
         birth_time=birth_dict.get("birth_time"),
         calendar=birth_dict.get("calendar", "solar"),
@@ -62,16 +60,24 @@ def append_messages(
     db: Session,
     session_id: str,
     rows: list[dict[str, Any]],
+    *,
+    commit: bool = True,
 ) -> list[ChatMessage]:
-    """rows: [{role, content, created_at, sources_json, ...}, ...]. 삽입된 ChatMessage 객체 리스트 반환."""
+    """rows: [{role, content, created_at, sources_json, ...}, ...]. 삽입된 ChatMessage 객체 리스트 반환.
+
+    commit=False: 커밋하지 않고 flush 만(id 확보). 호출부가 같은 트랜잭션에 다른 쓰기(예: 영수증 finalize)를
+    묶어 단일 db.commit() 으로 원자화할 때 사용 — 메시지 저장과 그 쓰기가 crash 시 함께 롤백되게 한다."""
     out: list[ChatMessage] = []
     for r in rows:
         m = ChatMessage(session_id=session_id, **r)
         db.add(m)
         out.append(m)
-    db.commit()
-    for m in out:
-        db.refresh(m)
+    if commit:
+        db.commit()
+        for m in out:
+            db.refresh(m)
+    else:
+        db.flush()          # id 확보(커밋은 caller — 동일 트랜잭션에 finalize 등 합류)
     return out
 
 
@@ -120,12 +126,17 @@ def delete_empty_sessions(db: Session, user_id: int) -> int:
     빈 세션이 영구히 쌓여 한도(max_sessions_per_user)를 소진한다. 실제 질문이
     1건도 없는 세션은 가치가 없으므로 자동 정리한다(세션 생성 직전·로그아웃 시 호출).
     """
+    # 최근(2분 이내) 생성된 빈 세션은 답변 생성 스트림이 진행 중일 수 있어 제외 — 도중 삭제 시
+    # 종료 시점 메시지 저장이 FK 위반으로 실패하고 답변이 유실되는 레이스 방지(N1).
+    from datetime import datetime, timedelta
+
     from sqlalchemy import exists
+    grace = datetime.utcnow() - timedelta(minutes=2)
     msg_exists = exists().where(ChatMessage.session_id == ChatSession.session_id)
     rows = list(
         db.execute(
             select(ChatSession).where(
-                ChatSession.user_id == user_id, ~msg_exists
+                ChatSession.user_id == user_id, ~msg_exists, ChatSession.created_at < grace
             )
         ).scalars()
     )
@@ -154,6 +165,24 @@ def delete_session(db: Session, session_id: str, user_id: int | None) -> bool:
         return False
     if row.user_id != user_id:
         raise PermissionError("not your session")
+    # 사주 영상 파일(.mp4) 고아 방지 — saju_video_jobs.session_id FK 가 CASCADE 라 db.delete(row) 시 잡 행이
+    #   함께 사라진다. 삭제 '전에' 이 세션에 매인 영상 산출물 파일을 unlink(야간 고아 스윕의 즉시판).
+    try:
+        from sqlalchemy import text as _text
+        from backend.app.services.video import service as _vsvc
+        for _mp, _dp in db.execute(
+            _text("SELECT master_path, delivery_path FROM saju_video_jobs WHERE session_id=:s"),
+            {"s": session_id},
+        ).fetchall():
+            for _rel in (_mp, _dp):
+                _p = _vsvc._abs(_rel)
+                try:
+                    if _p and _p.is_file():
+                        _p.unlink()
+                except OSError:
+                    pass
+    except Exception:  # noqa: BLE001 — 파일 정리 실패가 세션 삭제를 막지 않음
+        pass
     db.delete(row)
     db.commit()
     return True

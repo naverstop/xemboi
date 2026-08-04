@@ -121,7 +121,8 @@
 .tarotpg .tr-sub { margin: 0 0 24px; color: var(--tr-muted); font-size: 13.5px; line-height: 1.85; letter-spacing: .02em; }
 
 /* ── 1. 질문: 섹션 카드 ── */
-.tarotpg .tr-secgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(158px, 1fr)); gap: 12px; margin-bottom: 22px; }
+.tarotpg .tr-secgrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 22px; }  /* 6개=3×2 고정 — 5+1 깨짐 방지 */
+@media (max-width: 640px) { .tarotpg .tr-secgrid { grid-template-columns: repeat(2, 1fr); } }
 .tarotpg .tr-sec { position: relative; overflow: hidden; border: 1px solid rgba(201, 164, 85, .20); border-radius: 14px;
   padding: 0; cursor: pointer; text-align: left; color: var(--tr-ink);
   background:
@@ -249,7 +250,12 @@
 .tarotpg .tr-spreadscroll { overflow-x: auto; overflow-y: hidden; scrollbar-width: thin; scrollbar-color: #2C2F55 transparent; }
 .tarotpg .tr-spread { position: relative; height: 440px; margin-top: 34px; min-width: 680px;
   background: radial-gradient(68% 58% at 50% 42%, rgba(130, 150, 215, .06), transparent 72%); }
-.tarotpg .tr-spread.celtic { height: 660px; min-width: 720px; --cw: clamp(52px, 6.6vw, 72px); }
+/* 켈틱 11장: 라벨(2줄·고정폭)이 % 위치라 스프레드가 좁아지면 크로스 라벨끼리 겹친다.
+   1280 뷰포트의 스프레드 폭(~896px)에서 겹침 0이 검증되므로, 최소폭 900+가로스크롤로
+   어떤 창 크기에서도 그 clean 배치를 유지한다. --cw도 고정해 폭에 따라 흔들리지 않게. */
+/* --ch 는 :root 에서 계산돼 :root 의 --cw(92)를 쓰므로, 여기서 재선언해 켈틱 --cw(60) 기준 1.72 비율로 고정
+   (미재선언 시 슬롯이 60×158=2.6 비율로 세로 길쭉 + 스태프 카드 겹침) */
+.tarotpg .tr-spread.celtic { height: 700px; min-width: 900px; --cw: 60px; --ch: calc(var(--cw) * 1.72); }
 .tarotpg .tr-constel { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
 .tarotpg .tr-constel .cline { fill: none; stroke: #D9BC77; stroke-opacity: .4; stroke-width: 1; vector-effect: non-scaling-stroke;
   stroke-dasharray: 1; stroke-dashoffset: 1; animation: trDrawline 2.4s .35s cubic-bezier(.4, 0, .3, 1) forwards; }
@@ -281,7 +287,44 @@
 .tarotpg .tr-slot.alt .tr-plabel { top: auto; bottom: calc(100% + 6px); width: calc(var(--cw) + 20px); }
 .tarotpg .tr-slot.side .tr-plabel { left: auto; right: calc(100% + 12px); top: 50%; bottom: auto;
   transform: translateY(-50%); text-align: right; width: 104px; }
+/* 켈틱 ⑤(최근 과거): 라벨을 카드 오른쪽으로 — 중앙 십자(장애물 라벨)와 겹침 방지(운영자 요청) */
+.tarotpg .tr-slot.toparm .tr-plabel { left: calc(100% + 8px); right: auto; top: 50%; bottom: auto;
+  transform: translateY(-50%); text-align: left; width: 118px; }
 .tarotpg .tr-slot.cross { z-index: 3; }
+
+/* (C) 겹친 현재/장애물(켈틱 크로스 중앙) 시인성 — 위 카드(장애물)를 테두리·그림자로 아래 카드와 분리 */
+.tarotpg .tr-slot.cross .tr-flip { filter: drop-shadow(0 6px 15px rgba(0, 0, 0, .6)); }
+.tarotpg .tr-slot.cross .tr-face.front { box-shadow: 0 0 0 1.5px rgba(240, 220, 160, .5), 0 8px 22px -6px rgba(0, 0, 0, .65); }
+
+/* (A) 카드 배치 범례 — 겹침 배열에서도 '어느 자리가 무슨 카드인지' 명확(오독 원천 제거) */
+.tarotpg .tr-legend { list-style: none; margin: 20px auto 0; padding: 12px 18px; max-width: 620px;
+  background: rgba(12, 10, 26, .5); border: 1px solid rgba(201, 164, 85, .22); border-radius: 14px;
+  box-shadow: inset 0 1px 0 rgba(255, 246, 222, .05); }
+.tarotpg .tr-legend li { display: grid; grid-template-columns: 26px minmax(66px, max-content) 1fr;
+  align-items: baseline; gap: 12px; font-size: 13.5px; color: var(--tr-ink); line-height: 1.55;
+  padding: 8px 0; border-top: 1px solid rgba(201, 164, 85, .10); }
+.tarotpg .tr-legend li:first-child { border-top: none; }
+.tarotpg .tr-legnum { width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center;
+  border: 1px solid rgba(201, 164, 85, .45); border-radius: 50%; font-size: 12px; font-weight: 600;
+  color: var(--tr-gold-hi); font-family: var(--tr-disp); }
+.tarotpg .tr-legpos { color: var(--tr-gold); font-weight: 700; white-space: nowrap; }
+.tarotpg .tr-legcard { color: var(--tr-ink); }
+.tarotpg .tr-legcard .tr-legen { opacity: .5; font-size: 12px; }
+.tarotpg .tr-legcard .tr-legup { margin-left: 7px; color: var(--tr-gold-hi); }
+.tarotpg .tr-legcard .tr-legrev { margin-left: 7px; color: var(--tr-rev); font-weight: 700; }
+.tarotpg .tr-legwait { color: var(--tr-muted); opacity: .6; font-style: italic; }
+
+/* 겹친 카드(켈틱 크로스 중앙): 슬롯·링은 클릭 통과, 실제 카드만 클릭 → 아래 현재 카드도 탭해서 뒤집을 수 있음 */
+.tarotpg .tr-slot { pointer-events: none; }
+.tarotpg .tr-slot .tr-flip { pointer-events: auto; }
+
+/* '한 번에 모두 공개' 버튼 — 겹쳐서 개별 탭이 어려울 때 확실한 공개 경로 */
+.tarotpg .tr-flipall { margin-left: 10px; padding: 3px 12px; border: 1px solid rgba(201, 164, 85, .5);
+  background: rgba(23, 28, 66, .55); color: var(--tr-gold-hi); border-radius: 999px; font-size: 12px;
+  cursor: pointer; font-family: var(--tr-body); letter-spacing: .02em; vertical-align: middle; }
+.tarotpg .tr-flipall:hover { border-color: var(--tr-gold-hi); background: rgba(23, 28, 66, .85); }
+
+/* 라벨은 '번호 + 자리명'만(짧음) → 겹침 없음. 카드명·방향은 하단 범례에서 확인 */
 
 .tarotpg .tr-flip { position: absolute; inset: 0; perspective: 900px; cursor: pointer; transform: rotate(var(--tilt, 0deg)); }
 .tarotpg .tr-flip::before { content: ''; position: absolute; left: 5%; right: 5%; bottom: -9px; height: 16px; border-radius: 50%;
@@ -312,6 +355,41 @@
 @keyframes trSheen { to { transform: translateX(400%) skewX(-18deg); } }
 .tarotpg .tr-spreadhint { text-align: center; color: var(--tr-muted); font-size: 13px; letter-spacing: .14em; margin-top: 4px; }
 .tarotpg .tr-spreadhint b { color: var(--tr-gold-hi); font-weight: 600; font-family: var(--tr-disp); }
+
+/* ── 카드 뒤집기 안내(운영자 지시): 미공개 카드 손 모양 큐 + 상단 가이드 + '한 번에 뒤집기' ── */
+/* 각 미공개 카드 위 손 모양 + 탭 파문 — pointer-events:none 으로 카드 클릭은 그대로 통과 */
+.tarotpg .tr-flip .tr-taphint { position: absolute; left: 50%; top: 50%; z-index: 5; pointer-events: none;
+  font-size: 25px; line-height: 1; transform: translate(-50%, -50%);
+  filter: drop-shadow(0 2px 5px rgba(0, 0, 0, .7));
+  animation: trTapBob 1.5s ease-in-out infinite; }
+.tarotpg .tr-flip .tr-taphint::before { content: ''; position: absolute; left: 50%; top: 60%; width: 18px; height: 18px;
+  transform: translate(-50%, -50%); border-radius: 50%; border: 2px solid rgba(240, 220, 160, .8);
+  animation: trTapRing 1.5s ease-out infinite; }
+@keyframes trTapBob { 0%, 100% { transform: translate(-50%, -50%); } 50% { transform: translate(-50%, -62%); } }
+@keyframes trTapRing { 0% { opacity: .85; width: 14px; height: 14px; } 100% { opacity: 0; width: 54px; height: 54px; } }
+
+/* 상단 뒤집기 가이드 + 버튼 */
+.tarotpg .tr-flipguide { text-align: center; margin: 10px auto 4px; max-width: 580px; }
+.tarotpg .tr-flipguide-msg { display: inline-flex; align-items: center; gap: 8px; margin: 0 0 8px;
+  font-size: 14.5px; color: var(--tr-ink); letter-spacing: .01em; }
+.tarotpg .tr-flipguide-msg b { color: var(--tr-gold-hi); font-weight: 700; }
+.tarotpg .tr-flipguide-hand { font-size: 21px; animation: trGuideBob 1.5s ease-in-out infinite; }
+@keyframes trGuideBob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
+.tarotpg .tr-flipguide-celtic { font-size: 12.5px; color: var(--tr-silver); line-height: 1.65; word-break: keep-all;
+  margin: 2px auto 10px; max-width: 520px; padding: 9px 15px; border-radius: 11px;
+  border: 1px dashed rgba(201, 164, 85, .45); background: rgba(13, 17, 48, .5); }
+.tarotpg .tr-flipguide-celtic b { color: var(--tr-gold-hi); }
+.tarotpg .tr-flipall-btn { display: inline-block; padding: 10px 24px; border-radius: 999px; cursor: pointer;
+  font-family: var(--tr-body); font-size: 14px; font-weight: 700; letter-spacing: .03em; color: #1B1508;
+  border: 1px solid #E9D398; white-space: nowrap;
+  background: linear-gradient(180deg, #F4E6B8 0%, #E0C47C 42%, #C9A455 100%);
+  box-shadow: 0 9px 24px -8px rgba(201, 164, 85, .6), inset 0 1px 0 rgba(255, 252, 238, .8);
+  transition: transform .15s, filter .2s; }
+.tarotpg .tr-flipall-btn:hover { transform: translateY(-1px); filter: brightness(1.06);
+  background: linear-gradient(180deg, #F4E6B8 0%, #E0C47C 42%, #C9A455 100%); }
+@media (prefers-reduced-motion: reduce) {
+  .tarotpg .tr-taphint, .tarotpg .tr-taphint::before, .tarotpg .tr-flipguide-hand { animation: none; }
+}
 
 /* ── 5. 해석 ── */
 .tarotpg .tr-reading { position: relative; margin-top: 28px; scroll-margin-top: 70px; border: 1px solid var(--tr-hair); border-radius: 16px;
@@ -349,20 +427,43 @@
 
 /* 추가질문 Q&A 턴 */
 .tarotpg .tr-qa { margin-top: 18px; display: flex; flex-direction: column; gap: 10px; }
-.tarotpg .tr-qaturn { display: flex; }
-.tarotpg .tr-qaturn.user { justify-content: flex-end; }
+/* ⚠️ column 이어야 한다 — row 면 assistant 턴의 답변버블(86%)과 액션바(AnswerActions)가 나란히
+   놓여 평점·복사·PDF 가 우측 좁은 세로칸으로 짜부라진다(운영자 보고). 버블 아래로 스택. */
+.tarotpg .tr-qaturn { display: flex; flex-direction: column; }
+.tarotpg .tr-qaturn.user { align-items: flex-end; }               /* 사용자 버블 우측 정렬(내용 너비) */
 .tarotpg .tr-qabubble { max-width: 86%; border-radius: 12px; padding: 10px 14px; font-size: 13.5px; line-height: 1.9; }
+.tarotpg .tr-qaturn.assistant .tr-qabubble { max-width: 100%; }   /* 답변은 전폭 → 아래 액션바와 정렬 */
+.tarotpg .tr-qaturn.assistant .answer-actions { margin-top: 8px; }
 .tarotpg .tr-qaturn.user .tr-qabubble { background: rgba(201, 164, 85, .14); border: 1px solid rgba(201, 164, 85, .3); color: #F2EAD6; }
 .tarotpg .tr-qaturn.assistant .tr-qabubble { background: rgba(10, 13, 32, .7); border: 1px solid var(--tr-hair-soft); color: #E9E2D0; }
 .tarotpg .tr-qabubble p { margin: 0 0 .5em; }
 .tarotpg .tr-qacharged { display: block; margin-top: 6px; font-size: 11px; color: var(--tr-gold-hi); }
 .tarotpg .tr-suggest-label { width: 100%; font-size: 11.5px; color: var(--tr-muted); letter-spacing: .08em; margin-bottom: 2px; }
 
-.tarotpg .tr-followup { display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap; align-items: center; }
-.tarotpg .tr-followup input { flex: 1; min-width: 200px; background: rgba(7, 9, 24, .85); border: 1px solid rgba(201, 164, 85, .22);
-  border-radius: 11px; padding: 12px 15px; color: var(--tr-ink); font-size: 14px; box-shadow: inset 0 2px 6px rgba(0, 0, 0, .5); }
-.tarotpg .tr-followup input::placeholder { color: #5D6591; }
-.tarotpg .tr-followup input:focus { outline: none; border-color: var(--tr-gold-dim); box-shadow: inset 0 2px 6px rgba(0, 0, 0, .5), 0 0 0 3px rgba(201, 164, 85, .12); }
+.tarotpg .tr-followup { display: flex; flex-direction: column; gap: 12px; margin-top: 20px; align-items: stretch; }
+/* 입력창 + 전송버튼 한 줄 (기본/심화 선택은 위 공통 FollowupBilling) */
+.tarotpg .tr-followup-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+/* 공통 FollowupBilling 을 타로 골드/다크 팔레트로 오버라이드(가독성) */
+.tarotpg .fb-pill { color: var(--tr-gold-hi); border-color: rgba(201,164,85,.5); background: rgba(13,17,48,.5); }
+.tarotpg .fb-pill.on { border-color: #E3C87F; background: rgba(201,164,85,.22); color: #F0DCA0; }
+.tarotpg .fb-charge { background: rgba(201,164,85,.14); border-color: rgba(201,164,85,.5); color: var(--tr-gold-hi); }
+.tarotpg .fb-charge-main b { color: #F0DCA0; }
+.tarotpg .fb-charge-bal { color: var(--tr-gold); }
+.tarotpg .fb-charge-tag { background: #C9A455; color: #1B1508; }
+.tarotpg .fb-charge.guest { background: rgba(13,17,48,.6); border-color: rgba(201,164,85,.4); color: var(--tr-silver); }
+/* 후속 질문 입력창 — 인지도 강화(밝은 배경·골드 테두리·골드 플레이스홀더·맥동 글로우). 포커스/입력 시작 시 맥동 정지 */
+.tarotpg .tr-followup input { flex: 1; min-width: 200px; background: rgba(30, 36, 72, .95); border: 1.5px solid rgba(201, 164, 85, .5);
+  border-radius: 11px; padding: 13px 16px; color: var(--tr-ink); font-size: 14px;
+  box-shadow: inset 0 1px 4px rgba(0, 0, 0, .35); animation: trFollowPulse 1.9s ease-in-out infinite; }
+.tarotpg .tr-followup input::placeholder { color: var(--tr-gold-hi); opacity: .92; }
+.tarotpg .tr-followup input:focus { outline: none; border-color: var(--tr-gold-hi); animation: none;
+  box-shadow: inset 0 1px 4px rgba(0, 0, 0, .35), 0 0 0 3px rgba(201, 164, 85, .2); }
+.tarotpg .tr-followup input:not(:placeholder-shown) { animation: none; border-color: rgba(201, 164, 85, .45); }
+@keyframes trFollowPulse {
+  0%, 100% { border-color: rgba(201, 164, 85, .4); box-shadow: inset 0 1px 4px rgba(0, 0, 0, .35), 0 0 0 0 rgba(240, 220, 160, 0); }
+  50% { border-color: var(--tr-gold-hi); box-shadow: inset 0 1px 4px rgba(0, 0, 0, .35), 0 0 20px -2px rgba(240, 220, 160, .45); }
+}
+@media (prefers-reduced-motion: reduce) { .tarotpg .tr-followup input { animation: none; } }
 .tarotpg .tr-depthbtn { border: 1px solid rgba(201, 164, 85, .5); background: rgba(13, 17, 48, .5); color: var(--tr-gold-hi); border-radius: 11px;
   padding: 12px 18px; font-size: 13px; letter-spacing: .06em; cursor: pointer; white-space: nowrap; transition: all .2s; }
 .tarotpg .tr-depthbtn:hover { border-color: #E3C87F; box-shadow: 0 0 16px -4px rgba(201, 164, 85, .5); }
@@ -383,6 +484,51 @@
 .tarotpg .answer-actions .aa-fb-btn.on { border-color: var(--tr-gold); box-shadow: 0 0 12px -3px rgba(201, 164, 85, .6); }
 .tarotpg .answer-actions .fb-popup { background: #10152F; border: 1px solid var(--tr-hair); color: var(--tr-ink); }
 .tarotpg .answer-actions .fb-thanks { color: var(--tr-gold-hi); font-size: 12px; }
+
+/* ── '이 카드로 1:1 상담' 럭셔리 CTA(운영자 지시) — FLUX 엠블럼 + 설명 + 강조 글로우 ──
+   전역 button:hover(브랜드 파랑) 오염 방지: 페이지 스코프 + hover에서 배경 재선언 */
+.tarotpg .tr-consult-cta { text-align: center; margin: 18px 0 6px; }
+.tarotpg .tr-consult-btn {
+  display: inline-flex; align-items: center; gap: 14px; text-align: left;
+  padding: 12px 22px 12px 14px; border-radius: 16px; cursor: pointer;
+  max-width: 560px; width: 100%;
+  border: 1.5px solid rgba(233, 211, 152, .75);
+  background: linear-gradient(180deg, #1A2050 0%, #10152F 55%, #0B0E24 100%);
+  box-shadow: 0 10px 32px -10px rgba(201, 164, 85, .45), inset 0 1px 0 rgba(240, 220, 160, .22);
+  animation: trConsultGlow 2.6s ease-in-out infinite;
+  transition: transform .16s, box-shadow .2s;
+}
+.tarotpg .tr-consult-btn:hover {
+  transform: translateY(-2px);
+  background: linear-gradient(180deg, #202a62 0%, #141a42 55%, #0d1130 100%);
+  box-shadow: 0 16px 40px -10px rgba(201, 164, 85, .6), inset 0 1px 0 rgba(240, 220, 160, .3);
+}
+@keyframes trConsultGlow {
+  0%, 100% { box-shadow: 0 10px 32px -10px rgba(201, 164, 85, .35), inset 0 1px 0 rgba(240, 220, 160, .22); }
+  50% { box-shadow: 0 10px 38px -8px rgba(240, 220, 160, .65), inset 0 1px 0 rgba(240, 220, 160, .3); }
+}
+@media (prefers-reduced-motion: reduce) { .tarotpg .tr-consult-btn { animation: none; } }
+.tarotpg .tr-consult-btn .tcb-emblem { width: 52px; height: 52px; flex-shrink: 0; border-radius: 50%;
+  border: 1px solid rgba(201, 164, 85, .55); box-shadow: 0 0 18px -2px rgba(201, 164, 85, .5); object-fit: cover; }
+.tarotpg .tr-consult-btn .tcb-text { display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1; }
+.tarotpg .tr-consult-btn .tcb-title { font-family: var(--tr-disp); font-size: 17px; letter-spacing: .04em;
+  background: var(--tr-aurum); -webkit-background-clip: text; background-clip: text; color: transparent;
+  text-shadow: 0 0 22px rgba(201, 164, 85, .25); }
+.tarotpg .tr-consult-btn .tcb-desc { font-size: 12px; color: var(--tr-silver); opacity: .92; line-height: 1.55;
+  word-break: keep-all; }
+.tarotpg .tr-consult-btn .tcb-arrow { flex-shrink: 0; color: var(--tr-gold-hi); font-size: 15px;
+  text-shadow: 0 0 10px rgba(240, 220, 160, .6); }
+@media (max-width: 560px) {
+  .tarotpg .tr-consult-btn { gap: 10px; padding: 10px 14px 10px 10px; }
+  .tarotpg .tr-consult-btn .tcb-emblem { width: 42px; height: 42px; }
+  .tarotpg .tr-consult-btn .tcb-title { font-size: 15px; }
+}
+
+/* ── 익명 미리보기 잠금 안내 — 마스킹을 '잘림 버그'로 오인하지 않게 명시 ── */
+.tarotpg .tr-preview-note { margin-top: 14px; padding: 12px 16px; border-radius: 12px; font-size: 13px;
+  line-height: 1.7; color: var(--tr-silver); border: 1px dashed rgba(201, 164, 85, .45);
+  background: rgba(13, 17, 48, .5); word-break: keep-all; }
+.tarotpg .tr-preview-note b { color: var(--tr-gold-hi); }
 
 /* ── 하단 저작권 고지(전 단계 상시 노출) ── */
 .tarotpg .tr-legal { margin-top: 64px; padding: 20px 4px 0; border-top: 1px solid rgba(201, 164, 85, .16);
@@ -447,6 +593,14 @@
 .tarotpg .tr-sess-del { flex: none; background: transparent; border: none; color: var(--tr-muted); font-size: 13px; cursor: pointer;
   padding: 4px 6px; border-radius: 6px; }
 .tarotpg .tr-sess-del:hover { color: var(--tr-rev); background: rgba(208, 138, 130, .12); }
+/* 다중선택(체크 → 일괄삭제) — 채팅 한도 정리와 동일 UX */
+.tarotpg .tr-drawer-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 0 0 8px; }
+.tarotpg .tr-selall { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: var(--tr-muted); cursor: pointer; user-select: none; }
+.tarotpg .tr-selall input, .tarotpg .tr-sess-check { width: 15px; height: 15px; flex: none; cursor: pointer; accent-color: var(--tr-gold, #c9a455); }
+.tarotpg .tr-bulk-del { flex: none; font-size: 12px; font-weight: 700; color: #fff; background: #a23b3b;
+  border: 1px solid #a23b3b; border-radius: 8px; padding: 5px 12px; cursor: pointer; transition: opacity .15s; }
+.tarotpg .tr-bulk-del:disabled { opacity: .4; cursor: default; }
+.tarotpg .tr-sessitem.sel { border-color: var(--tr-rev, #d08a82); background: rgba(162, 59, 59, .16); }
 
 .tarotpg .tr-storenote { margin: 8px 0 0; font-size: 12px; color: var(--tr-muted); line-height: 1.7;
   border: 1px solid var(--tr-hair-soft); border-radius: 10px; padding: 9px 14px; background: rgba(10, 13, 32, .4); }
@@ -455,6 +609,11 @@
   .tarotpg .tr-header { justify-content: flex-end; padding-top: 48px; }
   .tarotpg .tr-float { top: 12px; left: 12px; }
   .tarotpg .tr-drawer { top: 52px; left: 12px; right: 12px; width: auto; max-width: none; }
+}
+@media (max-width: 820px) {
+  /* 전역 햄버거(.app-hamburger, ≤820px에서 fixed 좌상단 12+40px)와 같은 자리 겹침 방지 —
+     같은 행에서 우측으로 비킴(12+40+간격8). 821~900px엔 햄버거가 없어 left:12 유지. */
+  .tarotpg .tr-float { left: 60px; }
 }
 @media (max-width: 560px) {
   .tarotpg .tr-brand { font-size: 16px; letter-spacing: .16em; }

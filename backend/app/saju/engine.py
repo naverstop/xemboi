@@ -10,6 +10,7 @@ from .wuxing import (
     collect_hidden_stems,
     compute_ten_gods,
     compute_wuxing,
+    compute_wuxing_eight,
     determine_strength,
 )
 from .yongsin import compute_johu_yongsin
@@ -57,6 +58,8 @@ def build_chart(birth: BirthInput, with_daewoon: bool = True) -> SajuChart:
         pillars=pillars,
         wuxing=wx_full,
         wuxing_branch_only=wx_branch,
+        # 표시·프롬프트용 팔자8(강약 계산은 위 wx_full 그대로 — determine_strength 입력 불변)
+        wuxing_eight=compute_wuxing_eight(pillars),
         ten_gods=tg,
         day_master_element=STEM_TO_WUXING[pillars.day_master],
         day_master_strength=strength,

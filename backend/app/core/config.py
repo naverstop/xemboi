@@ -13,13 +13,6 @@ class Settings(BaseSettings):
     # 일반
     app_name: str = "Saju Agent API"
     app_env: str = "dev"
-    # 인스턴스 기본 로케일. ko=한국(사주1, saju.songstock.art) / vi=베트남(xemboi.io).
-    # VN 배포는 DEFAULT_LOCALE=vi 로 설정. per-request locale 미지정 시 폴백이며,
-    # DB/컬렉션 '물리적 완전분리' 가드(main.py)의 기준이 된다(vi 인스턴스는 saju_db 접근 금지).
-    default_locale: str = Field(
-        default="ko",
-        validation_alias=AliasChoices("default_locale", "DEFAULT_LOCALE", "SAJU_LOCALE"),
-    )
     cors_origins: list[str] = Field(default_factory=lambda: ["http://localhost:3000", "http://127.0.0.1:3000"])
     # 클라이언트 IP 산정 시 신뢰할 역방향 프록시 홉 수. 0(기본)=X-Forwarded-For 무시하고 TCP peer
     # IP 사용(헤더 스푸핑으로 레이트리밋 우회 차단). 프록시(Caddy/nginx/CF) 뒤라면 그 개수만큼
@@ -48,24 +41,17 @@ class Settings(BaseSettings):
         default="http://127.0.0.1:11434",
         validation_alias=AliasChoices("ollama_url", "OLLAMA_URL", "OLLAMA_BASE_URL"),
     )
-    ollama_model: str = "exaone3.5:7.8b"
-    # 심화(deep) 2차 보강용 로컬 엔진(듀얼 LLM 로컬화). exaone 초안 → qwen 보강.
+    # 2026-07-16 메인 엔진 qwen3 전환(운영자) — .env(OLLAMA_MODEL)가 우선이지만 기본값도 동기화해
+    # env 유실 시 구엔진(exaone)으로 조용히 회귀하는 사고 방지. thinking 차단은 _ollama_extra_kwargs.
+    ollama_model: str = "qwen3:14b"
+    # (레거시) 심화 2차 로컬 보강 모델 — 현재 미사용. 아래 deep_local_refine_enabled=false 로 꺼져 있음
+    #   (실측 무효과: 유사도 0.98·교정 0건). 실제 1차 생성·교정은 ollama_model(qwen3:14b) 단독.
     ollama_refine_model: str = Field(
         default="qwen2.5:7b-instruct-q4_K_M",
         validation_alias=AliasChoices("ollama_refine_model", "OLLAMA_REFINE_MODEL"),
     )
-    # ── 베트남 로케일(vi) 로컬 모델 — Qwen3(다국어). 공용 Ollama(GPU1)에 이미 로드된 qwen3:14b 재사용.
-    #   ko=exaone 초안→qwen2.5 보강, vi=qwen3 단일(초안=보강). locale 별로 _call_ollama 가 선택.
-    #   EXAONE(한국어 특화)은 vi 에 부적합 → vi 는 초안·보강 모두 Qwen3.
-    ollama_model_vi: str = Field(
-        default="qwen3:14b",
-        validation_alias=AliasChoices("ollama_model_vi", "OLLAMA_MODEL_VI"),
-    )
-    ollama_refine_model_vi: str = Field(
-        default="qwen3:14b",
-        validation_alias=AliasChoices("ollama_refine_model_vi", "OLLAMA_REFINE_MODEL_VI"),
-    )
-    # 심화 모드에서 로컬 qwen 2차 보강 사용 여부(끄면 exaone 단독). Claude는 로컬 실패 시 폴백.
+    # 심화 모드 로컬 2차 보강(qwen2.5) 사용 여부. 현재 .env 에서 false(무효과라 폐기) — 끄면
+    #   ollama_model(qwen3:14b) 단독 생성. Claude 심화보강은 이것과 별개(external_llm, 심화 전용).
     deep_local_refine_enabled: bool = Field(
         default=True,
         validation_alias=AliasChoices("deep_local_refine_enabled", "DEEP_LOCAL_REFINE_ENABLED"),
@@ -74,20 +60,44 @@ class Settings(BaseSettings):
     # 컨텍스트 길이. 16GB GPU + flash attn/KV q8 전제로 8192(기본 4096은 시스템규칙+명식+RAG6청크
     # +히스토리 초과 시 잘려 명식 환각 유발). VRAM 여유에 따라 16384까지. 8GB 시절엔 OOM이라 미설정이었음.
     ollama_num_ctx: int = Field(
-        default=16384,  # 종합 풀이(성격·육친·건강 + 올해/월별 발생할 일 6개월) 길이 여유(16GB·KV q8)
+        default=24576,  # 종합 풀이(성격·육친·건강 + 올해/월별 발생할 일 6개월) 길이 여유(16GB·KV q8)
         validation_alias=AliasChoices("ollama_num_ctx", "OLLAMA_NUM_CTX"),
     )
     # 최대 생성 토큰. 미설정 시 모델/엔진 기본값에 의존해 종합 풀이(성격·육친·건강 + 올해/월별 발생할 일
     # 6개월)가 길어질 때 대비. 명시적으로 넉넉히 잡아 잘림 차단. (num_ctx 안에서만 유효)
+    # [2026-07 실측] 신년운세 월별 풍부화(최소 3,000자+12개월) 후 3072에서 5월 부근 중간 잘림
+    # → 5120 상향(num_ctx 16384 안에서 입력 여유 충분, 68tok/s 기준 추가 ~30s 이내).
+    # [2026-07-31] 본문·추가질문 분량 ~3,500자 목표(소프트 바닥 3,000)로 확대 — 5120(≈4,500자)은
+    #   종합+월별이 겹치면 상한에 근접해 잘릴 여지가 있어 6144(≈5,400자)로 헤드룸 확보(68tok/s ~90s).
     ollama_num_predict: int = Field(
-        default=3072,
+        default=6144,
         validation_alias=AliasChoices("ollama_num_predict", "OLLAMA_NUM_PREDICT"),
+    )
+    # 반복 억제 — 1차 모델(qwen3:14b)이 긴 나열 생성 중 같은 구절을 무한 반복하는 퇴행 방지.
+    # 실측(2026-07-27): 개명 '연,영,연,영…' 2천자 폭주, 신년운세 tool#305 '인연에 대한…' 228회 저장.
+    # Ollama 기본(1.1/64창)은 5120tok 장문에서 부족 → 페널티 상향 + 관찰창 확대. (num_ctx 안에서 유효)
+    # ⚠️ 과도(>1.4)하면 정상 반복어(월/십성 라벨)까지 회피해 문장이 어색해짐 — 1.3 권장.
+    ollama_repeat_penalty: float = Field(
+        default=1.3,
+        validation_alias=AliasChoices("ollama_repeat_penalty", "OLLAMA_REPEAT_PENALTY"),
+    )
+    ollama_repeat_last_n: int = Field(
+        default=320,
+        validation_alias=AliasChoices("ollama_repeat_last_n", "OLLAMA_REPEAT_LAST_N"),
     )
     ollama_timeout_sec: float = 180.0
     # 모델 상시 예열 (콜드로드 방지). -1=영구 상주, "30m" 등도 가능
     ollama_keep_alive: str = Field(
         default="-1",
         validation_alias=AliasChoices("ollama_keep_alive", "OLLAMA_KEEP_ALIVE"),
+    )
+    # 신년운세 첫 해설 생성 경로(옵션 D, 2026-08-04 운영자 승인 — 실측 진단 근거):
+    #   True = 단일패스 + 결정적 스캐폴드(모델은 [[마커]]+서술만, 코드가 헤더·팩트 삽입).
+    #          단일 스트림이라 TTFT ~6s·전속 연속 스트림·멈춤 0 (구 배치: TTFT 31s·크롤 24tok/s·stall 15~25s).
+    #   False = 구 '스트리밍 호환 배치'(①총운 스트림 + 4동시 배치) — 롤백용으로 코드 보존.
+    sinnyeon_single_pass: bool = Field(
+        default=True,
+        validation_alias=AliasChoices("sinnyeon_single_pass", "SINNYEON_SINGLE_PASS"),
     )
 
     # SSE / 미리보기 스트리밍 (524 대책)
@@ -226,7 +236,12 @@ class Settings(BaseSettings):
         validation_alias=AliasChoices("jwt_secret", "JWT_SECRET", "SECRET_KEY"),
     )
     jwt_algorithm: str = "HS256"
-    jwt_access_minutes: int = 60 * 24  # 1일 (개발 편의)
+    # 액세스 토큰 수명 — .env ACCESS_TOKEN_EXPIRE_MIN 로 조정(별칭 연결). 짧게(예 30분) 두고 refresh 회전으로
+    # 세션 유지 → 탈취 토큰 노출창 최소화(M10). 기본 30분.
+    jwt_access_minutes: int = Field(
+        default=30,
+        validation_alias=AliasChoices("jwt_access_minutes", "ACCESS_TOKEN_EXPIRE_MIN", "JWT_ACCESS_MINUTES"),
+    )
     jwt_refresh_days: int = 14
 
     # 관리자 시드 (최초 1회 자동 생성). 실제 값은 .env에서만 주입(코드 하드코딩 금지).
@@ -241,24 +256,27 @@ class Settings(BaseSettings):
     )
     admin_seed_credits: int = 100_000
 
-    # 크레딧/과금 정책 (베트남 시장가, 1P = 1 VND — VN 유사서비스 top5 벤치마크)
-    signup_bonus_credits: int = 20_000     # 가입 보너스 ≈ 무료 질문 1회
-    question_cost: int = 19_000            # 추가 질문 1건 (시장가 19k~29k)
-    preview_reveal_cost: int = 10_000      # 무료 미리보기 → 전체보기 차감
+    # 크레딧/과금 정책
+    signup_bonus_credits: int = 1_000
+    question_cost: int = 1_000
+    preview_reveal_cost: int = 500
     preview_char_ratio: float = 0.5  # 50% 미리보기
     free_question_per_day: int = 1
     # 피드백 리워드 — 👍/👎 남기면 해당 답변 결제액의 N%를 적립(답변당 1회·일일 상한). 파밍 차단.
     feedback_reward_pct: int = 3            # 결제액 대비 리워드 비율(%)
-    feedback_reward_daily_cap: int = 30_000  # 1일 1인 리워드 적립 상한(P, VND)
+    feedback_reward_daily_cap: int = 3_000  # 1일 1인 리워드 적립 상한(P)
     # 약관/법적 페이지
     terms_version: str = "2026-06-01"
     privacy_version: str = "2026-06-01"
     refund_version: str = "2026-06-01"
-    min_age_years: int = 18   # 베트남 성년(민법)
+    min_age_years: int = 19
 
-    # 답변 품질 가드 — 올해·월별 운세 기본 포함 등 충분한 분량 목표(약 1,800자 이상).
-    # num_ctx 12288 + 이력 발췌로 출력 여유 확보됨(잘림 방지).
-    answer_min_chars: int = 1800
+    # 답변 품질 가드 — 올해·월별 운세 기본 포함 등 충분한 분량 목표.
+    # [2026-07-31] 운영자 지시(#답변 빈약) — 소프트 바닥 1,800→3,000 상향(본문·추가질문 공통).
+    #   심화(deep) 티어는 생성부에서 +500(≈3,500) 목표로 차등. num_ctx 16384 + num_predict 6144로
+    #   출력 여유 확보(잘림 방지). 하드 강제가 아니라 미달 시 1회 보강 재생성(_safe_replace 로 더 길 때만 채택).
+    answer_min_chars: int = 3000
+    answer_min_chars_deep: int = 3500
     answer_retry_max: int = 2
 
     # Rate Limit (Redis sliding window)
@@ -266,6 +284,11 @@ class Settings(BaseSettings):
     rate_limit_chat_per_min: int = 20
     rate_limit_auth_per_min: int = 10
     rate_limit_default_per_min: int = 120
+    # PDF '생성'(POST /api/pdf/*) 전용 — 미로그인 반복 생성으로 디스크 채우는 남용 방지.
+    # 정상 사용(상담서·감정서·메일발송)은 분당 몇 회면 충분. 열람(GET)은 default.
+    rate_limit_pdf_per_min: int = 6
+    # 관리자 회원 PII 조회(목록/상세/거래/결제) 전용 저한도 — 대량 페이징 전수수집·내부자 남용 억제(쿠팡 교훈).
+    rate_limit_admin_per_min: int = 20
 
     # JWT Refresh
     refresh_token_bytes: int = 48
@@ -275,21 +298,22 @@ class Settings(BaseSettings):
         default="",
         validation_alias=AliasChoices("pii_aes_key_b64", "PII_AES_KEY_B64", "BIRTH_DATA_AES_KEY"),
     )
-    # 결제 (1P = 1 VND, 패키지 4종). VN 은 표시가격 올인 → vat_pct=0 (별도 부가세 미부과).
-    vat_pct: int = 0  # VN 올인 가격
+    # 토스페이먼츠 (1P = 1원, 패키지 4종). 결제금액 = 공급가(amount) + 부가세(vat_pct%).
+    vat_pct: int = 10  # 부가가치세 % — 결제금액에 포함(예: 10,000P → 11,000원 결제)
     toss_client_key: str = "test_ck_DUMMY_REPLACE_ME"
     toss_secret_key: str = "test_sk_DUMMY_REPLACE_ME"
     toss_api_base: str = "https://api.tosspayments.com"
     # mock 결제(더미키 시 가짜 승인)는 명시적으로 켤 때만 허용 — 외부 공개 인스턴스에서 무결제 크레딧
     # 발행을 원천 차단(fail-closed). 로컬 테스트 시에만 ALLOW_MOCK_PAYMENT=true.
     allow_mock_payment: bool = False
-    # 충전 패키지 (VND, 1P=1đ). VN 시장가 기준 4종.
+    # JSON 배열: [{"amount":10000,"credits":10000,"label":"1만원"}, ...]
     payment_packages: list[dict] = Field(
         default_factory=lambda: [
-            {"amount": 50_000, "credits": 50_000, "label": "50.000đ"},
-            {"amount": 100_000, "credits": 100_000, "label": "100.000đ"},
-            {"amount": 300_000, "credits": 300_000, "label": "300.000đ"},
-            {"amount": 500_000, "credits": 500_000, "label": "500.000đ"},
+            {"amount": 10_000, "credits": 10_000, "label": "1만원"},
+            {"amount": 30_000, "credits": 30_000, "label": "3만원"},
+            {"amount": 50_000, "credits": 50_000, "label": "5만원"},
+            {"amount": 100_000, "credits": 100_000, "label": "10만원"},
+            {"amount": 120_000, "credits": 120_000, "label": "연간회원(1년+1개월)", "grade": "annual"},
         ]
     )
     payment_success_url: str = "http://127.0.0.1:5173/payments/success"
@@ -316,8 +340,11 @@ class Settings(BaseSettings):
     # 유휴 자동 로그아웃(계획 5.5 O) — 프론트에 노출
     idle_timeout_sec: int = 600
     idle_warn_sec: int = 60
-    # 답변 공유 무료 횟수(계획 7.2 K) — Level5(비로그인) 제외 전 회원
+    # 답변 공유 무료 횟수(계획 7.2 K) — Level5(비로그인) 제외 전 회원. 누적(평생) 무료 횟수.
     share_quota_default: int = 5
+    # 공유용 상담서 PDF(data/pdf/{token}.pdf) 보관일수 — 링크공유 대비 개인정보/용량 보호.
+    # 이 기간 지난 파일은 스케줄러(04:25)가 정리. 링크는 그 전까지만 유효.
+    pdf_share_ttl_days: int = 30
     # 다중 사주 프로필 최대 개수(계획 7-D.2)
     max_profiles_per_user: int = 10
     # 연간회원(Level2) 이용기간: 1년 + 1개월 보너스(계획 5.1)

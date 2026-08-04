@@ -363,8 +363,17 @@ def _embed_and_upsert(paths: list[Path], *, source_fn, label: str = "색인",
             write_progress(stage, f"{label} 중 ({src[:28]})", i, n, total, current_file=src[:40])
             continue
         if trust:
-            # 신뢰 소스(Claude 비전 전사 등) — 청크 품질게이트 우회, 고신뢰 태그로 전량 수용.
-            accepted_pairs = [(c, {"trust_tier": 1, "low_quality": False, "is_example": False}) for c in chunks]
+            # 신뢰 소스(Claude 비전 전사 등) — 전사 품질은 믿을 수 있으므로 격리 없이 전량 수용하고
+            # trust_tier=1 도 유지한다. 다만 is_example·low_quality 까지 하드코딩하면
+            # 검색 게이트를 통째로 우회한다 — [RAG 전수감사 2026-07-22] 이 경로로 들어온 538건이
+            # 전부 tier1·is_example=False 로 고정됐고 그중 223건이 타인 4주 그리드였다.
+            # → 태그는 규칙으로 재계산한다(수용 여부만 우회).
+            from ml.data_pipeline.tagging import is_example_chunk, is_low_quality
+            accepted_pairs = [
+                (c, {"trust_tier": 1,
+                     "low_quality": is_low_quality(getattr(c, "text", "") or ""),
+                     "is_example": is_example_chunk(getattr(c, "text", "") or "")})
+                for c in chunks]
             quarantined = []
         else:
             accepted_pairs, quarantined = partition(chunks, meta.get("category", "pdf"))
@@ -404,27 +413,37 @@ def _embed_and_upsert(paths: list[Path], *, source_fn, label: str = "색인",
 
 
 def run_vision_fallback(since_ts: float) -> int:
-    """이번 run에서 PaddleOCR이 전량 실패(reocr_sources)한 저화질·손글씨 스캔을 Claude 비전으로
-    전사·색인하는 폴백. 별도 프로세스로 실행(fitz+torch DLL 충돌 회피). Claude는 외부 API라
-    GPU 경합 없음. 반환: 색인된 chunks 수."""
-    import json
+    """전량 격리(품질미달)된 저화질·손글씨·표 스캔을 Claude 비전으로 전사·색인하는 폴백.
+
+    인자 없이 호출해 vision 스크립트의 _auto_targets 가 '최신 quarantine + DB의 failed 백로그(상한 미도달)'를
+    함께 잡게 한다 → 타임아웃·전사실패로 밀린 대상이 다음 밤 자동 재시도된다(종전 1회성=영구 방치를 해소).
+    타임아웃도 대상 수에 비례해 넉넉히(2MB 다페이지 스캔 대비) — 도중 타임아웃돼도 완료분은 색인되고
+    미완료분은 다음 밤 백로그로 재시도되어 손실이 없다. 별도 프로세스(fitz+torch DLL 충돌 회피). 반환: 색인 chunks 수."""
     import re as _re
     quar = PROJECT_ROOT / "data" / "rag" / "quarantine"
     sums = sorted(quar.glob("*.summary.json"), key=lambda p: p.stat().st_mtime)
-    if not sums or sums[-1].stat().st_mtime < since_ts - 1:
-        return 0  # 이번 run의 격리 없음
+    this_run = bool(sums and sums[-1].stat().st_mtime >= since_ts - 1)
+    # DB failed 백로그 규모 파악(대상 유무 판정 + 타임아웃 스케일)
+    n_failed = 0
     try:
-        reocr = list(json.loads(sums[-1].read_text(encoding="utf-8")).get("reocr_sources", []) or [])
+        from backend.app.core.db import get_session_factory as _gsf
+        from backend.app.repositories import upload_repo as _urepo
+        with _gsf()() as _db:
+            n_failed = sum(1 for u in _urepo.list_uploads(_db, status="failed", limit=200)
+                           if u.file_kind in ("pdf", "image"))
     except Exception:  # noqa: BLE001
-        return 0
-    if not reocr:
-        return 0
-    print(f"[7] 비전 OCR 폴백 — PaddleOCR 실패 {len(reocr)}건 Claude 전사·색인: {reocr}")
-    write_progress("uploads", f"저화질 스캔 {len(reocr)}건 Claude 비전 전사 중", chunks=None)
+        pass
+    if not this_run and n_failed == 0:
+        return 0  # 이번 run 격리 없고 백로그도 없음
+    # 파일당 5분 + 여유 10분, 상한 3시간. 타임아웃돼도 완료분 색인·잔여 다음 밤 재시도라 손실 없음.
+    n_targets = max(n_failed, 1)
+    timeout = min(10800, 600 + 300 * n_targets)
+    print(f"[7] 비전 OCR 폴백 — failed 백로그 {n_failed}건(+이번 run 격리) Claude 전사·색인 (timeout={timeout}s)")
+    write_progress("uploads", f"저화질 스캔 Claude 비전 전사 중(백로그 {n_failed}건)", chunks=None)
     try:
         r = subprocess.run(
-            [sys.executable, "-u", "-X", "utf8", "-m", "scripts.vision_ocr_fallback", *reocr],
-            cwd=str(PROJECT_ROOT), capture_output=True, text=True, timeout=1800,
+            [sys.executable, "-u", "-X", "utf8", "-m", "scripts.vision_ocr_fallback"],  # 인자없음 → _auto_targets(백로그)
+            cwd=str(PROJECT_ROOT), capture_output=True, text=True, timeout=timeout,
         )
         out = (r.stdout or "") + "\n" + (r.stderr or "")
         for ln in out.splitlines():
@@ -432,6 +451,9 @@ def run_vision_fallback(since_ts: float) -> int:
                 print("   " + ln.strip())
         m = _re.findall(r"색인\s+(\d+)\s+chunks", out)
         return int(m[-1]) if m else 0
+    except subprocess.TimeoutExpired:
+        print(f"[7][warn] 비전 폴백 타임아웃({timeout}s) — 완료분은 색인됨, 잔여는 다음 밤 백로그로 재시도")
+        return 0
     except Exception as e:  # noqa: BLE001
         print(f"[7][warn] 비전 폴백 실패: {e}")
         return 0

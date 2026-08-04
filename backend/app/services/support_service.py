@@ -9,7 +9,7 @@ from __future__ import annotations
 import logging
 import smtplib
 from email.message import EmailMessage
-from email.utils import formatdate
+from email.utils import formataddr, formatdate, parseaddr
 from typing import Any
 
 from sqlalchemy import func, select
@@ -282,3 +282,100 @@ def send_ticket_notification(
     except Exception as e:  # noqa: BLE001 — 알림 실패가 접수를 막지 않게
         log.warning("support: email send failed (ticket #%s): %s", ticket.get("id"), e)
         return False
+
+
+def send_pdf_email(
+    smtp: dict[str, Any],
+    to_email: str,
+    subject: str,
+    body: str,
+    pdf_bytes: bytes,
+    filename: str,
+    reply_to: str | None = None,
+    sender_name: str | None = None,
+) -> bool:
+    """상담서 PDF를 **첨부**해 1명에게 발송(사용자 공유용). 성공 True / 미설정·실패 False.
+
+    smtp = settings_service.get_smtp_config(db)(관리자 설정 우선·.env 폴백)와 동일 shape.
+    고객센터 알림(send_ticket_notification)과 같은 SMTP 접속 규칙(STARTTLS 587 / 비TLS)을 사용한다.
+
+    보내는 사람(From): 주소는 SMTP 인증계정으로 **고정**(Gmail 등은 소유하지 않은 주소로 발신 시
+    SPF/DKIM/DMARC 위반→스팸/차단). 대신 sender_name(공유한 회원 표시명)을 From '표시이름'에 넣고,
+    reply_to(회원 실제 이메일)로 답장이 회원에게 가게 한다 — 스팸 없이 '회원이 보낸 것처럼' 보이는 표준 방식.
+    """
+    if not (smtp.get("enabled") and smtp.get("host") and to_email):
+        return False
+    sender = smtp.get("from") or smtp.get("user") or "no-reply@localhost"
+    try:
+        msg = EmailMessage()
+        msg["Subject"] = subject
+        if sender_name:
+            _, addr = parseaddr(sender)   # "이름 <addr>"/"addr" → 순수 주소 추출
+            msg["From"] = formataddr((sender_name, addr or sender))
+        else:
+            msg["From"] = sender
+        msg["To"] = to_email
+        if reply_to:
+            msg["Reply-To"] = reply_to
+        msg["Date"] = formatdate(localtime=True)
+        msg.set_content(body)
+        msg.add_attachment(
+            pdf_bytes, maintype="application", subtype="pdf",
+            filename=filename or "상담서.pdf",
+        )
+        host, port = smtp["host"], int(smtp["port"])
+        if smtp.get("use_tls"):
+            with smtplib.SMTP(host, port, timeout=20) as server:
+                server.starttls()
+                if smtp.get("user"):
+                    server.login(smtp["user"], smtp.get("password") or "")
+                server.send_message(msg)
+        else:
+            with smtplib.SMTP(host, port, timeout=20) as server:
+                if smtp.get("user"):
+                    server.login(smtp["user"], smtp.get("password") or "")
+                server.send_message(msg)
+        log.info("pdf email sent to %s (%s, %d bytes)", to_email, filename, len(pdf_bytes))
+        return True
+    except Exception as e:  # noqa: BLE001
+        log.warning("pdf email send failed to %s: %s", to_email, e)
+        return False
+
+
+def send_test_email(smtp: dict[str, Any], to_email: str) -> tuple[bool, str]:
+    """SMTP 설정 검증용 테스트 메일. 반환 (성공여부, 상세). 실패 사유(인증/연결/TLS 등)를
+    그대로 돌려 관리자가 설정을 디버깅할 수 있게 한다."""
+    if not smtp.get("enabled"):
+        return False, "SMTP가 비활성 상태입니다. '메일 발송 사용'을 켜고 저장 후 다시 시도하세요."
+    if not smtp.get("host"):
+        return False, "SMTP 호스트가 비어 있습니다."
+    if not (to_email or "").strip():
+        return False, "받는 사람 이메일이 없습니다."
+    sender = smtp.get("from") or smtp.get("user") or "no-reply@localhost"
+    try:
+        msg = EmailMessage()
+        msg["Subject"] = "[인생상담 친구] SMTP 테스트 메일"
+        msg["From"] = sender
+        msg["To"] = to_email
+        msg["Date"] = formatdate(localtime=True)
+        msg.set_content(
+            "이 메일이 도착했다면 SMTP 설정이 정상입니다.\n"
+            "상담서 PDF 첨부 발송 및 고객센터 알림이 활성화됩니다.\n\n— 인생상담 친구 관리자 테스트"
+        )
+        host, port = smtp["host"], int(smtp["port"])
+        if smtp.get("use_tls"):
+            with smtplib.SMTP(host, port, timeout=20) as server:
+                server.starttls()
+                if smtp.get("user"):
+                    server.login(smtp["user"], smtp.get("password") or "")
+                server.send_message(msg)
+        else:
+            with smtplib.SMTP(host, port, timeout=20) as server:
+                if smtp.get("user"):
+                    server.login(smtp["user"], smtp.get("password") or "")
+                server.send_message(msg)
+        log.info("SMTP test mail sent to %s", to_email)
+        return True, f"{to_email} 로 테스트 메일을 보냈습니다. 받은편지함(스팸함 포함)을 확인하세요."
+    except Exception as e:  # noqa: BLE001
+        log.warning("SMTP test mail failed to %s: %s", to_email, e)
+        return False, f"발송 실패 — {type(e).__name__}: {e}"

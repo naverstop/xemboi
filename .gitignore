@@ -42,7 +42,6 @@ desktop.ini
 .env
 .env.*
 !.env.example
-!.env.vn.example
 *.pem
 *.key
 secrets/
@@ -120,3 +119,7 @@ frontend/public/icons/icon-128.png
 인생상담친구_아이콘.png
 # 1:1 상담 입점업체 간판 이미지(런타임 업로드)
 data/media/
+data/amulet/
+data/sharecard/
+data/snackcard/
+data/pdf/

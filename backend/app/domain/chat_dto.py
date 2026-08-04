@@ -24,7 +24,6 @@ class BirthDTO(BaseModel):
     birth_longitude: float | None = None                 # 출생지 경도(°E); None이면 서울
     apply_equation_of_time: bool = False                 # 균시차 반영
     night_zi_mode: Literal["yaja", "jeongja"] = "yaja"   # 자시 관법(야자시/정자시)
-    locale: Literal["ko", "vi"] = "ko"                    # ko=한국 역법/KST, vi=베트남 역법/ICT
 
 
 class ChatSourceDTO(BaseModel):

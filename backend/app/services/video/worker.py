@@ -97,11 +97,18 @@ def _recover(db: Session) -> int:
     stale = db.query(SajuVideoJob).filter(
         SajuVideoJob.status == "running", SajuVideoJob.created_at < cutoff
     ).all()
+    from sqlalchemy import update as _update
     for job in stale:
-        job.status = "failed"
-        job.detail = "지연 작업 회수"
+        # 조건부 전이 — 동시 finalize 로 이미 done 이 된 잡을 blind 하게 failed 로 덮어써
+        #   완료·납품된 영상을 오환불(수익 누수)하던 문제 차단. running 인 잡만 회수하고 그 경우에만 환불.
+        res = db.execute(
+            _update(SajuVideoJob)
+            .where(SajuVideoJob.id == job.id, SajuVideoJob.status == "running", SajuVideoJob.created_at < cutoff)
+            .values(status="failed", detail="지연 작업 회수")
+        )
         db.commit()
-        _svc.refund_job(db, job)
+        if res.rowcount == 1:
+            _svc.refund_job(db, job)
     # 환불 누락 고아(실패 확정 후 환불 전 프로세스 사망) 보정
     orphans = db.query(SajuVideoJob).filter(
         SajuVideoJob.status == "failed", SajuVideoJob.refunded.is_(False),

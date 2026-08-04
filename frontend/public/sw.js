@@ -1,9 +1,9 @@
-/* Xem Bói Service Worker
+/* 사주 에이전트 Service Worker
  * - 정적 셸 프리캐시 + 런타임 캐시(정적 자원만).
  * - API(/api/*)·SSE 스트림은 캐시 제외(실시간성/인증 보호).
  * - Web Push 수신/클릭 핸들러(계획 2.7.6).
  */
-const CACHE = "xemboi-shell-v69";
+const CACHE = "saju-shell-v210";
 const SHELL = ["/", "/manifest.webmanifest"];  // 오프라인 폴백용
 
 self.addEventListener("install", (event) => {
@@ -69,20 +69,24 @@ self.addEventListener("fetch", (event) => {
 
 // ---- Web Push ----
 self.addEventListener("push", (event) => {
-  let data = { title: "Xem Bói", body: "Bạn có thông báo mới.", url: "/chat" };
+  let data = { title: "사주 에이전트", body: "새 알림이 있어요.", url: "/chat" };
   try {
     if (event.data) data = { ...data, ...event.data.json() };
   } catch (_) {
     if (event.data) data.body = event.data.text();
   }
-  event.waitUntil(
-    self.registration.showNotification(data.title, {
-      body: data.body,
-      icon: "/icons/icon-192.png",
-      badge: "/icons/icon-192.png",
-      data: { url: data.url || "/chat" },
-    })
-  );
+  const opts = {
+    body: data.body,
+    icon: "/icons/icon-192.png",
+    badge: "/icons/icon-192.png",
+    vibrate: [200, 100, 200],                       // 모바일 진동 — 상담 접수 등 놓침 방지
+    data: { url: data.url || "/chat" },
+  };
+  if (data.tag) {                                    // 같은 태그 알림 갱신 + 매번 소리/진동(반복 알림용)
+    opts.tag = data.tag;
+    opts.renotify = true;
+  }
+  event.waitUntil(self.registration.showNotification(data.title, opts));
 });
 
 self.addEventListener("notificationclick", (event) => {

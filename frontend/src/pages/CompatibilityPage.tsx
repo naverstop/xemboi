@@ -1,10 +1,14 @@
 /** 궁합(宮合) 페이지 — A·B 입력 → 룰엔진 결과(펜타곤 + 3관법 게이지 + 근거 + 도화 + 해설). */
-import { useEffect, useMemo, useRef, useState } from "react";
+import ReviewStrip from "../components/ReviewStrip";
+import PrivacyNotice from "../components/PrivacyNotice";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useLocation } from "react-router-dom";
 import { resolveBirthTime } from "../lib/birthTime";
 import {
   api,
   useMe,
-  getToken,
+  refreshMe,
+  ensureFreshToken,
   notifySessionExpired,
   COMPAT_AXES,
   type CompatResponse,
@@ -15,15 +19,16 @@ import {
 } from "../api";
 import SajuChart, { type Chart } from "../components/SajuChart";
 import BirthFields, { profileToBirthValue } from "../components/BirthFields";
+import RememberBirthToggle, { useBirthMemory } from "../components/RememberBirth";
 import AnswerActions, { type PdfMeta } from "../components/AnswerActions";
 import { useEnsureEntry, EntryFeeNotice, useCharge } from "../components/ChargeModal";
+import PastResultsDrawer, { fmtWhen, type PastItem } from "../components/PastResultsDrawer";
+import { usePremiumRestore, usePastList } from "../lib/usePastResults";
+import TypingDots from "../components/TypingDots";
 import FollowupBilling from "../components/FollowupBilling";
 import ConsultationReportButton, { type ReportReq } from "../components/ConsultationReportButton";
 import { renderRich, stripMarkdown } from "../lib/format";
-import { useTranslation, Trans } from "react-i18next";
-import { fmtNum } from "../lib/money";
-import { DEFAULT_LON } from "../lib/regions";
-import i18n from "../i18n";
+import { displayName } from "../lib/displayName";
 
 // 상담서 PDF 본문 상단 요약 — 종합 등급 + 관법별 점수
 function compatPdfHeader(res: CompatResponse): string {
@@ -31,8 +36,8 @@ function compatPdfHeader(res: CompatResponse): string {
   const persp = ["A", "B", "C"].map((k) => r.perspectives[k]).filter(Boolean);
   const head = persp.find((p) => p.key === "B") || persp[0];
   const lines: string[] = [];
-  if (head) lines.push(i18n.t("compat.pdf_overall", { grade: head.grade, total: head.total }));
-  persp.forEach((p) => lines.push(i18n.t("compat.pdf_persp", { label: p.label, grade: p.grade, total: p.total })));
+  if (head) lines.push(`[종합] ${head.grade} · ${head.total}점`);
+  persp.forEach((p) => lines.push(`- ${p.label}: ${p.grade} ${p.total}점`));
   return lines.join("\n");
 }
 
@@ -50,7 +55,7 @@ async function streamCompat(
   h: SSEHandlers,
   signal?: AbortSignal,
 ): Promise<void> {
-  const tok = getToken();
+  const tok = await ensureFreshToken();   // 만료 토큰 → 익명 미리보기 방지(무음 갱신)
   const resp = await fetch(`/api/compatibility/${compatId}/messages/stream`, {
     method: "POST",
     headers: { "Content-Type": "application/json", ...(tok ? { Authorization: `Bearer ${tok}` } : {}) },
@@ -90,7 +95,7 @@ async function streamCompat(
       } else if (event === "done" && data) {
         try { h.onDone?.(JSON.parse(data)); } catch {}
       } else if (event === "error" && data) {
-        try { throw new Error(JSON.parse(data).detail || i18n.t("compat.stream_err")); } catch (e) { throw e; }
+        try { throw new Error(JSON.parse(data).detail || "스트림 오류"); } catch (e) { throw e; }
       }
     }
   }
@@ -122,7 +127,7 @@ const blankPerson = (label: string): PState => ({
   gender: "male",
   is_leap_month: false,
   apply_true_solar_time: true,
-  birth_longitude: DEFAULT_LON,
+  birth_longitude: 126.98,
   apply_equation_of_time: false,
   night_zi_mode: "yaja",
 });
@@ -147,14 +152,12 @@ function toReq(p: PState): CompatPersonReq {
   };
 }
 
-// 등급 색상 — 로케일 무관 stable key(grade_key)로 키잉. 백엔드가 grade_key
-// (soulmate|good|fair|effort|caution)를 제공하므로 한국어 문자열 매칭에 의존하지 않는다.
 const GRADE_TONE: Record<string, string> = {
-  soulmate: "var(--grad-success)",
-  good: "var(--brand-grad)",
-  fair: "var(--grad-info)",
-  effort: "var(--grad-warning)",
-  caution: "linear-gradient(135deg,#e57373,#c62828)",
+  천생연분: "var(--grad-success)",
+  "좋은 궁합": "var(--brand-grad)",
+  "무난한 궁합": "var(--grad-info)",
+  "노력 필요": "var(--grad-warning)",
+  신중히: "linear-gradient(135deg,#e57373,#c62828)",
 };
 
 // ===================== 펜타곤(레이더) =====================
@@ -175,7 +178,6 @@ function Pentagon({
   couple: number[];
   average: number[] | null;
 }) {
-  const { t: tr } = useTranslation();
   const S = 320, cx = 160, cy = 160, R = 108, LR = 130;
   const rings = [0.25, 0.5, 0.75, 1];
   const axisPt = (i: number, r: number) => {
@@ -183,14 +185,14 @@ function Pentagon({
     return [cx + r * Math.cos(ang), cy + r * Math.sin(ang)];
   };
   return (
-    <svg viewBox={`0 0 ${S} ${S}`} className="pentagon" role="img" aria-label={tr("compat.pentagon_aria")}>
+    <svg viewBox={`0 0 ${S} ${S}`} className="pentagon" role="img" aria-label="궁합 요소 펜타곤">
       <defs>
         <radialGradient id="penFill" cx="50%" cy="45%" r="65%">
-          <stop offset="0%" stopColor="#1fbfa8" stopOpacity="0.40" />
-          <stop offset="100%" stopColor="#0d9488" stopOpacity="0.16" />
+          <stop offset="0%" stopColor="#22b8f0" stopOpacity="0.40" />
+          <stop offset="100%" stopColor="#0496d8" stopOpacity="0.16" />
         </radialGradient>
         <filter id="penGlow" x="-30%" y="-30%" width="160%" height="160%">
-          <feDropShadow dx="0" dy="2" stdDeviation="4" floodColor="#0d9488" floodOpacity="0.35" />
+          <feDropShadow dx="0" dy="2" stdDeviation="4" floodColor="#0496d8" floodOpacity="0.35" />
         </filter>
       </defs>
 
@@ -231,7 +233,7 @@ function Pentagon({
         const anchor = Math.abs(x - cx) < 6 ? "middle" : x > cx ? "start" : "end";
         return (
           <text key={ax.key} x={x} y={y} textAnchor={anchor as any} className="pen-label">
-            <tspan>{tr(ax.tkey)}</tspan>
+            <tspan>{ax.label}</tspan>
             <tspan x={x} dy="13" className="pen-label-score">{couple[i]}</tspan>
           </text>
         );
@@ -245,31 +247,28 @@ function Gauge({
   label,
   total,
   grade,
-  gradeKey,
   avg,
 }: {
   label: string;
   total: number;
   grade: string;
-  gradeKey: string;
   avg: number | null;
 }) {
-  const { t: tr } = useTranslation();
   return (
     <div className="compat-gauge">
       <div className="cg-head">
         <span className="cg-label">{label}</span>
-        <span className="cg-grade" style={{ background: GRADE_TONE[gradeKey] || "var(--brand-grad)" }}>
+        <span className="cg-grade" style={{ background: GRADE_TONE[grade] || "var(--brand-grad)" }}>
           {grade}
         </span>
       </div>
       <div className="cg-bar">
         <div className="cg-fill" style={{ width: `${total}%` }} />
-        {avg != null && <div className="cg-avg" style={{ left: `${avg}%` }} title={tr("compat.gauge_avg_title", { avg })} />}
+        {avg != null && <div className="cg-avg" style={{ left: `${avg}%` }} title={`전체 평균 ${avg}`} />}
       </div>
       <div className="cg-foot">
-        <strong className="cg-total">{tr("compat.score", { n: total })}</strong>
-        {avg != null && <span className="cg-avg-text">{tr("compat.gauge_avg_text", { avg })}</span>}
+        <strong className="cg-total">{total}점</strong>
+        {avg != null && <span className="cg-avg-text">평균 {avg}</span>}
       </div>
     </div>
   );
@@ -294,12 +293,11 @@ function ScoreRing({ score }: { score: number }) {
 
 export default function CompatibilityPage() {
   const me = useMe();
-  const { t: tr } = useTranslation();
   const ensureEntry = useEnsureEntry();
   const { openCharge } = useCharge();
-  const memberName = me?.nickname?.trim() || (me?.email ? me.email.split("@")[0] : "") || tr("compat.member_fallback");
-  const [a, setA] = useState<PState>(() => blankPerson(tr("compat.self")));
-  const [b, setB] = useState<PState>(() => blankPerson(tr("compat.other")));
+  const memberName = displayName(me, "본인");  // ⚠️ 호칭=이메일 아이디 고정(운영자 결정) — lib/displayName.ts
+  const [a, setA] = useState<PState>(() => blankPerson("나"));
+  const [b, setB] = useState<PState>(() => blankPerson("상대"));
   const [profiles, setProfiles] = useState<SajuProfile[]>([]);
   const [depth, setDepth] = useState<"basic" | "deep">("deep");
   const [loading, setLoading] = useState(false);
@@ -309,6 +307,7 @@ export default function CompatibilityPage() {
   // 스트리밍 해설 + 추가질문
   const [explainText, setExplainText] = useState("");
   const [explainStreaming, setExplainStreaming] = useState(false);
+  const [explainFailed, setExplainFailed] = useState(false);   // 무청크/에러/무응답 → 재시도 유도(고착 방지)
   const [explainMsgId, setExplainMsgId] = useState<number | undefined>(undefined);  // 해설 메시지 id(피드백용)
   const [compatSuggests, setCompatSuggests] = useState<string[]>([]);               // 추천질문 칩
   const [qDepth, setQDepth] = useState<"basic" | "deep">("basic");                  // 추가질문 등급(기본=1000P)
@@ -316,19 +315,84 @@ export default function CompatibilityPage() {
   const [explainStarted, setExplainStarted] = useState(false);                      // 해설 시작 여부(버튼 노출 제어)
   const acRef = useRef<AbortController | null>(null);                               // 현재 활성 스트림 취소(이탈 시 GPU 중단)
   const [refineStage, setRefineStage] = useState<string | null>(null);
-  const [qaTurns, setQaTurns] = useState<{ role: "user" | "assistant"; content: string; refined?: boolean; is_preview?: boolean; charged?: number }[]>([]);
+  const [qaTurns, setQaTurns] = useState<{ role: "user" | "assistant"; content: string; refined?: boolean; is_preview?: boolean; charged?: number; message_id?: number }[]>([]);
   const [qInput, setQInput] = useState("");
   const [qStreaming, setQStreaming] = useState(false);
+  // B-10 상대 초대(바이럴) — 내 생일을 담은 링크 생성
+  const [inviteUrl, setInviteUrl] = useState("");
+  const [inviteBusy, setInviteBusy] = useState(false);
+  const [inviteCopied, setInviteCopied] = useState(false);
   const depthRef = useRef(depth);
   depthRef.current = depth;
+  // 이탈→복귀/새로고침 시 마지막 궁합 결과 자동 복원(무차감) + '지난 궁합' 목록
+  const { restore, remember: rememberResult } = usePremiumRestore<CompatResponse>({
+    storageKey: "compat_last_id",
+    getOne: api.getCompatibility,
+    apply: (r) => {
+      setRes(r); setExplainText(""); setExplainStarted(false); setQaTurns([]);
+      setTimeout(() => document.getElementById("compat-result")?.scrollIntoView({ behavior: "smooth" }), 80);
+    },
+  });
+  const past = usePastList<PastItem>(() =>
+    api.listCompat().then((r) => r.items.map((it) => ({
+      id: it.compat_id,
+      title: `${it.a_label || "나"} · ${it.b_label || "상대"} 궁합`,
+      subtitle: [it.a_birth_date, it.b_birth_date].filter(Boolean).join("  ·  ") || undefined,
+      when: fmtWhen(it.created_at),
+    }))),
+  );
 
-  // 첫 번째 사람(본인): 저장된 사주 자동 채움(사용자별 1회)
-  const aFilledFor = useRef<number | null>(null);
+  async function makeInvite() {
+    if (inviteBusy) return;
+    if (!a.birth_date) { setErr("먼저 '나'(첫 번째 사람)의 생년월일을 입력해 주세요."); return; }
+    setInviteBusy(true); setErr(null);
+    try {
+      const r = await api.compatInviteCreate({
+        birth_date: a.birth_date, birth_time: resolveBirthTime(a.birth_time, a.unknown_time),
+        calendar: a.calendar, gender: a.gender, is_leap_month: a.calendar === "lunar" ? a.is_leap_month : false,
+        apply_true_solar_time: !!a.apply_true_solar_time, night_zi_mode: a.night_zi_mode ?? "yaja",
+        birth_longitude: a.birth_longitude ?? null, apply_equation_of_time: !!a.apply_equation_of_time,
+      });
+      setInviteUrl(r.url);
+    } catch (e: any) {
+      if (e?.status === 401) setErr("초대 링크는 로그인 후 만들 수 있어요.");
+      else setErr(e?.message || "초대 링크를 만들지 못했어요.");
+    } finally { setInviteBusy(false); }
+  }
+
+  async function copyInvite() {
+    const full = window.location.origin + inviteUrl;
+    try {
+      await navigator.clipboard.writeText(full);
+      setInviteCopied(true);
+      window.setTimeout(() => setInviteCopied(false), 1600);
+    } catch {
+      window.prompt("아래 링크를 복사해 상대에게 보내 주세요", full);
+    }
+  }
+
+  // 첫 번째 사람(본인): 공통 '기억하기' — 저장본 자동 채움 + 자동 저장(두 번째 사람은 미적용)
+  const { remember, toggleRemember } = useBirthMemory(
+    a, (patch) => setA((prev) => ({ ...prev, ...patch })),
+  );
+
+  // 궁합 초대 연계(운영자 검증에서 발견된 끊김 보완) — 수락 완료 푸시의 ?invite=토큰으로 진입하면
+  // 초대에 저장된 두 생일(나+상대)을 자동으로 채운다(소유 검증은 서버 prefill이 수행).
+  const loc = useLocation();
+  const [inviteFilled, setInviteFilled] = useState(false);
   useEffect(() => {
-    if (!me?.saju_profile?.birth_date || aFilledFor.current === me.id) return;
-    aFilledFor.current = me.id;
-    setA((prev) => ({ ...prev, ...profileToBirthValue(me.saju_profile) }));
-  }, [me]);
+    const tk = new URLSearchParams(loc.search).get("invite");
+    if (!tk || !me) return;
+    api.compatInvitePrefill(tk)
+      .then((r) => {
+        setA((prev) => ({ ...prev, ...profileToBirthValue(r.a), mode: "manual" }));
+        setB((prev) => ({ ...prev, ...profileToBirthValue(r.b), mode: "manual", label: prev.label || "상대" }));
+        setInviteFilled(true);
+        window.history.replaceState(null, "", loc.pathname);   // 토큰 파라미터 정리
+      })
+      .catch(() => { /* 내 초대 아님/미수락 — 조용히 무시(일반 궁합 화면 그대로) */ });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [me?.id]);
 
   useEffect(() => {
     if (me) api.listSajuProfiles().then((r) => setProfiles(r.items)).catch(() => {});
@@ -346,23 +410,32 @@ export default function CompatibilityPage() {
     setExplainStarted(true);
     setExplainStreaming(true); explainingRef.current = true;
     setExplainText("");
+    setExplainFailed(false);
     setExplainMsgId(undefined);
     setCompatSuggests([]);
     const ac = new AbortController(); acRef.current = ac;
+    // 무응답 방지: 첫 청크 추적 + 60초 타임아웃 → 청크 0개로 끝나면 실패 전환(‘생성 중’ 고착 방지)
+    let firstChunk = false;
+    const to = window.setTimeout(() => { if (!firstChunk) { try { ac.abort(); } catch { /* noop */ } } }, 60000);
     try {
       await streamCompat(cid, { message: "", depth: depthRef.current }, {
-        onChunk: setExplainText,
+        onChunk: (full) => { firstChunk = true; setExplainText(full); },
         onRefine: setExplainText,
         onStage: setRefineStage,
         onDone: (d) => { if (d?.assistant_message_id) setExplainMsgId(d.assistant_message_id); },
       }, ac.signal);
     } catch {
-      /* 부분 스트리밍/이탈 취소 — 조용히 유지 */
+      /* 아래 finally에서 무청크 판정 */
     } finally {
+      window.clearTimeout(to);
       setExplainStreaming(false); explainingRef.current = false;
       setRefineStage(null);
+      if (!firstChunk) setExplainFailed(true);   // 청크 없이 끝남 = 실패 → 재시도 유도
       loadCompatSuggests(cid);
     }
+  }
+  function retryExplain() {
+    if (res?.compat_id) { setExplainText(""); setExplainFailed(false); startExplain(res.compat_id); }
   }
 
   async function askFollowup(preset?: string) {
@@ -382,12 +455,15 @@ export default function CompatibilityPage() {
         onChunk: (full) => upd({ content: full }),
         onRefine: (full) => upd({ content: full, refined: true }),
         onStage: setRefineStage,
-        onDone: (d) => upd({ is_preview: d.is_preview, charged: d.credits_charged }),
+        onDone: (d) => {
+          upd({ is_preview: d.is_preview, charged: d.credits_charged, message_id: d.assistant_message_id });  // 답변별 공유/피드백 연결
+          if (d?.credits_charged > 0) refreshMe();   // 추가질문 차감 후 잔액 즉시 반영(패턴 B)
+        },
       }, ac.signal);
     } catch (e: any) {
       if (e?.name === "AbortError") { /* 이탈 취소 — 조용히 무시 */ }
-      else if (e?.message === "PAYWALL") { upd({ content: "" }); openCharge(tr("compat.need_points")); }
-      else upd({ content: tr("compat.answer_fail") });
+      else if (e?.message === "PAYWALL") { upd({ content: "" }); openCharge("추가 질문 포인트가 부족해요. 충전하면 작성 내용 그대로 이어집니다."); }
+      else upd({ content: "답변 생성에 실패했어요. 잠시 후 다시 시도해 주세요." });
     } finally {
       setQStreaming(false);
       setRefineStage(null);
@@ -397,12 +473,12 @@ export default function CompatibilityPage() {
 
   const okPerson = (p: PState) => (p.mode === "profile" ? !!p.profile_id : !!p.birth_date);
   const canSubmit = useMemo(() => okPerson(a) && okPerson(b) && !loading, [a, b, loading]);
-  const reason = !okPerson(a) ? tr("compat.reason_a")
-    : !okPerson(b) ? tr("compat.reason_b")
+  const reason = !okPerson(a) ? "첫 번째 사람의 생년월일(또는 프로필)을 입력해 주세요"
+    : !okPerson(b) ? "두 번째 사람의 생년월일(또는 프로필)을 입력해 주세요"
     : null;
 
   async function submit() {
-    if (!ensureEntry("compat")) return;
+    if (!(await ensureEntry("compat"))) return;
     setErr(null);
     setLoading(true);
     setRes(null);
@@ -411,11 +487,19 @@ export default function CompatibilityPage() {
     try {
       const out = await api.createCompatibility(toReq(a), toReq(b), depth);
       setRes(out);
-      setExplainStarted(false);  // 해설은 '자세히 설명' 버튼 클릭 시에만 생성(불필요 GPU 방지)
+      if (out.compat_id) rememberResult(out.compat_id);   // 재열람 복원용 id 기억(재차감 없이 다시 보기)
+      refreshMe();   // 입장료 차감 후 사이드바·FAB 잔액 즉시 반영(패턴 B)
+      // 입장료 결제(비프리뷰)면 해설을 자동 1회 생성(신년운세와 동일 UX — 운영자 지적 #12 '입장료 냈으니
+      //   설명이 자동으로'). 프리뷰/비로그인은 버튼 유지.
+      // ⚠️복원·지난궁합 재열람(usePremiumRestore apply:331)은 setExplainStarted(false) 유지라 자동시작 안 함 —
+      //   무차감 재열람마다 GPU 추론이 도는 폭주(ef8887e4) 회귀 방지. abort 인프라(AbortController·언마운트
+      //   abort·fetch signal)는 기존대로 유지되므로 이탈 시 즉시 중단됨.
+      if (!out.is_preview) startExplain(out.compat_id);
+      else setExplainStarted(false);
       api.compatibilityAverage().then(setAvg).catch(() => {});
       setTimeout(() => document.getElementById("compat-result")?.scrollIntoView({ behavior: "smooth" }), 80);
     } catch (e: any) {
-      setErr(e?.message || tr("compat.fail"));
+      setErr(e?.message || "궁합 분석에 실패했어요.");
     } finally {
       setLoading(false);
     }
@@ -423,29 +507,60 @@ export default function CompatibilityPage() {
 
   return (
     <div className="compat-page">
+      <PrivacyNotice variant="tool" />
+      {me && (
+        <PastResultsDrawer
+          items={past.items} loading={past.loading}
+          onOpen={past.refresh} onPick={(id) => restore(id)}
+          label="지난 궁합" emptyText="아직 저장된 궁합 결과가 없어요."
+        />
+      )}
       <header className="compat-hero">
-        <div className="compat-hero-badge">{tr("compat.hero_badge")}</div>
-        <h1>{tr("compat.hero_title")}</h1>
-        <p><Trans i18nKey="compat.hero_desc" components={{ b: <b /> }} /></p>
+        <div className="compat-hero-badge">宮合</div>
+        <h1>궁합</h1>
+        <p>두 사람의 사주를 합·충·오행·십성·신살로 비교합니다. 관법은 정답이 없기에 <b>세 관점</b>을 함께 보여드려요.</p>
       </header>
 
+      <ReviewStrip source="compat" title="이용자 후기" limit={8} />
       <EntryFeeNotice menu="compat" />
+      {inviteFilled && (
+        <div className="cta-hint" role="status" style={{ textAlign: "center", marginBottom: 10 }}>
+          💌 초대 수락이 완료돼 <b>두 분의 생일이 자동으로 채워졌어요</b> — 바로 궁합을 볼 수 있어요.
+        </div>
+      )}
       <div className="compat-input-grid">
-        <PersonForm title={tr("compat.person1")} accent="a" p={a} setP={setA} profiles={profiles} loggedIn={!!me} />
+        <PersonForm title="첫 번째 사람" accent="a" p={a} setP={setA} profiles={profiles} loggedIn={!!me}
+                    remembered={remember}
+                    rememberSlot={<RememberBirthToggle remember={remember} onToggle={toggleRemember} />} />
         <div className="compat-link" aria-hidden>💞</div>
-        <PersonForm title={tr("compat.person2")} accent="b" p={b} setP={setB} profiles={profiles} loggedIn={!!me} />
+        <PersonForm title="두 번째 사람" accent="b" p={b} setP={setB} profiles={profiles} loggedIn={!!me} />
       </div>
+
+      {/* B-10 상대 초대(바이럴) — 상대 생일을 모를 때 링크로 입력 부탁 */}
+      {me && (
+        <div className="cp-invite">
+          <span>💌 상대방 생일을 모르시나요? <b>초대 링크</b>를 보내면 상대가 직접 입력하고, 두 분 모두 궁합 등급을 받아요.</span>
+          {inviteUrl ? (
+            <>
+              <span className="cp-invite-link">{window.location.origin}{inviteUrl}</span>
+              <button onClick={copyInvite}>{inviteCopied ? "✓ 복사됨" : "링크 복사"}</button>
+            </>
+          ) : (
+            <button disabled={inviteBusy} onClick={makeInvite}>{inviteBusy ? "만드는 중…" : "초대 링크 만들기"}</button>
+          )}
+        </div>
+      )}
 
       <div className="compat-actions">
         <label className="compat-depth">
           <input type="checkbox" checked={depth === "deep"} onChange={(e) => setDepth(e.target.checked ? "deep" : "basic")} />
-          {tr("compat.depth_deep")}
+          심화 해설
         </label>
         <button className="compat-cta" disabled={!canSubmit} onClick={submit}>
-          {loading ? tr("compat.analyzing") : tr("compat.cta")}
+          {loading ? "분석 중…" : "💞 궁합 보기"}
         </button>
-      </div>
       {!canSubmit && !loading && reason && <div className="cta-hint">{reason}</div>}
+      </div>
       {err && <div className="compat-err">{err}</div>}
 
       {res && <Result res={res} avg={avg} />}
@@ -453,15 +568,17 @@ export default function CompatibilityPage() {
         <div className="cr-explain">
           <div className="explain-body">
             <button className="explain-cta" onClick={() => startExplain(res.compat_id)}>
-              {tr("compat.explain_cta")}
+              🔮 자세히 설명해 드릴까요? <span className="free-tag included">입장료 포함</span>
             </button>
           </div>
         </div>
       )}
       {res && explainStarted && (
-        <ExplainChat
+        <CompatExplainPanel
           explainText={explainText}
           explainStreaming={explainStreaming}
+          explainFailed={explainFailed}
+          onRetryExplain={retryExplain}
           refineStage={refineStage}
           isPreview={res.is_preview}
           qaTurns={qaTurns}
@@ -474,16 +591,13 @@ export default function CompatibilityPage() {
           qDepth={qDepth}
           setQDepth={setQDepth}
           pdf={(() => {
-            const aName = res.person_a.label && res.person_a.label !== tr("compat.self") ? res.person_a.label : memberName;
-            const bLabel = res.person_b.label;
-            const [by, bm] = (b.birth_date || "").split("-");
-            const bDesc =
-              bLabel && bLabel !== tr("compat.other")
-                ? tr("compat.pdf_other_named", { label: bLabel })
-                : by && bm
-                ? tr("compat.pdf_other_ym", { y: by, m: Number(bm) })
-                : tr("compat.pdf_other");
-            return { docTitle: tr("compat.pdf_couple", { a: aName, b: bDesc }), personLine: tr("compat.pdf_person", { a: aName, b: bDesc }), item: tr("compat.pdf_item") };
+            // 개인정보 최소화(운영자 결정·울트라 순환검증 지적) — PDF는 무인증 공개 링크로 외부(카카오)
+            //   공유되므로 이름/호칭을 넣지 않는다. 특히 상대방(제3자)의 이름은 동의 없이 외부로 나가면
+            //   안 됨. 이름 대신 생년(항상 정확)으로만 두 분을 구분한다. (명식 캡션도 동일 정책)
+            const yr = (s?: string) => (s || "").split("-")[0];
+            const aDesc = yr(a.birth_date) ? `${yr(a.birth_date)}년생` : "첫 번째 분";
+            const bDesc = yr(b.birth_date) ? `${yr(b.birth_date)}년생` : "두 번째 분";
+            return { docTitle: "두 분의 궁합 종합 감정서", personLine: `${aDesc} · ${bDesc}`, item: "궁합 풀이" };
           })()}
           pdfHeader={compatPdfHeader(res)}
           feedbackMsgId={explainMsgId}
@@ -495,16 +609,21 @@ export default function CompatibilityPage() {
 }
 
 // ===================== 해설(스트리밍) + 추가질문 =====================
-function ExplainChat({
-  explainText, explainStreaming, refineStage, isPreview,
+// ⚠️ 부모(CompatibilityPage)가 스트림·QA·과금 상태를 직접 관리하는 '제어형' 패널.
+//    components/ExplainChat(streamPath로 스스로 스트리밍하는 자립형)과는 아키텍처가 다르다.
+//    공유/PDF/피드백 배선은 공통 AnswerActions로 이미 일원화됨(중복 아님). 이름 혼동만 제거.
+function CompatExplainPanel({
+  explainText, explainStreaming, explainFailed, onRetryExplain, refineStage, isPreview,
   qaTurns, qInput, setQInput, askFollowup, qStreaming, pdf, pdfHeader,
   feedbackMsgId, compatId, suggests, me, qDepth, setQDepth,
 }: {
   explainText: string;
   explainStreaming: boolean;
+  explainFailed: boolean;
+  onRetryExplain: () => void;
   refineStage: string | null;
   isPreview: boolean;
-  qaTurns: { role: "user" | "assistant"; content: string; refined?: boolean; is_preview?: boolean; charged?: number }[];
+  qaTurns: { role: "user" | "assistant"; content: string; refined?: boolean; is_preview?: boolean; charged?: number; message_id?: number }[];
   qInput: string;
   setQInput: (v: string) => void;
   askFollowup: (preset?: string) => void;
@@ -518,17 +637,27 @@ function ExplainChat({
   qDepth: "basic" | "deep";
   setQDepth: (d: "basic" | "deep") => void;
 }) {
-  const { t: tr } = useTranslation();
-  const stageText = refineStage === "refining" ? tr("compat.refining") : null;
+  const stageText = refineStage === "refining" ? "보강 중…" : null;
   return (
     <div className="cr-explain">
-      <div className="cr-sub">{tr("compat.explain_label")} {refineStage && <span className="cr-refine-tag">{stageText}</span>}</div>
+      <div className="cr-sub">해설 {refineStage && <span className="cr-refine-tag">{stageText}</span>}</div>
       <div className="explain-body">
-        {explainText ? renderRich(explainText) : (explainStreaming ? "" : tr("compat.explain_loading"))}
-        {explainStreaming && !explainText && <span className="thinking-dots" />}
+        {explainText ? renderRich(explainText) : (
+          explainFailed ? (
+            <div className="explain-retry">
+              <span>해설 생성이 지연되고 있어요. 네트워크나 서버 사정일 수 있어요.</span>
+              <button type="button" className="explain-retry-btn" onClick={onRetryExplain}>🔄 다시 시도 (무과금)</button>
+            </div>
+          ) : (
+            <span className="gen-live" role="status" aria-live="polite">🔮 <b>설명을 생성하고 있어요</b> <TypingDots /></span>
+          )
+        )}
       </div>
       {isPreview && (
-        <div className="explain-preview-note">{tr("compat.preview_note")}</div>
+        <div className="explain-preview-note">
+          {me ? "미리보기입니다. 충전 후 전체 해설과 추가 질문을 이용할 수 있어요."
+              : "미리보기입니다. 로그인 후 전체 해설과 추가 질문을 이용할 수 있어요."}
+        </div>
       )}
       {pdf && explainText && !explainStreaming && (
         <AnswerActions
@@ -536,28 +665,42 @@ function ExplainChat({
           pdf={pdf}
           messageId={feedbackMsgId}
           source="compat"
-          sessionId={compatId}
+          compatId={compatId}
           isLast
         />
       )}
 
       {/* 추가질문 채팅 */}
       <div className="compat-qa">
-        <div className="cr-sub">{tr("compat.qa_title")}</div>
+        <div className="cr-sub">추가 질문</div>
         {qaTurns.map((t, i) => (
           <div key={i} className={`qa-turn qa-${t.role}`}>
             <div className="qa-bubble">
-              {t.content ? renderRich(t.content) : <span className="thinking-dots" />}
-              {t.refined && <span className="qa-refined">{tr("compat.qa_refined")}</span>}
+              {t.content ? renderRich(t.content) : (
+                <span className="gen-live" role="status" aria-live="polite"><b>답변을 생성하고 있어요</b> <TypingDots /></span>
+              )}
+              {t.refined && <span className="qa-refined">✨ 보강됨</span>}
               {t.role === "assistant" && typeof t.charged === "number" && t.charged > 0 && (
-                <span className="qa-charged">{tr("compat.qa_charged", { n: fmtNum(t.charged) })}</span>
+                <span className="qa-charged">✓ {t.charged.toLocaleString()}P 차감됨</span>
               )}
             </div>
+            {/* 추가질문 답변에도 공유/복사/PDF·피드백 — 전 메뉴 표준. 미리보기·스트리밍 중 미노출 */}
+            {t.role === "assistant" && t.content && !t.is_preview && pdf &&
+              !(qStreaming && i === qaTurns.length - 1) && (
+              <AnswerActions
+                text={`[질문] ${qaTurns[i - 1]?.role === "user" ? qaTurns[i - 1].content : ""}\n\n${stripMarkdown(t.content)}`}
+                pdf={{ ...pdf, item: ((qaTurns[i - 1]?.role === "user" ? qaTurns[i - 1].content : "") || pdf.item || "추가 질문").slice(0, 40) }}
+                messageId={t.message_id}
+                source="compat"
+                compatId={compatId}
+                isLast={i === qaTurns.length - 1}
+              />
+            )}
           </div>
         ))}
         {suggests && suggests.length > 0 && !qStreaming && (
           <div className="suggest-chips followup">
-            <div className="suggest-label">{tr("compat.followup_label")}</div>
+            <div className="suggest-label">💡 이어서 물어보세요</div>
             {suggests.map((sg) => (
               <button key={sg} className="chip" disabled={qStreaming} onClick={() => askFollowup(sg)}>
                 {sg}
@@ -569,14 +712,14 @@ function ExplainChat({
         <div className="qa-input-row">
           <input
             className="qa-input"
-            placeholder={tr("compat.qa_ph")}
+            placeholder="이 궁합에 대해 더 물어보세요. 예) 결혼하면 어떤 점을 조심해야 하나요?"
             value={qInput}
             disabled={qStreaming}
             onChange={(e) => setQInput(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter") askFollowup(); }}
           />
           <button className="qa-send" disabled={qStreaming || !qInput.trim()} onClick={() => askFollowup()}>
-            {qStreaming ? "…" : explainStreaming ? tr("compat.qa_wait") : tr("compat.qa_ask")}
+            {qStreaming ? "…" : explainStreaming ? "대기" : "질문"}
           </button>
         </div>
         {pdf && explainText && qaTurns.some((t) => t.role === "assistant" && t.content) && !qStreaming && (
@@ -588,15 +731,15 @@ function ExplainChat({
                   ...qaTurns.filter((t) => t.content).map((t) => ({ role: t.role, content: stripMarkdown(t.content) })),
                 ];
                 return {
-                  doc_title: tr("compat.report_doc_suffix", { title: pdf.docTitle }),
+                  doc_title: `${pdf.docTitle} 종합 감정서`,
                   person_line: pdf.personLine,
-                  item: pdf.item || tr("compat.report_item"),
+                  item: pdf.item || "종합 감정",
                   conversation,
-                  topic: tr("compat.report_topic"),
+                  topic: "궁합 상담",
                 };
               }}
             />
-            <span className="report-hint">{tr("compat.report_hint")}</span>
+            <span className="report-hint">여러 질문·답변을 하나의 감정서로 정리해 PDF로 만듭니다.</span>
           </div>
         )}
       </div>
@@ -606,7 +749,7 @@ function ExplainChat({
 
 // ===================== 입력 폼 =====================
 function PersonForm({
-  title, accent, p, setP, profiles, loggedIn,
+  title, accent, p, setP, profiles, loggedIn, rememberSlot, remembered = false,
 }: {
   title: string;
   accent: "a" | "b";
@@ -614,22 +757,23 @@ function PersonForm({
   setP: (p: PState) => void;
   profiles: SajuProfile[];
   loggedIn: boolean;
+  rememberSlot?: ReactNode;   // 첫 번째 사람(본인) 전용 '기억하기' 토글
+  remembered?: boolean;       // 첫 번째 사람(본인)만 — 기억된 정보 강조 카드
 }) {
-  const { t: tr } = useTranslation();
   const up = (patch: Partial<PState>) => setP({ ...p, ...patch });
   return (
     <div className={`person-card pc-${accent}`}>
       <div className="pc-title">{title}</div>
       <input
         className="pc-name"
-        placeholder={tr("compat.name_ph")}
+        placeholder="이름/호칭 (선택)"
         value={p.label}
         onChange={(e) => up({ label: e.target.value })}
       />
       {loggedIn && profiles.length > 0 && (
         <div className="pc-mode">
-          <button className={p.mode === "manual" ? "on" : ""} onClick={() => up({ mode: "manual" })}>{tr("compat.mode_manual")}</button>
-          <button className={p.mode === "profile" ? "on" : ""} onClick={() => up({ mode: "profile" })}>{tr("compat.mode_profile")}</button>
+          <button className={p.mode === "manual" ? "on" : ""} onClick={() => up({ mode: "manual" })}>직접 입력</button>
+          <button className={p.mode === "profile" ? "on" : ""} onClick={() => up({ mode: "profile" })}>프로필 선택</button>
         </div>
       )}
       {p.mode === "profile" ? (
@@ -638,7 +782,7 @@ function PersonForm({
           value={p.profile_id || ""}
           onChange={(e) => up({ profile_id: Number(e.target.value) || undefined })}
         >
-          <option value="">{tr("compat.profile_select")}</option>
+          <option value="">프로필 선택…</option>
           {profiles.map((pr) => (
             <option key={pr.id} value={pr.id}>
               {pr.label} · {pr.birth_date}
@@ -646,7 +790,10 @@ function PersonForm({
           ))}
         </select>
       ) : (
-        <BirthFields value={p} onChange={(patch) => setP({ ...p, ...patch })} />
+        <>
+          {rememberSlot}
+          <BirthFields value={p} onChange={(patch) => setP({ ...p, ...patch })} remembered={remembered} />
+        </>
       )}
     </div>
   );
@@ -654,7 +801,6 @@ function PersonForm({
 
 // ===================== 결과 =====================
 function Result({ res, avg }: { res: CompatResponse; avg: CompatAverage | null }) {
-  const { t: tr } = useTranslation();
   const r = res.result;
   const coupleVals = COMPAT_AXES.map((ax) => r.factors[ax.key]?.score ?? 0);
   const avgFactors = avg?.average?.factors || null;
@@ -664,13 +810,16 @@ function Result({ res, avg }: { res: CompatResponse; avg: CompatAverage | null }
 
   return (
     <div id="compat-result" className="compat-result">
+      {res.credits_charged > 0 && (
+        <div className="charge-receipt">✓ 입장료 {res.credits_charged.toLocaleString()} P 차감됨</div>
+      )}
       <div className="cr-headline">
         <span className="cr-names">{res.person_a.label}</span>
         <span className="cr-heart">💞</span>
         <span className="cr-names">{res.person_b.label}</span>
         {headline && (
-          <span className="cr-grade" style={{ background: GRADE_TONE[headline.grade_key || ""] || "var(--brand-grad)" }}>
-            {headline.grade} · {tr("compat.score", { n: headline.total })}
+          <span className="cr-grade" style={{ background: GRADE_TONE[headline.grade] || "var(--brand-grad)" }}>
+            {headline.grade} · {headline.total}점
           </span>
         )}
       </div>
@@ -679,24 +828,23 @@ function Result({ res, avg }: { res: CompatResponse; avg: CompatAverage | null }
         <section className="cr-pentagon-card">
           <Pentagon couple={coupleVals} average={avgVals} />
           <div className="pen-legend">
-            <span className="pl-couple">{tr("compat.legend_couple")}</span>
+            <span className="pl-couple">이 커플</span>
             {avgVals ? (
-              <span className="pl-avg">{tr("compat.legend_avg", { n: fmtNum(avg?.count ?? 0) })}</span>
+              <span className="pl-avg">전체 평균 ({avg?.count.toLocaleString()}쌍)</span>
             ) : (
-              <span className="pl-none">{tr("compat.legend_none", { n: avg?.min_samples ?? 5 })}</span>
+              <span className="pl-none">평균은 데이터 {avg?.min_samples ?? 5}쌍부터 표시</span>
             )}
           </div>
         </section>
 
         <section className="cr-gauges">
-          <div className="cr-sub">{tr("compat.gauges_title")} <span>{tr("compat.gauges_sub")}</span></div>
+          <div className="cr-sub">관법별 종합 <span>(정답 없음 — 세 관점)</span></div>
           {persp.map((p) => (
             <Gauge
               key={p.key}
               label={p.label}
               total={p.total}
               grade={p.grade}
-              gradeKey={p.grade_key || ""}
               avg={avg?.average?.totals?.[p.key] ?? null}
             />
           ))}
@@ -733,7 +881,7 @@ function Result({ res, avg }: { res: CompatResponse; avg: CompatAverage | null }
 
       {r.dohwa_readings.length > 0 && (
         <div className="cr-dohwa">
-          <div className="cr-sub">{tr("compat.dohwa_title")}</div>
+          <div className="cr-sub">🌸 도화(桃花) — 해석이 갈리는 항목</div>
           <div className="dohwa-grid">
             {r.dohwa_readings.map((d, i) => (
               <div key={i} className="dohwa-card">{d}</div>

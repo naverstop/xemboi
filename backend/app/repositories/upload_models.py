@@ -48,3 +48,5 @@ class Upload(Base):
     indexed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     indexed_source: Mapped[str | None] = mapped_column(String(255), nullable=True)  # ingest_rag 의 source 식별자
     chunks_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # 비전 재OCR 시도 횟수 — 백로그 무한 재시도(색인 불가 페이지를 매일 Claude 호출) 방지 상한용.
+    vision_attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")

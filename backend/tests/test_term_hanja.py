@@ -90,6 +90,44 @@ def test_term_correction_preserves_real_ganji_paren():
     assert fix_term_hanja("정인(丁寅)") == "정인(正印)"                    # 음차 환각(丁寅은 무효 조합)
 
 
+def test_insu_hanja_correction():
+    # 실측 케이스: 인수(印綬)의 綬를 綠/緣으로 환각 — 십성 10엔 총칭 '인수'가 없어 통과되던 갭
+    assert fix_term_hanja("시험 당일 운은 인수(印綠)로 판단됩니다") == "시험 당일 운은 인수(印綬)로 판단됩니다"
+    assert fix_term_hanja("인수(印緣)") == "인수(印綬)"
+    assert fix_term_hanja("인수(印綬)와 재성(財星)") == "인수(印綬)와 재성(財星)"   # 정답 유지
+
+
+def test_branch_unit_hanja_correction():
+    # 실측(택일): '축월(子月)' — 지지 한글 축은 맞고 한자 子가 틀림(丑月 정답)
+    assert fix_term_hanja("축월(子月)과 축일(丑日)") == "축월(丑月)과 축일(丑日)"
+    assert fix_term_hanja("축시(子時) 태생") == "축시(丑時) 태생"
+    assert fix_term_hanja("자월(丑月)에는") == "자월(子月)에는"        # 한글 자 기준 교정
+    # 정답 병기는 보존
+    for ok in ["인시(寅時)", "묘일(卯日)", "오월(午月)", "미년(未年)", "축일(丑日)"]:
+        assert fix_term_hanja(ok) == ok
+    # 오탐 방지: 바레 지지(단위가 괄호 뒤)·60갑자 병기 불개입
+    assert fix_term_hanja("자(子)시에 태어나") == "자(子)시에 태어나"
+    assert fix_term_hanja("계축(癸丑) 일주") == "계축(癸丑) 일주"
+
+
+def test_sinsal_unseong_term_hanja():
+    # 선제 보강 세트: 신살·운성·용신법 한자 환각 교정
+    assert fix_term_hanja("도화(桃火)가 강해") == "도화(桃花)가 강해"        # 火→花
+    assert fix_term_hanja("역마(易馬)") == "역마(驛馬)"                       # 易→驛
+    assert fix_term_hanja("제왕(帝王)의 기운") == "제왕(帝旺)의 기운"          # 十二運星 帝旺(帝王 아님)
+    assert fix_term_hanja("원진(元嗔)") == "원진(怨嗔)"                       # 정본 怨嗔
+    assert fix_term_hanja("조후(調喉)") == "조후(調候)"                       # 喉→候
+    # 정답은 그대로 유지
+    assert fix_term_hanja("양인(羊刃)과 괴강(魁罡)") == "양인(羊刃)과 괴강(魁罡)"
+
+
+def test_excluded_terms_not_overcorrected():
+    # 제외 원칙 검증: 단일글자·상용어 동음은 건드리지 않음(오탐 방지)
+    assert fix_term_hanja("병(丙) 일간") == "병(丙) 일간"              # 병=丙(천간), 病 아님
+    assert fix_term_hanja("사(巳)월생") == "사(巳)월생"                # 사=巳(지지), 死 아님
+    assert fix_term_hanja("관대(寬大)한 성품") == "관대(寬大)한 성품"    # 寬大(너그러움) 보존
+
+
 def test_gungwi_term_hanja():
     # 궁위 용어 한자 교정 (실측 케이스 #3: '월간(月支)' 오기)
     assert fix_term_hanja("월간(月支)의 갑자(甲子)") == "월간(月干)의 갑자(甲子)"

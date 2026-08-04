@@ -1,4 +1,4 @@
-"""시나리오 생성 — exaone 단일 결합 호출(PoC 검증: ~6s).
+"""시나리오 생성 — qwen3:14b(ollama_model) 단일 결합 호출.
 
 3인칭 답변 → 1인칭 압축 스토리 + 장면 JSON을 한 번에. 외부 LLM 금지(로컬 only).
 출력 후 _strip_md 재적용(LLM이 마크다운 재삽입하므로). 부록 B-7.
@@ -148,13 +148,22 @@ def _parse_scenes(raw: str) -> list[dict]:
 
 def _ollama_chat(system: str, user: str, num_predict: int = 768, temperature: float = 0.5) -> str:
     s = get_settings()
-    body = json.dumps({
+    payload = {
         "model": s.ollama_model,
         "stream": False,
         "keep_alive": -1,  # 정수(문자열 "-1"은 400)
-        "options": {"temperature": temperature, "num_ctx": 8192, "num_predict": num_predict},
+        # num_ctx 는 채팅과 반드시 동일해야 한다 — 다른 값을 보내면 ollama 가 같은 모델을
+        # 별도 인스턴스로 재적재하며 상주본(8.4GB)을 축출해, 다음 채팅 고객이 콜드스타트를
+        # 맞는다(2026-07-22 실측: ollama.log 에 -c 24576/-c 12288 이중 적재).
+        "options": {"temperature": temperature, "num_ctx": s.ollama_num_ctx,
+                    "num_predict": num_predict},
         "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}],
-    }).encode("utf-8")
+    }
+    # qwen3(thinking) 전환 대응: 추론 출력이 num_predict(768)를 잠식하면 시나리오 JSON이
+    # 비거나 잘린다 → chat_service._ollama_extra_kwargs 와 동일 게이트로 차단.
+    if "qwen3" in (s.ollama_model or "").lower():
+        payload["think"] = False
+    body = json.dumps(payload).encode("utf-8")
     req = urllib.request.Request(
         f"{s.ollama_url}/api/chat", data=body, headers={"Content-Type": "application/json"}
     )
@@ -214,7 +223,7 @@ def generate_scenario(src: VideoSource, seconds: int = 60) -> dict:
     _ARTIFACT = {"스무스": "스무 살", "삼십대": "삼십 대", "사십대": "사십 대", "오십대": "오십 대"}
 
     def _dejargon(t: str) -> str:
-        for _a, _b in _ARTIFACT.items():   # exaone 반복 비문 결정적 교정
+        for _a, _b in _ARTIFACT.items():   # 로컬 LLM 반복 비문 결정적 교정
             t = t.replace(_a, _b)
         # LLM이 흘린 모든 괄호 주석/메타/태그 완전 제거(육신 괄호는 이후 결정적 주입단계서 다시 붙임)
         t = re.sub(r"\s*[\(（][^)）]*[\)）]", "", t)   # 괄호쌍(내용 포함) 제거

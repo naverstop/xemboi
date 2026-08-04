@@ -8,14 +8,14 @@
  *     완료 시 '열기' 버튼(탭=사용자 제스처 → 모바일 팝업 차단 없이 열람, 재생성 없음).
  */
 import { useEffect, useRef, useState } from "react";
-import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
-import { api, type VideoJobResp } from "../api";
+import { api, refreshMe, type VideoJobResp } from "../api";
+import DownloadGuard from "./DownloadGuard";
 
 const LS_KEY = "saju_video_job";  // 영상 진행/완료 토큰(복원용)
 
-// ── 생성 작업(PDF/감정서) 카드 ──
-type GenKind = "pdf" | "report";
+// ── 생성 작업(PDF/감정서/부적) 카드 ──
+type GenKind = "pdf" | "report" | "amulet";
 type GenStatus = "running" | "done" | "error";
 type GenTask = {
   id: string;
@@ -23,25 +23,42 @@ type GenTask = {
   status: GenStatus;
   startedAt: number;   // 경과초 계산 기준(ms)
   elapsed: number;     // 경과초
-  url?: string;
+  url?: string;             // 인라인 보기용(Content-Disposition: inline)
+  downloadUrl?: string;     // 파일 저장용(Content-Disposition: attachment)
   filename?: string;
   message?: string;
+  closeIn?: number | null;   // 자동 닫힘 남은 초(null=대기 없음)
 };
 
-const GEN_LABEL: Record<GenKind, { titleKey: string; openKey: string }> = {
-  pdf: { titleKey: "misc.gen_pdf_title", openKey: "misc.gen_pdf_open" },
-  report: { titleKey: "misc.gen_report_title", openKey: "misc.gen_report_open" },
+// [운영자 지시 2026-07-23] 열람·저장이 끝난 카드가 계속 떠 있어 화면을 가린다.
+// → '완료 즉시'가 아니라 **사용자가 실제로 열거나 저장한 뒤**에만 카운트다운을 시작한다.
+//   (완료 즉시 닫으면 아직 안 받은 사람의 파일 접근 경로가 사라진다.)
+//   카운트다운 중 카드를 건드리면(hover/클릭) 즉시 취소 — 다시 받으려는 사람을 쫓아내지 않는다.
+const AUTO_CLOSE_SEC = 5;
+
+const GEN_LABEL: Record<GenKind, { title: string; open: string }> = {
+  pdf: { title: "📄 상담서 PDF", open: "PDF" },
+  report: { title: "📋 종합 감정서", open: "감정서" },
+  amulet: { title: "🧧 부적 발행", open: "부적" },
 };
 
 export default function ProgressDock() {
-  const { t: tr } = useTranslation();
   // ── 영상 레인 ──
   const [job, setJob] = useState<VideoJobResp | null>(null);
   const [hidden, setHidden] = useState(false);
   const [crossSell, setCrossSell] = useState(false);
-  const [downloading, setDownloading] = useState(false);  // 다운로드 진행 중 — 연타/중복 다운 방지
-  const [dlPct, setDlPct] = useState(0);                  // 다운로드 수신 진척률(0~100)
+  // 저장 로직 재설계(운영자 보고: "완료라는데 다운로드 안 됨, 두 번째에야 됨"):
+  //   완성 시 blob 을 '미리' 받아 두고(preparing/dlPct), 클릭 핸들러는 동기 a.click 만 수행.
+  //   기존엔 클릭 안에서 await fetch(14MB) 후 click → 모바일 사용자 제스처 만료로 저장이
+  //   조용히 무시되는데 성공(✅완료)으로 표시됐다. 동기 저장이면 활성화 창을 벗어날 수 없다.
+  const [blobUrl, setBlobUrl] = useState<string | null>(null); // 준비된 저장용 object URL
+  const [preparing, setPreparing] = useState(false);
+  const [prepErr, setPrepErr] = useState<string | null>(null);
+  const [downloaded, setDownloaded] = useState(false);    // 저장 실행됨 표시(재클릭 즉시 재저장 허용)
+  const [dlPct, setDlPct] = useState(0);                  // 수신 진척률(0~100)
+  const saveLock = useRef(0);                             // 동기 연타 방지(더블클릭 이중 저장)
   const timer = useRef<number | null>(null);
+  const [videoCloseIn, setVideoCloseIn] = useState<number | null>(null);  // 저장 후 자동 닫힘 카운트다운
 
   // ── 생성 레인(PDF/감정서) ──
   const [tasks, setTasks] = useState<GenTask[]>([]);
@@ -63,6 +80,7 @@ export default function ProgressDock() {
             localStorage.setItem(LS_KEY, token);  // 다운로드 위해 유지
           } else {
             localStorage.removeItem(LS_KEY);       // failed/expired → 정리
+            if (j.status === "failed") refreshMe();   // 실패 → 서버 자동환불 → 잔액 즉시 반영(패턴 B)
           }
         })
         .catch((e: any) => {
@@ -79,6 +97,9 @@ export default function ProgressDock() {
       if (!token) return;
       clearTimer();
       localStorage.setItem(LS_KEY, token);
+      setDownloaded(false);   // 새 영상 작업 — 이전 완료 상태 초기화
+      setBlobUrl((old) => { if (old) URL.revokeObjectURL(old); return null; });
+      setPrepErr(null);
       setHidden(false);
       setCrossSell(true);
       poll(token);
@@ -105,7 +126,9 @@ export default function ProgressDock() {
     function onGenDone(e: any) {
       const d = e?.detail || {};
       setTasks((cur) =>
-        cur.map((t) => (t.id === d.id ? { ...t, status: "done", url: d.url, filename: d.filename } : t))
+        cur.map((t) => (t.id === d.id
+          ? { ...t, status: "done", url: d.url, downloadUrl: d.download_url, filename: d.filename }
+          : t))
       );
     }
     function onGenError(e: any) {
@@ -124,20 +147,63 @@ export default function ProgressDock() {
     };
   }, []);
 
-  // 경과초 갱신 — 진행 중 작업이 있을 때만 1초 타이머
+  // 1초 타이머 — ①진행중 경과초 갱신 ②열람 후 자동 닫힘 카운트다운. 둘 중 하나라도 있으면 가동.
   useEffect(() => {
-    if (!tasks.some((t) => t.status === "running")) return;
+    if (!tasks.some((t) => t.status === "running" || typeof t.closeIn === "number")) return;
     const iv = window.setInterval(() => {
       setTasks((cur) =>
-        cur.map((t) =>
-          t.status === "running"
-            ? { ...t, elapsed: Math.max(0, Math.floor((Date.now() - t.startedAt) / 1000)) }
-            : t
-        )
+        cur.flatMap((t) => {
+          if (typeof t.closeIn === "number") {
+            const n = t.closeIn - 1;
+            return n <= 0 ? [] : [{ ...t, closeIn: n }];   // 0 도달 = 카드 제거(자동 닫힘)
+          }
+          return t.status === "running"
+            ? [{ ...t, elapsed: Math.max(0, Math.floor((Date.now() - t.startedAt) / 1000)) }]
+            : [t];
+        })
       );
     }, 1000);
     return () => window.clearInterval(iv);
   }, [tasks]);
+
+  // 영상 카드 자동 닫힘 — 저장을 마친 뒤에만 진입(아래 저장 버튼에서 setVideoCloseIn).
+  useEffect(() => {
+    if (videoCloseIn === null) return;
+    if (videoCloseIn <= 0) {
+      setVideoCloseIn(null);
+      setHidden(true);
+      setBlobUrl((u) => { if (u) URL.revokeObjectURL(u); return null; });
+      localStorage.removeItem(LS_KEY);   // 수동 ✕ 와 동일 처리(저장을 끝낸 카드만 여기 도달)
+      return;
+    }
+    const t = window.setTimeout(() => setVideoCloseIn((n) => (n === null ? null : n - 1)), 1000);
+    return () => window.clearTimeout(t);
+  }, [videoCloseIn]);
+
+  // 완성 즉시 blob 사전 준비 — 클릭 시점엔 동기 저장만 남긴다(모바일 제스처 만료 방지)
+  const jobToken = job?.status === "done" ? job.job_token : null;
+  useEffect(() => {
+    // hidden 체크 필수 — 카드를 닫으면 blobUrl 을 revoke(=null) 하는데, 그때 이 effect 가 다시 돌면
+    // 보이지도 않는 영상 14MB 를 배경에서 재수신한다(닫기·자동닫힘 공통). 닫힌 뒤엔 준비하지 않는다.
+    if (hidden || !jobToken || blobUrl || preparing || prepErr) return;  // prepErr=수동 재시도 대기(자동 루프 금지)
+    let alive = true;
+    setPreparing(true); setPrepErr(null); setDlPct(0);
+    api.prepareVideoBlob(jobToken, setDlPct)
+      .then((u) => { if (alive) setBlobUrl(u); else URL.revokeObjectURL(u); })
+      .catch((e: any) => {
+        if (!alive) return;
+        if (e?.status === 410 || e?.status === 404) {
+          alert("보관 기간이 지나 영상이 삭제되었어요.");
+          localStorage.removeItem(LS_KEY);
+          setHidden(true);
+        } else {
+          setPrepErr(e?.message || "영상 파일을 불러오지 못했어요.");
+        }
+      })
+      .finally(() => { if (alive) setPreparing(false); });
+    return () => { alive = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [jobToken, blobUrl, prepErr, hidden]);
 
   const videoVisible = !!job && !hidden;
   if (!videoVisible && tasks.length === 0) return null;
@@ -148,6 +214,7 @@ export default function ProgressDock() {
 
   function close() {
     setHidden(true);
+    if (blobUrl) { URL.revokeObjectURL(blobUrl); setBlobUrl(null); }
     if (done || failed) localStorage.removeItem(LS_KEY);
   }
   function dismissTask(id: string) {
@@ -159,19 +226,19 @@ export default function ProgressDock() {
       {/* 영상 카드 */}
       {videoVisible && job && (
         <div className="video-dock" role="status" aria-live="polite">
-          <button className="vd-close" onClick={close} aria-label={tr("pay.close")}>✕</button>
-          <div className="vd-title">{tr("misc.vid_title")}</div>
+          <button className="vd-close" onClick={close} aria-label="닫기">✕</button>
+          <div className="vd-title">🎬 사주 영상 만들기</div>
 
           {!done && !failed && (
             <>
               <div className="vd-bar"><div className="vd-bar-fill" style={{ width: `${pct}%` }} /></div>
-              <div className="vd-detail">{job.detail || tr("misc.vid_preparing")} · {pct}%</div>
+              <div className="vd-detail">{job.detail || "준비 중…"} · {pct}%</div>
               {crossSell && (
                 <div className="vd-crosssell">
-                  <span>{tr("misc.vid_crosssell")}</span>
+                  <span>기다리는 동안 다른 운세도 보실래요?</span>
                   <span className="vd-cs-links">
-                    <Link to="/naming/jakmyeong" onClick={() => setCrossSell(false)}>{tr("nav.jakmyeong")}</Link>
-                    <Link to="/compatibility" onClick={() => setCrossSell(false)}>{tr("nav.compat")}</Link>
+                    <Link to="/naming/jakmyeong" onClick={() => setCrossSell(false)}>작명</Link>
+                    <Link to="/compatibility" onClick={() => setCrossSell(false)}>궁합</Link>
                   </span>
                 </div>
               )}
@@ -180,45 +247,67 @@ export default function ProgressDock() {
 
           {done && (
             <>
-              <div className="vd-done">{tr("misc.vid_done")}</div>
-              {downloading && (
-                // 다운로드 진행 표시 — 14MB 전송에 수 초 걸림. 진척바를 보여줘야
-                // 사용자가 "멈춘 줄 알고" 다시 눌러 브라우저 재다운로드 팝업이 뜨는 걸 막는다.
+              <div className="vd-done">영상이 완성됐어요! 🎉</div>
+              {preparing && (
+                // 파일 사전 수신 진행 표시 — 14MB 전송에 수 초. 준비가 끝나야 저장 버튼이 열린다.
                 <>
                   <div className="vd-bar"><div className="vd-bar-fill" style={{ width: `${dlPct}%` }} /></div>
-                  <div className="vd-detail">{tr("misc.vid_dl_progress", { pct: dlPct })}</div>
+                  <div className="vd-detail">⏳ 파일 준비 중… {dlPct}%</div>
                 </>
               )}
-              <button
-                className="vd-download"
-                disabled={downloading}
-                onClick={async () => {
-                  if (downloading) return;   // 연타 방지: 다운로드 중엔 재요청 차단(30개씩 받히던 문제)
-                  setDownloading(true);
-                  setDlPct(0);
-                  try {
-                    await api.downloadVideo(job.job_token, `${job.title || tr("misc.vid_filename")}.mp4`, setDlPct);
-                  } catch (e: any) {
-                    if (e?.status === 410 || e?.status === 404) {
-                      alert(tr("misc.vid_expired"));
-                      localStorage.removeItem(LS_KEY);
-                      setHidden(true);
-                    } else {
-                      alert(e?.message || tr("misc.vid_dl_fail"));
-                    }
-                  } finally {
-                    setDownloading(false);
-                  }
-                }}
-              >
-                {downloading ? tr("misc.vid_dl_btn_busy", { pct: dlPct }) : tr("misc.vid_dl_btn")}
-              </button>
-              <div className="vd-note">{tr("misc.vid_note_48h")}</div>
+              {prepErr && (
+                <div className="vd-fail">
+                  {prepErr}{" "}
+                  <button className="vd-download" onClick={() => setPrepErr(null)}>다시 시도</button>
+                </div>
+              )}
+              {!prepErr && (
+                // 재생(새 탭 열람)과 다운로드(저장)를 나란히 — 사용자가 선택(운영자 지시)
+                <div className="vd-actions">
+                  <button
+                    className="vd-download vd-download-alt"
+                    disabled={!blobUrl}
+                    onClick={() => {
+                      // blob 은 이미 준비됨 → 동기 window.open(팝업 차단 없음). 새 탭에서 재생.
+                      if (!blobUrl) return;
+                      window.open(blobUrl, "_blank", "noopener");
+                    }}
+                  >
+                    ▶ 열기(재생)
+                  </button>
+                  <button
+                    className="vd-download"
+                    disabled={!blobUrl}
+                    onClick={() => {
+                      // ⚠️ 이 핸들러는 반드시 '동기'로 유지 — await 가 끼면 모바일 사용자 제스처가
+                      // 만료돼 저장이 조용히 무시된다(운영자 보고 버그의 원인).
+                      if (!blobUrl) return;
+                      const now = Date.now();
+                      if (now - saveLock.current < 800) return;  // 더블클릭 이중 저장 방지
+                      saveLock.current = now;
+                      api.saveBlobUrl(blobUrl, `${job.title || "사주영상"}.mp4`);
+                      setDownloaded(true);
+                      setVideoCloseIn(AUTO_CLOSE_SEC);   // 저장했으니 카운트다운 시작(재클릭 시 재장전)
+                    }}
+                  >
+                    {!blobUrl ? `⏳ 준비 중… ${dlPct}%` : downloaded ? "✅ 저장됨 · 다시 받기" : "⤓ 다운로드(저장)"}
+                  </button>
+                </div>
+              )}
+              {videoCloseIn !== null && (
+                <button className="vd-autoclose" onClick={() => setVideoCloseIn(null)}>
+                  잠시 후 창이 닫힙니다 · <b>{videoCloseIn}초</b> — 계속 두려면 누르세요
+                </button>
+              )}
+              <div className="vd-note">
+                ※ 48시간 동안만 보관되며 이후 서버에서 삭제됩니다.
+                {downloaded && " · 저장이 시작되지 않았다면 버튼을 다시 눌러 주세요."}
+              </div>
             </>
           )}
 
           {failed && (
-            <div className="vd-fail">{job.detail || tr("misc.vid_gen_fail")}</div>
+            <div className="vd-fail">{job.detail || "영상 생성에 실패했어요. 차감된 포인트는 자동 환불됩니다."}</div>
           )}
         </div>
       )}
@@ -226,27 +315,53 @@ export default function ProgressDock() {
       {/* 생성 작업 카드(PDF·감정서) */}
       {tasks.map((t) => (
         <div className="video-dock" role="status" aria-live="polite" key={t.id}>
-          <button className="vd-close" onClick={() => dismissTask(t.id)} aria-label={tr("pay.close")}>✕</button>
-          <div className="vd-title">{tr(GEN_LABEL[t.kind].titleKey)}</div>
+          <button className="vd-close" onClick={() => dismissTask(t.id)} aria-label="닫기">✕</button>
+          <div className="vd-title">{GEN_LABEL[t.kind].title}</div>
 
           {t.status === "running" && (
             <>
               <div className="vd-bar vd-bar-indet"><span /></div>
-              <div className="vd-detail">{tr("misc.gen_running", { sec: t.elapsed })}</div>
+              <div className="vd-detail">⏳ 만드는 중… {t.elapsed}초 경과 · 잠시만요(다시 누르지 마세요)</div>
             </>
           )}
 
           {t.status === "done" && (
             <>
-              <button className="vd-download" onClick={() => t.url && window.open(t.url, "_blank")}>
-                {tr("misc.gen_open", { what: tr(GEN_LABEL[t.kind].openKey) })}
-              </button>
-              <div className="vd-note">{tr("misc.gen_done_note")}</div>
+              {t.url && (
+                // 열기(새 탭 보기)와 저장(파일 다운로드)을 나란히 — 사용자가 선택(운영자 지시)
+                <div className="vd-actions">
+                  <DownloadGuard
+                    key={`${t.id}-open`} className="vd-download" href={t.url} mode="open"
+                    onFire={() => setTasks((cur) => cur.map((x) =>
+                      x.id === t.id ? { ...x, closeIn: AUTO_CLOSE_SEC } : x))}
+                  >
+                    📄 {GEN_LABEL[t.kind].open} 열기
+                  </DownloadGuard>
+                  <DownloadGuard
+                    key={`${t.id}-save`} className="vd-download vd-download-alt"
+                    href={t.downloadUrl || `${t.url}${t.url.includes("?") ? "&" : "?"}download=1`}
+                    filename={t.filename} mode="download"
+                    onFire={() => setTasks((cur) => cur.map((x) =>
+                      x.id === t.id ? { ...x, closeIn: AUTO_CLOSE_SEC } : x))}
+                  >
+                    ⤓ 저장
+                  </DownloadGuard>
+                </div>
+              )}
+              {typeof t.closeIn === "number" ? (
+                <button className="vd-autoclose"
+                        onClick={() => setTasks((cur) => cur.map((x) =>
+                          x.id === t.id ? { ...x, closeIn: null } : x))}>
+                  잠시 후 창이 닫힙니다 · <b>{t.closeIn}초</b> — 계속 두려면 누르세요
+                </button>
+              ) : (
+                <div className="vd-note">완성됐어요 · 재생성 없이 바로 열람됩니다.</div>
+              )}
             </>
           )}
 
           {t.status === "error" && (
-            <div className="vd-fail">{t.message || tr("misc.gen_fail")}</div>
+            <div className="vd-fail">{t.message || "생성에 실패했어요. 잠시 후 다시 시도해 주세요."}</div>
           )}
         </div>
       ))}

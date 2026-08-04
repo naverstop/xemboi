@@ -6,23 +6,13 @@ import { ChargeProvider } from "./components/ChargeModal";
 import { ConsultationProvider } from "./components/ConsultationProvider";
 import "pretendard/dist/web/variable/pretendardvariable-dynamic-subset.css";
 import "@fontsource-variable/noto-serif-kr";
-import "./fonts-vi.css";
 import "./styles.css";
-import i18n from "./i18n";
 
 // 초기 테마 적용(FOUC 방지) — useTheme 마운트 전에 data-theme 세팅
 (() => {
   const saved = localStorage.getItem("saju_theme");
   const dark = saved === "dark" || (!saved && window.matchMedia?.("(prefers-color-scheme: dark)").matches);
   document.documentElement.setAttribute("data-theme", dark ? "dark" : "light");
-})();
-
-// 초기 로케일 반영 — 첫 페인트 전에 <html lang> + 문서 타이틀(브랜드) 세팅(언어 깜빡임 방지)
-(() => {
-  const loc = i18n.language || "ko";
-  document.documentElement.lang = loc;
-  const brand = i18n.t("brand");
-  if (brand) document.title = brand;
 })();
 
 // PWA Service Worker 등록 (정적 셸 캐싱 + 푸시)
@@ -41,6 +31,21 @@ if ("serviceWorker" in navigator) {
       setInterval(() => reg.update?.(), 60 * 60 * 1000); // 1시간마다 업데이트 체크
     }).catch(() => {});
   });
+}
+
+// GA4 유입 측정(P6) — VITE_GA4_ID(예: G-XXXXXXX) 설정 시에만 로드. 미설정이면 아무것도 안 함.
+//   실 측정ID는 사용자가 frontend/.env.local 에 VITE_GA4_ID=... 로 넣고 재빌드하면 활성화된다.
+const _ga4 = import.meta.env.VITE_GA4_ID as string | undefined;
+if (_ga4) {
+  const s = document.createElement("script");
+  s.async = true;
+  s.src = `https://www.googletagmanager.com/gtag/js?id=${_ga4}`;
+  document.head.appendChild(s);
+  const w = window as any;
+  w.dataLayer = w.dataLayer || [];
+  w.gtag = function gtag() { w.dataLayer.push(arguments); };
+  w.gtag("js", new Date());
+  w.gtag("config", _ga4);
 }
 
 ReactDOM.createRoot(document.getElementById("root")!).render(

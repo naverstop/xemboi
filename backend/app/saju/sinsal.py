@@ -142,34 +142,20 @@ _SAENGGI_MASK = {  # 라벨 → (본명괘에 XOR할 마스크, 길흉)
     "유혼": (0b101, "반"), "화해": (0b001, "흉"), "복덕": (0b011, "길"),
     "절명": (0b010, "흉"), "귀혼": (0b000, "반"),
 }
-# 생기복덕 8라벨 한월음(Hán-Việt) — vi 로케일 표시용.
-_SAENGGI_VI = {
-    "생기": "Sinh khí", "천의": "Thiên y", "절체": "Tuyệt thể", "유혼": "Du hồn",
-    "화해": "Họa hại", "복덕": "Phúc đức", "절명": "Tuyệt mệnh", "귀혼": "Quy hồn",
-}
-# 길흉(길/반/흉) → 로케일 무관 stable key(프론트 색상 분기용).
-_SAENGGI_GIL_KEY = {"길": "gil", "반": "ban", "흉": "hyung"}
 
 
-def saenggi_bokdeok(
-    bonmyeong_gwae: str, day_branch: str, locale: str = "ko"
-) -> tuple[str, str, str]:
-    """본명괘 + 그날 지지 → (생기복덕 라벨, 길흉, stable 길흉키).
-
-    locale='ko'(기본)은 한글 라벨(생기/복덕/절명…), 'vi'는 한월음(Sinh khí…).
-    3번째 값은 로케일 무관 gil|ban|hyung 키. 본명괘 불명이면 ('','','').
-    """
+def saenggi_bokdeok(bonmyeong_gwae: str, day_branch: str) -> tuple[str, str]:
+    """본명괘 + 그날 지지 → (생기복덕 라벨, 길흉). 본명괘 불명이면 ('','')."""
     bm = _GWAE_BITS.get(bonmyeong_gwae)
     g = _BRANCH_GWAE.get(day_branch)
     if bm is None or g is None:
-        return ("", "", "")
+        return ("", "")
     target = _GWAE_BITS[g]
     mask = target ^ bm
     for label, (m, gil) in _SAENGGI_MASK.items():
         if m == mask:
-            disp = _SAENGGI_VI[label] if locale == "vi" else label
-            return (disp, gil, _SAENGGI_GIL_KEY.get(gil, ""))
-    return ("", "", "")
+            return (label, gil)
+    return ("", "")
 
 
 # 본명괘 = 구성(九星) 본명성(생년·성별 기준). 공개값 검증: 1990년생 남자=坎.
@@ -207,3 +193,27 @@ def gongmang(day_stem: str, day_branch: str) -> list[str]:
     jia = (bi - si) % 12   # 旬의 머리(甲X)의 지지 인덱스
     bl = list(EARTHLY_BRANCHES)
     return [bl[(jia + 10) % 12], bl[(jia + 11) % 12]]
+
+
+# ── 삼재(三災) ───────────────────────────────────────────────────
+# 년지 삼합국 기준의 통설 산법(결정적): 삼합의 生지에서 沖하는 3개 연지가 삼재年.
+#   申子辰(水局)생 → 寅卯辰년 / 巳酉丑(金局)생 → 亥子丑년
+#   寅午戌(火局)생 → 申酉戌년 / 亥卯未(木局)생 → 巳午未년
+# ⚠️ 감수 대기: B-4 부적 발행 룰 전용 초안 — 전문가 확인 후 고정(조후용신 120칸과 동일 절차).
+_SAMJAE_TABLE: dict[frozenset[str], tuple[str, str, str]] = {
+    frozenset({"申", "子", "辰"}): ("寅", "卯", "辰"),
+    frozenset({"巳", "酉", "丑"}): ("亥", "子", "丑"),
+    frozenset({"寅", "午", "戌"}): ("申", "酉", "戌"),
+    frozenset({"亥", "卯", "未"}): ("巳", "午", "未"),
+}
+_SAMJAE_PHASE = ("들삼재", "눌삼재", "날삼재")
+
+
+def samjae_phase(birth_year_branch: str, current_year_branch: str) -> str | None:
+    """올해가 삼재면 단계(들/눌/날삼재), 아니면 None."""
+    for group, years in _SAMJAE_TABLE.items():
+        if birth_year_branch in group:
+            if current_year_branch in years:
+                return _SAMJAE_PHASE[years.index(current_year_branch)]
+            return None
+    return None

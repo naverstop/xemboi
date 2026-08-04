@@ -31,8 +31,9 @@ from backend.app.saju.types import BirthInput
 def _adj(y, m, d, hh, mm, tst=False, lon=None, eot=False):
     b = BirthInput(birth_date=date(y, m, d), birth_time=time(hh, mm),
                    apply_true_solar_time=tst, birth_longitude=lon, apply_equation_of_time=eot)
-    _, at = _adjust_time(b, date(y, m, d))
-    return at
+    # _adjust_time → (표준일, 표준시각, 진태양시각). 시간 보정 결과 = 진태양시각(off면 표준시각과 동일).
+    _, _std_t, solar_t = _adjust_time(b, date(y, m, d))
+    return solar_t
 
 
 # ============================================================

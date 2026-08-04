@@ -48,6 +48,14 @@ THEMES = {
     "chart":    "rising line chart with golden arrow and sparkles",                 # 평가 추세
     "wrench":   "ornate golden master key with royal crown bow",                    # 관리자
     "mail":     "cream envelope sealed with red wax stamp",                         # 고객센터
+    # ── 2026-07 로드맵 신규 메뉴 7종 (기존 키는 skip-if-exists 라 재베이크 안 됨) ──
+    "today":    "radiant golden rising sun over an open daily calendar page",       # 오늘의 운세
+    "fcalendar": "monthly grid calendar with tiny jewel date marks and golden star",  # 운세 캘린더
+    "sinnyeon": "elegant red horse head medallion with golden new year sunrise",    # 신년운세(병오년)
+    "amulet":   "vertical golden yellow talisman paper with red ornamental pattern",  # 부적
+    "dream":    "crescent moon sleeping on soft clouds with sparkling stars",       # 꿈해몽
+    "snack":    "playful golden star badge with confetti ribbons and tiny hearts",  # 무료 테스트
+    "reviews":  "cream speech bubble with five small golden rating stars",          # 이용 후기
 }
 SEEDS = [7, 42]
 W = H = 512  # 사이드바 26px 표시용 — 512 충분, 속도 우선

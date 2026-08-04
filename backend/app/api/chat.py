@@ -9,7 +9,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from backend.app.core.db import get_db
-from backend.app.core.deps import get_current_user, get_locale, get_optional_user
+from backend.app.core.deps import get_current_user, get_optional_user
 from backend.app.domain.chat_dto import (
     CreateSessionRequest,
     CreateSessionResponse,
@@ -29,10 +29,9 @@ def create_session(
     req: CreateSessionRequest,
     db: Session = Depends(get_db),
     user: Optional[User] = Depends(get_optional_user),
-    locale: str = Depends(get_locale),
 ) -> CreateSessionResponse:
     try:
-        sid, summary, chart = chat_service.create_session(db, req.birth, req.top_k, user=user, locale=locale)
+        sid, summary, chart = chat_service.create_session(db, req.birth, req.top_k, user=user)
     except chat_service.SessionLimitError as e:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -40,10 +39,17 @@ def create_session(
         )
     # 명식 요약 원문(오행분포·억부·조후용신·대운·계산기준 등 내부 프롬프트용 텍스트)은
     # 영업비밀/내부데이터 → 관리자에게만 반환. 일반 사용자는 시각적 명식표(saju_chart)만 본다.
+    chart_dict = chart.model_dump(mode="json") if chart else None
+    if chart_dict and chart_dict.get("ten_gods"):
+        # 영역별 운세 비중(올해 세운 반영) + 세운 표기를 주입 — 화면이 매년 바뀌게(요청).
+        from backend.app.saju import metrics
+        aug = metrics.domain_scores(chart_dict)
+        chart_dict["domain_scores"] = aug["domains"]
+        chart_dict["seun"] = aug["seun"]
     return CreateSessionResponse(
         session_id=sid,
         saju_summary=summary if chat_service._is_admin(user) else None,
-        saju_chart=chart.model_dump(mode="json") if chart else None,
+        saju_chart=chart_dict,
     )
 
 
@@ -198,6 +204,31 @@ def delete_session(
         raise HTTPException(status_code=404, detail="session not found")
 
 
+class BulkDeleteReq(BaseModel):
+    ids: list[str]
+
+
+@router.post("/sessions/bulk-delete")
+def bulk_delete_sessions(
+    body: BulkDeleteReq,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> dict[str, int]:
+    """체크한 상담 세션 여러 개를 한 번에 삭제(개별 DELETE 반복의 레이트리밋·부분실패 회피).
+
+    본인 소유만 삭제(타인/없음은 조용히 건너뜀). 각 세션은 delete_session 을 재사용해
+    영상 파일 정리까지 동일하게 처리한다. 삭제 성공 건수를 반환.
+    """
+    deleted = 0
+    for sid in body.ids[:500]:   # 상한 방어(모달 최대치 훨씬 상회)
+        try:
+            if chat_repo.delete_session(db, sid, user.id):
+                deleted += 1
+        except PermissionError:
+            pass  # 타인 세션 → 건너뜀
+    return {"deleted": deleted}
+
+
 class SuggestionsResp(BaseModel):
     suggestions: list[str]
 
@@ -213,7 +244,9 @@ def get_suggestions(
     프론트가 매 답변 아래에 칩으로 표시해 이어지는 질문을 유도한다.
     """
     try:
-        qs = chat_service.generate_followup_questions(db, session_id, n=6)
+        # 프리페치 캐시 우선(스트림 done 직전 선계산) — 캐시 미스 시 동기 폴백. n=4로 통일
+        # (프리페치 num_predict=96과 짝 — 6개를 요구하면 토큰 상한에서 잘려 비결정 UX).
+        qs = chat_service.get_suggestions_cached(db, session_id, n=4)
     except Exception:  # noqa: BLE001
         qs = []
     return SuggestionsResp(suggestions=qs)
@@ -270,7 +303,10 @@ def stream_message(
             # 외부 서비스(Qdrant/Ollama) 다운 — 친절 메시지 + 코드(클라가 503처럼 처리)
             yield f"event: error\ndata: {json.dumps({'detail': str(e), 'code': 'service_unavailable'}, ensure_ascii=False)}\n\n"
         except Exception as e:  # noqa: BLE001
-            yield f"event: error\ndata: {json.dumps({'detail': str(e)}, ensure_ascii=False)}\n\n"
+            # 원시 예외(str(e))는 SQL·스키마·질문원문을 노출(CWE-209) → 서버 로그로만, 클라엔 일반 메시지(N1).
+            import logging
+            logging.getLogger("saju.chat").warning("chat stream failed: %s", e)
+            yield f"event: error\ndata: {json.dumps({'detail': '답변 처리 중 오류가 발생했어요. 잠시 후 다시 시도해 주세요.', 'code': 'internal_error'}, ensure_ascii=False)}\n\n"
 
     return StreamingResponse(
         gen(),

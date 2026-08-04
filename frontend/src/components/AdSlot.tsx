@@ -4,7 +4,6 @@
  * - AdSense 식별자는 프론트 환경변수로 관리: VITE_ADSENSE_CLIENT, VITE_ADSENSE_SLOT_ANSWER.
  */
 import { useEffect, useRef, useState } from "react";
-import { useTranslation } from "react-i18next";
 import { api, useMe } from "../api";
 
 type B = {
@@ -28,7 +27,6 @@ export default function AdSlot({
   adsenseSlot?: string; // 이 배치 전용 AdSense 광고단위 ID(없으면 기본 ANSWER 슬롯)
 }) {
   const me = useMe();
-  const { t: tr } = useTranslation();
   const hidden = me?.ads_hidden === true;
   const slotId = adsenseSlot || ADSENSE_SLOT;
   const [banner, setBanner] = useState<B | null>(null);
@@ -96,8 +94,8 @@ export default function AdSlot({
       />
     );
     return (
-      <div className="ad-slot house" aria-label={tr("misc.ad_label")}>
-        <span className="ad-label">{tr("misc.ad_label")}</span>
+      <div className="ad-slot house" aria-label="광고">
+        <span className="ad-label">광고</span>
         {banner.link_url ? (
           <a href={banner.link_url} target="_blank" rel="noreferrer">
             {img}
@@ -111,7 +109,7 @@ export default function AdSlot({
 
   if (useAdsense) {
     return (
-      <div className="ad-slot adsense" aria-label={tr("misc.ad_label")}>
+      <div className="ad-slot adsense" aria-label="광고">
         <span className="ad-label">Sponsored</span>
         <ins
           ref={insRef}

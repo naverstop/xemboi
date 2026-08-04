@@ -1,39 +1,35 @@
 import { useEffect, useState } from "react";
-import { useTranslation, Trans } from "react-i18next";
 import { Link } from "react-router-dom";
 import { api, DIALECTS, useMe, setCachedMe } from "../api";
 import type { SajuProfile, SajuProfileInput } from "../api";
-import { fmtNum } from "../lib/money";
-import { DEFAULT_LON } from "../lib/regions";
 import TimeSelect from "../components/TimeSelect";
 import AdvancedBirthSettings from "../components/AdvancedBirthSettings";
 
 export default function SettingsPage() {
   const me = useMe();
-  const { t: tr } = useTranslation();
 
   if (!me) {
     return (
       <div style={{ padding: 20 }}>
-        <h3>{tr("settings.title")}</h3>
-        <p><Trans i18nKey="settings.login_required" components={{ a: <Link to="/login" /> }} /></p>
+        <h3>설정</h3>
+        <p>로그인이 필요해요. <Link to="/login">로그인</Link></p>
       </div>
     );
   }
 
   return (
     <div style={{ maxWidth: 560, margin: "0 auto", display: "grid", gap: 16 }}>
-      <h2 style={{ marginBottom: 0 }}>{tr("settings.title")}</h2>
+      <h2 style={{ marginBottom: 0 }}>설정</h2>
       <ProfileCard />
       <SajuProfilesCard />
       <DialectCard />
       <PasswordCard />
       <div className="card">
-        <h3 style={{ marginTop: 0 }}>{tr("settings.pay_section")}</h3>
+        <h3 style={{ marginTop: 0 }}>결제 / 충전</h3>
         <p style={{ color: "var(--ink-600, #666)", fontSize: 14 }}>
-          {tr("settings.balance_label")}: <strong>{fmtNum(me.balance)} {tr("pay.pt")}</strong>
+          보유 포인트: <strong>{me.balance.toLocaleString()} P</strong>
         </p>
-        <Link to="/payments"><button>{tr("settings.go_charge")}</button></Link>
+        <Link to="/payments"><button>충전하러 가기</button></Link>
       </div>
     </div>
   );
@@ -41,7 +37,6 @@ export default function SettingsPage() {
 
 function ProfileCard() {
   const me = useMe();
-  const { t: tr } = useTranslation();
   const [nickname, setNickname] = useState(me?.nickname || "");
   const [msg, setMsg] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
@@ -52,26 +47,26 @@ function ProfileCard() {
     try {
       const res = await api.updateProfile({ nickname });
       setCachedMe(res);
-      setMsg(tr("settings.saved"));
+      setMsg("저장되었습니다.");
     } catch (e: any) { setErr(e?.message || String(e)); }
     finally { setSaving(false); }
   }
 
   return (
     <div className="card">
-      <h3 style={{ marginTop: 0 }}>{tr("settings.basic_info")}</h3>
+      <h3 style={{ marginTop: 0 }}>기본 정보</h3>
       <div style={{ fontSize: 13, color: "var(--ink-600, #666)", marginBottom: 8 }}>
-        {tr("settings.email_label")}: {me?.email}
+        이메일: {me?.email}
       </div>
-      <label style={{ display: "block", fontSize: 13, marginBottom: 4 }}>{tr("settings.nickname")}</label>
+      <label style={{ display: "block", fontSize: 13, marginBottom: 4 }}>닉네임</label>
       <input
         style={{ width: "100%", marginBottom: 8 }}
         value={nickname}
         onChange={(e) => setNickname(e.target.value)}
-        placeholder={tr("settings.nickname")}
+        placeholder="닉네임"
       />
       <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-        <button onClick={save} disabled={saving}>{saving ? tr("settings.saving") : tr("settings.save")}</button>
+        <button onClick={save} disabled={saving}>{saving ? "저장 중…" : "저장"}</button>
         {msg && <span style={{ color: "green", fontSize: 13 }}>{msg}</span>}
         {err && <span style={{ color: "crimson", fontSize: 13 }}>{err}</span>}
       </div>
@@ -81,7 +76,6 @@ function ProfileCard() {
 
 function DialectCard() {
   const me = useMe();
-  const { t: tr } = useTranslation();
   const [dialect, setDialect] = useState(me?.answer_dialect || "standard");
   const [msg, setMsg] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
@@ -93,16 +87,16 @@ function DialectCard() {
     try {
       const res = await api.updateProfile({ answer_dialect: next });
       setCachedMe(res);
-      setMsg(tr("settings.dialect_saved"));
+      setMsg("답변 말투가 변경되었습니다.");
     } catch (e: any) { setErr(e?.message || String(e)); }
     finally { setSaving(false); }
   }
 
   return (
     <div className="card">
-      <h3 style={{ marginTop: 0 }}>{tr("settings.dialect_title")}</h3>
+      <h3 style={{ marginTop: 0 }}>답변 말투(사투리)</h3>
       <p style={{ color: "var(--ink-600, #666)", fontSize: 13, marginTop: 0 }}>
-        {tr("settings.dialect_desc")}
+        상담친구가 답변할 때 사용할 말투를 선택하세요.
       </p>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
         {DIALECTS.map((d) => (
@@ -113,9 +107,9 @@ function DialectCard() {
             style={{
               padding: "6px 14px",
               borderRadius: 999,
-              border: dialect === d.value ? "1px solid var(--brand-600, #0b7d73)" : "1px solid #d0d7de",
-              background: dialect === d.value ? "rgba(13,148,136,.10)" : "transparent",
-              color: dialect === d.value ? "var(--brand-600, #0b7d73)" : "inherit",
+              border: dialect === d.value ? "1px solid var(--brand-600, #0496d8)" : "1px solid #d0d7de",
+              background: dialect === d.value ? "rgba(4,150,216,.10)" : "transparent",
+              color: dialect === d.value ? "var(--brand-600, #0496d8)" : "inherit",
               cursor: "pointer",
             }}
           >
@@ -132,7 +126,6 @@ function DialectCard() {
 }
 
 function PasswordCard() {
-  const { t: tr } = useTranslation();
   const [cur, setCur] = useState("");
   const [next, setNext] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
@@ -145,30 +138,30 @@ function PasswordCard() {
     try {
       await api.changePassword(cur, next);
       setCur(""); setNext("");
-      setMsg(tr("settings.pw_saved"));
+      setMsg("비밀번호가 변경되었습니다.");
     } catch (e: any) { setErr(e?.message || String(e)); }
     finally { setSaving(false); }
   }
 
   return (
     <div className="card">
-      <h3 style={{ marginTop: 0 }}>{tr("settings.pw_title")}</h3>
+      <h3 style={{ marginTop: 0 }}>비밀번호 변경</h3>
       <input
         type="password"
         style={{ width: "100%", marginBottom: 8 }}
-        placeholder={tr("settings.pw_current_ph")}
+        placeholder="현재 비밀번호" aria-label="현재 비밀번호"
         value={cur}
         onChange={(e) => setCur(e.target.value)}
       />
       <input
         type="password"
         style={{ width: "100%", marginBottom: 8 }}
-        placeholder={tr("settings.pw_new_ph")}
+        aria-label="새 비밀번호" placeholder="새 비밀번호"
         value={next}
         onChange={(e) => setNext(e.target.value)}
       />
       <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-        <button onClick={save} disabled={saving || !cur || !next}>{saving ? tr("settings.changing") : tr("settings.change")}</button>
+        <button onClick={save} disabled={saving || !cur || !next}>{saving ? "변경 중…" : "변경"}</button>
         {msg && <span style={{ color: "green", fontSize: 13 }}>{msg}</span>}
         {err && <span style={{ color: "crimson", fontSize: 13 }}>{err}</span>}
       </div>
@@ -184,14 +177,13 @@ const EMPTY_PROFILE: SajuProfileInput = {
   is_leap_month: false,
   gender: "male",
   apply_true_solar_time: true,   // 메뉴 입력화면과 동일하게 진태양시 보정 기본 ON(일관성)
-  birth_longitude: DEFAULT_LON,       // 서울 기본(출생지 선택 시 갱신)
+  birth_longitude: 126.98,       // 서울 기본(출생지 선택 시 갱신)
   apply_equation_of_time: false,
   night_zi_mode: "yaja",
   is_default: false,
 };
 
 function SajuProfilesCard() {
-  const { t: tr } = useTranslation();
   const [items, setItems] = useState<SajuProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
@@ -230,7 +222,7 @@ function SajuProfilesCard() {
       is_leap_month: p.is_leap_month,
       gender: p.gender,
       apply_true_solar_time: p.apply_true_solar_time,
-      birth_longitude: p.birth_longitude ?? DEFAULT_LON,
+      birth_longitude: p.birth_longitude ?? 126.98,
       apply_equation_of_time: p.apply_equation_of_time ?? false,
       night_zi_mode: p.night_zi_mode ?? "yaja",
       is_default: p.is_default,
@@ -239,7 +231,7 @@ function SajuProfilesCard() {
 
   async function save() {
     if (!editing || !editing.label.trim()) {
-      setErr(tr("settings.label_required"));
+      setErr("이름(라벨)을 입력하세요.");
       return;
     }
     setSaving(true);
@@ -256,14 +248,14 @@ function SajuProfilesCard() {
       await refresh();
     } catch (e: any) {
       const m = String(e?.message || e);
-      setErr(m.includes("profile_limit_reached") ? tr("settings.limit_reached") : m);
+      setErr(m.includes("profile_limit_reached") ? "프로필은 최대 개수까지만 저장할 수 있습니다." : m);
     } finally {
       setSaving(false);
     }
   }
 
   async function remove(id: number) {
-    if (!confirm(tr("settings.confirm_delete"))) return;
+    if (!confirm("이 프로필을 삭제할까요?")) return;
     try {
       await api.deleteSajuProfile(id);
       await refresh();
@@ -283,40 +275,40 @@ function SajuProfilesCard() {
 
   return (
     <div className="card">
-      <h3 style={{ marginTop: 0 }}>{tr("settings.profiles_title")}</h3>
+      <h3 style={{ marginTop: 0 }}>사주 프로필 (가족·지인)</h3>
       <p style={{ color: "var(--ink-600, #666)", fontSize: 13, marginTop: 0 }}>
-        {tr("settings.profiles_desc")}
+        본인 외 가족·지인의 사주를 저장해 두면 상담 시작 시 빠르게 불러올 수 있습니다.
       </p>
       {err && <div style={{ color: "crimson", fontSize: 13, marginBottom: 8 }}>{err}</div>}
       {loading ? (
-        <div style={{ fontSize: 13, color: "#888" }}>{tr("settings.loading")}</div>
+        <div style={{ fontSize: 13, color: "#888" }}>불러오는 중…</div>
       ) : (
         <div className="profile-list">
           {items.length === 0 && (
-            <div style={{ fontSize: 13, color: "#888" }}>{tr("settings.empty")}</div>
+            <div style={{ fontSize: 13, color: "#888" }}>저장된 프로필이 없습니다.</div>
           )}
           {items.map((p) => (
             <div key={p.id} className={`profile-row${p.is_default ? " is-default" : ""}`}>
               <span className="profile-info">
                 <strong>{p.label}</strong>
-                {p.is_default && <span className="badge">{tr("settings.badge_default")}</span>}
+                {p.is_default && <span className="badge">기본</span>}
                 <br />
                 {p.birth_date}
                 {p.birth_time ? ` ${p.birth_time}` : ""} ·{" "}
-                {p.calendar === "lunar" ? tr("settings.lunar") : tr("settings.solar")} ·{" "}
-                {p.gender === "female" ? tr("settings.female") : tr("settings.male")}
+                {p.calendar === "lunar" ? "음력" : "양력"} ·{" "}
+                {p.gender === "female" ? "여성" : "남성"}
               </span>
               <span className="profile-actions">
                 {!p.is_default && (
                   <button className="ghost" onClick={() => makeDefault(p.id)}>
-                    {tr("settings.set_default")}
+                    기본
                   </button>
                 )}
                 <button className="ghost" onClick={() => startEdit(p)}>
-                  {tr("settings.edit")}
+                  수정
                 </button>
                 <button className="ghost" onClick={() => remove(p.id)}>
-                  {tr("settings.delete")}
+                  삭제
                 </button>
               </span>
             </div>
@@ -326,16 +318,30 @@ function SajuProfilesCard() {
 
       {editing ? (
         <div style={{ marginTop: 12, borderTop: "1px solid var(--border, #eee)", paddingTop: 12 }}>
-          <label style={{ display: "block", fontSize: 13, marginBottom: 4 }}>{tr("settings.label")}</label>
+          <label style={{ display: "block", fontSize: 13, marginBottom: 4 }}>이름(라벨)</label>
           <input
             style={{ width: "100%", marginBottom: 8 }}
             value={editing.label}
             onChange={(e) => setEditing({ ...editing, label: e.target.value })}
-            placeholder={tr("settings.label_ph")}
+            placeholder="예: 어머니, 김친구"
           />
           <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
             <div style={{ flex: 1 }}>
-              <label style={{ display: "block", fontSize: 13, marginBottom: 4 }}>{tr("settings.birth_date")}</label>
+              <label style={{ display: "block", fontSize: 13, marginBottom: 4 }}>생년월일</label>
+              {/* 빠른 입력(운영자 지적 2026-07-27): 20080810 처럼 8자리를 치면 자동으로 YYYY-MM-DD 로
+                  채운다. 종전엔 type=date 세그먼트라 tab 이동이 필요해 8자리 연속 입력이 안 됐다. */}
+              <input
+                type="text" inputMode="numeric" maxLength={10}
+                placeholder="숫자 8자리 예: 20080810"
+                style={{ width: "100%", marginBottom: 6 }}
+                onChange={(e) => {
+                  const d = e.target.value.replace(/\D/g, "");
+                  if (d.length === 8) {
+                    const iso = `${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6, 8)}`;
+                    setEditing({ ...editing, birth_date: iso });
+                  }
+                }}
+              />
               <input
                 type="date"
                 style={{ width: "100%" }}
@@ -344,7 +350,7 @@ function SajuProfilesCard() {
               />
             </div>
             <div style={{ flex: 1 }}>
-              <label style={{ display: "block", fontSize: 13, marginBottom: 4 }}>{tr("settings.birth_time")}</label>
+              <label style={{ display: "block", fontSize: 13, marginBottom: 4 }}>태어난 시각</label>
               <TimeSelect
                 value={editing.birth_time || ""}
                 onChange={(v) => setEditing({ ...editing, birth_time: v })}
@@ -357,8 +363,8 @@ function SajuProfilesCard() {
                 value={editing.calendar}
                 onChange={(e) => setEditing({ ...editing, calendar: e.target.value as "solar" | "lunar" })}
               >
-                <option value="solar">{tr("settings.solar")}</option>
-                <option value="lunar">{tr("settings.lunar")}</option>
+                <option value="solar">양력</option>
+                <option value="lunar">음력</option>
               </select>
             </label>
             <label style={{ fontSize: 13 }}>
@@ -366,8 +372,8 @@ function SajuProfilesCard() {
                 value={editing.gender}
                 onChange={(e) => setEditing({ ...editing, gender: e.target.value as "male" | "female" })}
               >
-                <option value="male">{tr("settings.male")}</option>
-                <option value="female">{tr("settings.female")}</option>
+                <option value="male">남성</option>
+                <option value="female">여성</option>
               </select>
             </label>
             <label style={{ fontSize: 13, display: "inline-flex", alignItems: "center", gap: 4 }}>
@@ -376,7 +382,7 @@ function SajuProfilesCard() {
                 checked={!!editing.is_leap_month}
                 onChange={(e) => setEditing({ ...editing, is_leap_month: e.target.checked })}
               />
-              {tr("settings.leap_month")}
+              윤달
             </label>
             <label style={{ fontSize: 13, display: "inline-flex", alignItems: "center", gap: 4 }}>
               <input
@@ -384,7 +390,7 @@ function SajuProfilesCard() {
                 checked={!!editing.is_default}
                 onChange={(e) => setEditing({ ...editing, is_default: e.target.checked })}
               />
-              {tr("settings.default_profile")}
+              기본 프로필
             </label>
           </div>
           <AdvancedBirthSettings
@@ -393,16 +399,16 @@ function SajuProfilesCard() {
           />
           <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
             <button onClick={save} disabled={saving}>
-              {saving ? tr("settings.saving") : editId == null ? tr("settings.add") : tr("settings.save")}
+              {saving ? "저장 중…" : editId == null ? "추가" : "저장"}
             </button>
             <button className="ghost" onClick={() => { setEditing(null); setEditId(null); }}>
-              {tr("settings.cancel")}
+              취소
             </button>
           </div>
         </div>
       ) : (
         <button style={{ marginTop: 12 }} onClick={startCreate}>
-          {tr("settings.add_profile")}
+          + 프로필 추가
         </button>
       )}
     </div>

@@ -12,11 +12,11 @@ from __future__ import annotations
 
 import base64
 import secrets
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any, Optional
 
 import httpx
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
 from backend.app.core.config import get_settings
@@ -90,6 +90,28 @@ def create_order(db: Session, user: User, amount: int) -> dict[str, Any]:
     }
 
 
+def expire_pending_orders(db: Session, *, older_than_hours: int = 24) -> int:
+    """미완료(위젯 결제 미완료) pending 주문 만료 처리 — 반환: 만료 건수.
+
+    대상: status='pending' AND toss_payment_key IS NULL AND created_at < now-N시간.
+      · paymentKey 없는 pending = 사용자가 토스 위젯 결제를 완료한 적 없는 '유령 주문'(결제 불가).
+      · 토스 위젯 세션은 수십 분 내 만료되므로 24h 경과분은 이미 결제될 수 없다 → 안전하게 정리.
+    approved/cancelled/refunded 는 절대 건드리지 않는다. confirm_payment 는 'expired' 를 승인불가로 막는다
+    (만에 하나 뒤늦은 confirm 이 와도 무결제 크레딧 발행/오적립 차단)."""
+    cutoff = datetime.utcnow() - timedelta(hours=max(1, older_than_hours))
+    res = db.execute(
+        update(Payment)
+        .where(
+            Payment.status == "pending",
+            Payment.toss_payment_key.is_(None),
+            Payment.created_at < cutoff,
+        )
+        .values(status="expired")
+    )
+    db.commit()
+    return int(res.rowcount or 0)
+
+
 def _is_dummy_key(key: str) -> bool:
     return "DUMMY" in key or not key
 
@@ -144,7 +166,9 @@ def confirm_payment(
     if p.amount != amount:
         raise ValueError(f"amount mismatch: order={p.amount}, request={amount}")
     if p.status == "approved":
-        # 이미 처리됨 (멱등)
+        # 이미 처리됨 (멱등) — 단 confirm 이 중단되고 webhook 만 approved 로 만든 경우 크레딧 미적립일 수 있어 보정.
+        if _ensure_purchase_credit(db, p, order_id):
+            db.commit()
         return {
             "status": "approved",
             "order_id": order_id,
@@ -153,7 +177,7 @@ def confirm_payment(
             "balance": auth_service.get_balance(db, user.id),
             "already": True,
         }
-    if p.status in ("failed", "cancelled", "refunded"):
+    if p.status in ("failed", "cancelled", "refunded", "expired"):
         raise ValueError(f"order not approvable: status={p.status}")
 
     # 토스 호출 (또는 더미 mock). fail-closed: 더미/빈 키면 명시적 allow_mock_payment 가 켜졌을 때만
@@ -231,7 +255,9 @@ def refund_payment(
     토스는 그 금액만큼 부분취소(전액과 같으면 전체취소). 1 크레딧 = 1원.
     """
     s = get_settings()
-    p = db.execute(select(Payment).where(Payment.order_id == order_id)).scalar_one_or_none()
+    # 결제행 잠금(confirm_payment/handle_webhook 과 동일) — refund 이중호출·refund↔취소웹훅 경쟁으로
+    #   크레딧이 이중 회수(고객 잔액 초과 몰수)되는 것을 직렬화로 차단.
+    p = db.execute(select(Payment).where(Payment.order_id == order_id).with_for_update()).scalar_one_or_none()
     if p is None:
         raise LookupError(f"order not found: {order_id}")
     if p.status == "refunded":
@@ -305,6 +331,29 @@ def list_my_payments(db: Session, user: User, limit: int = 30) -> list[dict[str,
     ]
 
 
+def _ensure_purchase_credit(db: Session, p: "Payment", order_id: str) -> bool:
+    """approved 결제인데 purchase 크레딧이 아직 미적립이면 멱등 지급(confirm 중단→webhook 보정).
+
+    confirm 이 토스 승인(카드 캡처) 후 commit 전에 중단되면 롤백으로 크레딧이 안 붙는데, 그 뒤 DONE 웹훅이
+    status 만 approved 로 바꿔 영구 미적립(현금 손실)이 되던 홀을 복구. CreditTransaction(ref_id=order_id,
+    reason='purchase') 존재로 멱등 판정 — 결제행 FOR UPDATE 하에서 호출돼 동시 이중적립 없음."""
+    from sqlalchemy import func as _f
+    from backend.app.repositories.auth_models import CreditTransaction, User as _User
+    if int(p.credit_granted or 0) <= 0:
+        return False
+    applied = db.execute(
+        select(_f.count()).select_from(CreditTransaction)
+        .where(CreditTransaction.ref_id == order_id, CreditTransaction.reason == "purchase")
+    ).scalar()
+    if applied:
+        return False
+    auth_service.adjust_credit(db, p.user_id, int(p.credit_granted), reason="purchase", ref_id=order_id)
+    u = db.get(_User, p.user_id)
+    if u is not None:
+        auth_service.apply_payment_grade(db, u, (p.raw_payload or {}).get("package"))
+    return True
+
+
 def handle_webhook(db: Session, body: dict[str, Any]) -> dict[str, Any]:
     """토스 웹훅. PAYMENT_STATUS_CHANGED 등을 받아 status 동기화.
 
@@ -324,11 +373,16 @@ def handle_webhook(db: Session, body: dict[str, Any]) -> dict[str, Any]:
     mapping = {
         "DONE": "approved",
         "CANCELED": "cancelled",
-        "PARTIAL_CANCELED": "cancelled",
+        # PARTIAL_CANCELED 는 여기서 처리하지 않음(무시) — full 회수 버킷(cancelled)에 넣으면 미사용 크레딧
+        #   '전액'을 부당 회수(과회수)한다. 부분취소·부분환불은 refund_payment 가 비례 회수로 담당.
         "ABORTED": "failed",
         "EXPIRED": "failed",
     }
     new_status = mapping.get(toss_status)
+    # (홀11) 이미 종결(취소/환불)된 결제는 후속 웹훅으로 되살리지 않음 — DONE 지연도착이 refunded→approved 로
+    #   부활시켜 이중환불(재환불 가능)·status 뒤집힘을 유발하던 것 차단.
+    if p.status in ("cancelled", "refunded") and new_status in ("cancelled", "failed", "approved"):
+        return {"ok": True, "order_id": order_id, "status": p.status, "ignored": "terminal"}
     if new_status and p.status != new_status:
         # 토스/카드사 직접취소(CANCELED)로 현금 환불됐는데 발급 크레딧이 남으면 손해 →
         # approved 였던 결제분 크레딧을 잔액 한도 내에서 회수하고 refunded 로 마킹(멱등).
@@ -343,6 +397,9 @@ def handle_webhook(db: Session, body: dict[str, Any]) -> dict[str, Any]:
                     pass  # 회수 가능한 만큼만(잔액이 이미 소진된 경우)
             new_status = "refunded"
         p.status = new_status
+        _pk = data.get("paymentKey")
+        if _pk and not p.toss_payment_key:
+            p.toss_payment_key = _pk  # webhook 복구 승인분의 실 취소용 키 저장(NULL 이면 refund 가 mock 경로로 빠져 실환불 누락)
         existing = p.raw_payload or {}
         existing.setdefault("webhooks", []).append({
             "ts": datetime.utcnow().isoformat() + "Z",
@@ -350,5 +407,8 @@ def handle_webhook(db: Session, body: dict[str, Any]) -> dict[str, Any]:
             "status": toss_status,
         })
         p.raw_payload = existing
+        # (홀2) DONE→approved 인데 크레딧 미적립(confirm 이 토스 승인 후 commit 전 중단된 경우)이면 멱등 지급 — 현금 손실 복구.
+        if new_status == "approved":
+            _ensure_purchase_credit(db, p, order_id)
         db.commit()
     return {"ok": True, "order_id": order_id, "status": p.status}

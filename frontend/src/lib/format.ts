@@ -13,9 +13,26 @@ import { createElement, type ReactNode } from "react";
 
 const BOLD_RE = /\*\*([^\n*]+?)\*\*/g;       // **굵게**
 const ITALIC_RE = /\*([^*\n]+?)\*/g;          // *강조* (** 제거 후 잔여)
-const HEADER_RE = /^[ \t]*#{1,6}[ \t]+/;      // 줄머리 #~###### 헤더 마커
+// [실측 2026-07-28] '####9월'처럼 # 뒤 공백이 없으면 종전 `[ \t]+`(공백 필수)가 미매칭 →
+// 마커가 그대로 노출되고 헤더 굵게도 안 먹었다. 공백을 선택(`[ \t]*`)으로 바꿔 공백 유무 무관하게
+// 헤더로 인식한다(전 메뉴·과거 저장분까지 display·복사·PDF 즉시 복구).
+const HEADER_RE = /^[ \t]*#{1,6}[ \t]*/;      // 줄머리 #~###### 헤더 마커(뒤 공백 유무 무관)
 const BULLET_RE = /^([ \t]*)[-*+•][ \t]+/;    // 줄머리 - * + • 불릿(들여쓰기 보존)
+// [2026-07-28] 순수 수평 구분선(--- *** ___) 제거. 약모델이 규칙 위반으로 흘리고, 스트리밍 라이브
+// 화면엔 백엔드 _tidy_markdown 결과가 안 실려 '---'가 남던 문제(운영자 지적)를 프론트 표시단에서도
+// 결정적으로 차단(화면·복사·PDF 공통). 백엔드 _HR_LINE_RE 와 동일 규칙. 표 구분선 '|---|'은 '|' 가
+// 있어 미매칭(내용 보존), 문장 내 하이픈 '2020-2021'도 순수 구분선 아님 → 미매칭.
+const HR_LINE_RE = /^[ \t]*([-*_])(?:[ \t]*\1){2,}[ \t]*$/;
 const BOLD_STYLE = { fontWeight: 700, fontSize: "calc(1em + 1pt)" } as const;
+
+/** 순수 구분선(--- *** ___) 줄을 지우고 과다 빈줄을 축약(백엔드 _tidy_markdown 미러). 내용은 무손실. */
+function dropHrLines(text: string): string {
+  return text
+    .split("\n")
+    .map((l) => (HR_LINE_RE.test(l) ? "" : l))   // HR줄 → 빈 줄(내용 글자만 제거)
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n");                  // 3줄+ 빈줄 → 2줄
+}
 
 export type RichOpts = {
   /** 이 구절들을 <strong class="rich-em">로 자동 강조(예: 타로 카드명·방향·포지션명). */
@@ -69,7 +86,7 @@ export function renderRich(text: string, opts?: RichOpts): ReactNode {
   const hlRe = buildHighlightRe(opts?.highlight);
   const out: ReactNode[] = [];
   const key = { n: 0 };
-  const lines = text.split("\n");
+  const lines = dropHrLines(text).split("\n");
   lines.forEach((line, li) => {
     if (li > 0) out.push("\n");
     const hm = line.match(HEADER_RE);
@@ -93,7 +110,7 @@ export function renderRich(text: string, opts?: RichOpts): ReactNode {
 /** 평문(복사/공유/PDF)용: 마크다운 기호 제거 → 자연스러운 줄글. */
 export function stripMarkdown(text: string): string {
   if (!text) return text;
-  return text
+  return dropHrLines(text)
     .split("\n")
     .map((line) => {
       const noHeader = line.replace(HEADER_RE, "");          // ### 마커 제거

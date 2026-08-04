@@ -68,10 +68,19 @@ const METRICS: MetricDef[] = [
   },
 ];
 
-/** i번째 run과 같은 표본 크기(N)를 가진 가장 최근의 이전 run 인덱스(=공정 비교 대상). 없으면 -1. */
+/** 측정 조건 지문 — 이게 다르면 점수를 비교하면 안 된다.
+ *
+ * [P3-D2 2026-07-22] 예전 평가는 리랭커·게이트 없이 top_k 8로 돌아 운영(리랭커 on·게이트
+ * 3종·top_k 4)과 완전히 다른 파이프라인을 쟀다. 운영과 정렬하면서 점수가 크게 떨어지는데,
+ * 과거 52개 런과 한 선에 그리면 "품질 급락"으로 오독해 잘못된 롤백이 난다. */
+function evalMode(r: EvalRun): string {
+  return `${r.eval_mode || "legacy"}/k${r.top_k}/N${r.n_questions}`;
+}
+
+/** i번째 run과 **같은 측정 조건**을 가진 가장 최근의 이전 run 인덱스(=공정 비교 대상). 없으면 -1. */
 function comparableIdx(runs: EvalRun[], i: number): number {
   for (let j = i - 1; j >= 0; j--) {
-    if (runs[j].n_questions === runs[i].n_questions) return j;
+    if (evalMode(runs[j]) === evalMode(runs[i])) return j;
   }
   return -1;
 }
@@ -105,8 +114,8 @@ function KpiTiles({ runs }: { runs: EvalRun[] }) {
         <h3 style={{ margin: 0 }}>최신 평가 효과</h3>
         <span style={{ fontSize: 12, color: "var(--ink-400)" }}>
           {prev
-            ? `직전 동일조건(N=${cur.n_questions}) 대비 변화 · 라벨 ${cur.tag || "-"}`
-            : `기준 비교 대상(동일 N) 없음 · 라벨 ${cur.tag || "-"}`}
+            ? `직전 동일조건(${evalMode(cur)}) 대비 변화 · 라벨 ${cur.tag || "-"}`
+            : `같은 조건(${evalMode(cur)})의 이전 실행 없음 — 비교 생략 · 라벨 ${cur.tag || "-"}`}
         </span>
       </div>
       <div
@@ -464,7 +473,9 @@ function CompareTable({ runs, allRuns }: { runs: EvalRun[]; allRuns: EvalRun[] }
               const gi = offset + i; // 전체 이력 기준 인덱스
               const ci = comparableIdx(allRuns, gi);
               const prev = ci >= 0 ? allRuns[ci] : null;
-              const nChanged = gi > 0 && allRuns[gi - 1].n_questions !== r.n_questions;
+              // 측정 조건(정렬여부·top_k·N)이 직전과 다르면 추세 단절 — 점수를 이어 읽으면 안 된다.
+              const modeChanged = gi > 0 && evalMode(allRuns[gi - 1]) !== evalMode(r);
+              const aligned = (r.eval_mode || "legacy") === "aligned";
               const cell = (m: MetricDef) => {
                 const v = Number(r[m.key]) || 0;
                 const d = prev ? deltaLabel(m, v, Number(prev[m.key]) || 0) : null;
@@ -485,9 +496,24 @@ function CompareTable({ runs, allRuns }: { runs: EvalRun[]; allRuns: EvalRun[] }
                   <td style={{ fontSize: 11 }}>{r.ts.replace("T", " ").slice(0, 16)}</td>
                   <td>
                     {r.tag || "-"}
-                    {nChanged && (
-                      <span className="tag pending" style={{ marginLeft: 6 }} title="표본 크기(N)가 직전과 달라 단순 비교에 주의">
-                        N변경
+                    <span
+                      className="tag"
+                      style={{ marginLeft: 6, opacity: 0.85 }}
+                      title={
+                        aligned
+                          ? "운영과 동일한 검색 조건(리랭커·임계·게이트·top_k)으로 측정 — 실제 서비스 품질"
+                          : "옛 방식: 리랭커 없음·게이트 없음·top_k 8. 후보 풀이 운영의 1.88배라 점수가 높게 나온다(운영 품질 아님)"
+                      }
+                    >
+                      {aligned ? "운영정렬" : "옛측정"}
+                    </span>
+                    {modeChanged && (
+                      <span
+                        className="tag pending"
+                        style={{ marginLeft: 6 }}
+                        title="측정 조건이 직전 실행과 다르다 — 위아래 점수를 이어서 비교하지 말 것"
+                      >
+                        조건변경
                       </span>
                     )}
                   </td>

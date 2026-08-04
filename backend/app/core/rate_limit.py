@@ -36,11 +36,18 @@ _AUTH_STRICT_PREFIXES = (
 )
 
 
-def _classify(path: str) -> str:
+def _classify(path: str, method: str = "GET") -> str:
     if any(path.startswith(p) for p in _AUTH_STRICT_PREFIXES):
         return "auth"
+    # 관리자 회원 PII 조회 — 대량조회 남용 억제(저한도). 목록/검색·거래·결제 조회 계열.
+    if path.startswith("/api/admin/users") or path.startswith("/api/admin/payments"):
+        return "admin"
     if path.startswith("/api/chat"):
         return "chat"
+    # PDF '생성'(POST)만 별도 강한 한도 — 미로그인도 생성 가능해 반복 호출로 디스크를
+    # 채우는 남용(DoS) 벡터였음. 열람(GET /api/pdf/{token}, 공유 수신자)은 default 유지.
+    if method == "POST" and path.startswith("/api/pdf"):
+        return "pdf"
     return "default"
 
 
@@ -50,6 +57,10 @@ def _limit_for(klass: str) -> int:
         return s.rate_limit_auth_per_min
     if klass == "chat":
         return s.rate_limit_chat_per_min
+    if klass == "pdf":
+        return s.rate_limit_pdf_per_min
+    if klass == "admin":
+        return s.rate_limit_admin_per_min
     return s.rate_limit_default_per_min
 
 
@@ -176,7 +187,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         if path.startswith("/api/health"):
             return await call_next(request)
 
-        klass = _classify(path)
+        klass = _classify(path, request.method)
         limit = _limit_for(klass)
         ip = _client_ip(request)
         uid = _user_id_from_auth(request)

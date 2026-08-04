@@ -1,14 +1,11 @@
 import { useEffect, useRef, useState } from "react";
-import { useTranslation } from "react-i18next";
-import { useSearchParams, useNavigate } from "react-router-dom";
+import { Link, useSearchParams, useNavigate } from "react-router-dom";
 import { api, setCachedMe } from "../api";
-import { fmtNum } from "../lib/money";
 
 export default function PaymentSuccessPage() {
-  const { t: tr } = useTranslation();
   const [sp] = useSearchParams();
   const nav = useNavigate();
-  const [msg, setMsg] = useState(() => tr("misc.pay_confirming"));
+  const [msg, setMsg] = useState("결제 승인 처리 중...");
   const [ok, setOk] = useState<boolean | null>(null);
   const ran = useRef(false);
 
@@ -20,18 +17,14 @@ export default function PaymentSuccessPage() {
     const amount = parseInt(sp.get("amount") || "0", 10);
     if (!paymentKey || !orderId || !amount) {
       setOk(false);
-      setMsg(tr("misc.pay_missing_params"));
+      setMsg("필수 파라미터 누락");
       return;
     }
     api.paymentConfirm(paymentKey, orderId, amount)
       .then(async (c) => {
         setOk(true);
         setMsg(
-          tr("misc.pay_success", {
-            credits: fmtNum(c.credits_granted),
-            balance: fmtNum(c.balance),
-            pt: tr("pay.pt"),
-          })
+          `+${c.credits_granted.toLocaleString()} P 충전 완료. 잔액: ${c.balance.toLocaleString()} P`
         );
         try { setCachedMe(await api.me()); } catch { /* ignore */ }
       })
@@ -43,27 +36,26 @@ export default function PaymentSuccessPage() {
 
   return (
     <div style={{ maxWidth: 480, margin: "60px auto", textAlign: "center" }}>
-      <h2>{ok === null ? tr("misc.pay_processing") : ok ? tr("misc.pay_done") : tr("misc.pay_failed")}</h2>
+      <h2>{ok === null ? "처리 중" : ok ? "결제 완료" : "결제 실패"}</h2>
       <p>{msg}</p>
       <div style={{ marginTop: 16, display: "flex", gap: 8, justifyContent: "center" }}>
-        <button onClick={() => nav("/chat")}>{tr("misc.pay_to_chat")}</button>
-        <button onClick={() => nav("/payments")}>{tr("pay.history_title")}</button>
+        <button onClick={() => nav("/chat")}>대화로</button>
+        <button onClick={() => nav("/payments")}>결제 내역</button>
       </div>
     </div>
   );
 }
 
 export function PaymentFailPage() {
-  const { t: tr } = useTranslation();
   const [sp] = useSearchParams();
   const code = sp.get("code");
-  const message = sp.get("message") || tr("misc.pay_fail_msg");
+  const message = sp.get("message") || "결제가 취소되었거나 실패했습니다.";
   return (
     <div style={{ maxWidth: 480, margin: "60px auto", textAlign: "center" }}>
-      <h2>{tr("misc.pay_failed")}</h2>
+      <h2>결제 실패</h2>
       <p>{message}</p>
       {code && <p style={{ color: "#888", fontSize: 12 }}>code: {code}</p>}
-      <a href="/payments">{tr("misc.pay_retry")}</a>
+      <Link to="/payments">다시 시도</Link>
     </div>
   );
 }

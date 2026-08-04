@@ -5,6 +5,7 @@
  */
 import { useCallback, useEffect, useState } from "react";
 import { api, getToken } from "../api";
+import { track } from "../lib/usage";
 
 type BIPEvent = Event & {
   prompt: () => Promise<void>;
@@ -65,6 +66,48 @@ export async function subscribePush(): Promise<boolean> {
   }
 }
 
+/** 현재 브라우저의 푸시 지원/권한/구독 상태. 상담사 알림 토글·배너 판단용. */
+export async function getPushState(): Promise<{
+  supported: boolean;
+  permission: NotificationPermission;
+  subscribed: boolean;
+}> {
+  const supported =
+    "serviceWorker" in navigator && "PushManager" in window && !!VAPID_PUBLIC && typeof Notification !== "undefined";
+  const permission: NotificationPermission = supported ? Notification.permission : "denied";
+  let subscribed = false;
+  if (supported) {
+    try {
+      const reg = await navigator.serviceWorker.ready;
+      subscribed = !!(await reg.pushManager.getSubscription());
+    } catch {
+      /* ignore */
+    }
+  }
+  return { supported, permission, subscribed };
+}
+
+/** 푸시 구독 해제 — 브라우저 구독 취소 + 서버 등록 삭제. */
+export async function unsubscribePush(): Promise<boolean> {
+  if (!("serviceWorker" in navigator)) return false;
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    const sub = await reg.pushManager.getSubscription();
+    if (sub) {
+      const ep = sub.endpoint;
+      await sub.unsubscribe();
+      try {
+        await api.pushUnsubscribe(ep);
+      } catch {
+        /* 서버 삭제 실패는 무시(만료 정리는 발송측이 담당) */
+      }
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function usePwaInstall() {
   const [deferred, setDeferred] = useState<BIPEvent | null>(null);
   const [showPopup, setShowPopup] = useState(false);
@@ -83,6 +126,10 @@ export function usePwaInstall() {
     const onInstalled = () => {
       setShowPopup(false);
       setDeferred(null);
+      // 설치 확정 카운트(관리자 '현재 통계') + 브라우저 탭에서도 '설치됨'을 알 수 있게 마킹(플로팅 숨김)
+      track("click", "pwa:installed");
+      localStorage.setItem("saju_pwa_installed", "1");
+      window.dispatchEvent(new CustomEvent("saju:pwa-installed"));
       // 로그인 사용자만 푸시 구독 시도
       if (getToken()) void subscribePush();
     };
@@ -105,6 +152,7 @@ export function usePwaInstall() {
 
   const accept = useCallback(async () => {
     if (!deferred) return;
+    track("click", "pwa:install-accept");   // 설치 팝업 '설치' 클릭 카운트
     setShowPopup(false);
     await deferred.prompt();
     await deferred.userChoice;
@@ -117,5 +165,7 @@ export function usePwaInstall() {
     setShowIosGuide(false);
   }, []);
 
-  return { showPopup, showIosGuide, accept, snooze };
+  // canInstall = 브라우저가 넘겨준 설치 이벤트를 붙잡아 둔 상태(주로 Android/데스크톱 Chrome).
+  //   가이드에서 '한 번에 설치하기' 버튼을 이 값으로 노출한다(스누즈해도 버튼은 유지).
+  return { showPopup, showIosGuide, accept, snooze, canInstall: !!deferred };
 }

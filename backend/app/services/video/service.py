@@ -106,7 +106,7 @@ def create_job(db: Session, message_id: int, requester, is_admin: bool = False) 
         raise JobConflict(existing.job_token)
 
     uid = getattr(requester, "id", None)
-    cost = settings_service.get_int(db, "video_gen_cost", 20000)
+    cost = settings_service.get_int(db, "video_gen_cost", 2900)
     aspect = settings_service.get(db, "shorts_aspect", "9x16")
     retention_h = settings_service.get_int(db, "shorts_retention_hours", 48)
     token = uuid.uuid4().hex
@@ -148,13 +148,15 @@ def create_job(db: Session, message_id: int, requester, is_admin: bool = False) 
 def refund_job(db: Session, job: SajuVideoJob) -> bool:
     if not job.credits_charged or job.user_id is None:
         return False
-    # status='failed' + refunded=false 일 때만(납품 done 환불 차단 + 이중환불 차단)
+    # status='failed' + refunded=false + 미납품(completed_at IS NULL) 일 때만.
+    #   (납품 done 환불 차단 + 이중환불 차단 + '완료본이 실수로 failed 로 덮인 경우' 이중 방어)
     res = db.execute(
         update(SajuVideoJob)
         .where(
             SajuVideoJob.id == job.id,
             SajuVideoJob.refunded.is_(False),
             SajuVideoJob.status == "failed",
+            SajuVideoJob.completed_at.is_(None),
         )
         .values(refunded=True)
     )
@@ -185,6 +187,10 @@ def run_job(db: Session, job: SajuVideoJob) -> SajuVideoJob:
 
         _set_stage(db, job, "tts", "내레이션을 만들고 있어요")
         engine = settings_service.get(db, "shorts_tts_engine", "openai")
+        # 국외이전(⑱) — OpenAI TTS(미국)는 overseas_tts_allowed(기본 True) 가 꺼져 있으면 로컬/비-OpenAI 엔진으로 대체.
+        # 내레이션(개인 사주 해석)이 미국으로 나가지 않게 하려면 관리자 설정에서 끄면 됨(edgetts→heami 폴백).
+        if engine.lower() == "openai" and not settings_service.get_bool(db, "overseas_tts_allowed", True):
+            engine = "edgetts"
         rkind = settings_service.get(db, "shorts_renderer", "talk").lower()
         W, H = (1080, 1920) if job.aspect == "9x16" else (1920, 1080)
         work.mkdir(parents=True, exist_ok=True)

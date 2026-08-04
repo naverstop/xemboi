@@ -5,7 +5,7 @@ from datetime import date, time
 from enum import Enum
 from typing import Literal
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 class CalendarType(str, Enum):
@@ -35,9 +35,13 @@ class BirthInput(BaseModel):
     #   yaja(야자시): 일주=당일, 시주 천간=익일 일간 기준 (현 기본·정통 야자시법)
     #   jeongja(정자시): 23:00부터 일주·시주 모두 익일 기준
     night_zi_mode: Literal["yaja", "jeongja"] = "yaja"
-    # 로케일. ko=한국(sxtwl 음력·KST·서울경도), vi=베트남(호응옥득 음력·ICT·하노이경도).
-    # 기본 ko → 기존 한국 계산 경로 완전 불변.
-    locale: Literal["ko", "vi"] = "ko"
+
+    @field_validator("night_zi_mode", mode="before")
+    @classmethod
+    def _norm_night_zi(cls, v):
+        # None/빈값/미지원값 → "yaja"로 단일 정규화. 종전엔 프로필의 None을 넘기면 ValidationError라
+        # 소비 엔드포인트마다 `or "yaja"` 가드를 반복했다(불일치 취약). 엔진 한 곳에서 흡수.
+        return v if v in ("yaja", "jeongja") else "yaja"
 
     @model_validator(mode="after")
     def _check(self):
@@ -46,19 +50,11 @@ class BirthInput(BaseModel):
         if self.calendar != CalendarType.LUNAR:
             self.is_leap_month = False
         elif self.is_leap_month:
-            # 음력 윤달: 그 해·월에 실제로 윤달이 존재하는지 검증. 없으면 조용히 평달 폴백
-            # (=무경고 오답)하므로 명시적 오류로 승격(R1). 로케일별 역법 엔진으로 검증.
-            has_leap: bool
-            if self.locale == "vi":
-                from .hongoc_duc import lunar_to_solar  # 베트남 음력(UTC+7)
-                has_leap = lunar_to_solar(
-                    self.birth_date.day, self.birth_date.month, self.birth_date.year, True, 7.0
-                ) != (0, 0, 0)
-            else:
-                import sxtwl  # 중국·한국 음력(UTC+8)
-                _d = sxtwl.fromLunar(self.birth_date.year, self.birth_date.month, self.birth_date.day, True)
-                has_leap = bool(_d.isLunarLeap())
-            if not has_leap:
+            # 음력 윤달: 그 해·월에 실제로 윤달이 존재하는지 검증. 없으면 sxtwl이 평달로 조용히
+            # 폴백(=무경고 오답)하므로 명시적 오류로 승격해 사용자에게 알린다(R1).
+            import sxtwl
+            _d = sxtwl.fromLunar(self.birth_date.year, self.birth_date.month, self.birth_date.day, True)
+            if not _d.isLunarLeap():
                 raise ValueError(
                     f"{self.birth_date.year}년 음력 {self.birth_date.month}월에는 윤달이 없습니다. "
                     f"'윤달'을 끄고 평달로 입력해 주세요."
@@ -105,7 +101,12 @@ class FourPillars(BaseModel):
 
 
 class WuxingDistribution(BaseModel):
-    """오행 분포 (개수). 천간 + 지지 + 지장간 모두 합산."""
+    """오행 개수 컨테이너 — **기준은 만든 함수에 따라 다르다**.
+
+    · compute_wuxing        = full(천간+지지+지장간, 합 14 전후) — 신강/신약 판정용
+    · compute_wuxing_eight  = 팔자 8글자(천간4+지지본기4, 합 8) — 화면·프롬프트 표시용
+    이 클래스만 보고 full 로 단정하면 안 된다(2026-07-22 팔자8 도입).
+    """
     wood: int = 0   # 木
     fire: int = 0   # 火
     earth: int = 0  # 土
@@ -169,6 +170,10 @@ class SajuChart(BaseModel):
     pillars: FourPillars
     wuxing: WuxingDistribution
     wuxing_branch_only: WuxingDistribution   # 지지 본기만
+    # 팔자 8글자(천간4+지지본기4) 기준 개수 — 화면 명식표·LLM 프롬프트 전용(사용자가 읽는 8글자와 일치).
+    # 옛 저장 chart_json 에는 없으므로 Optional; 소비처는 wuxing.wuxing_eight_of() 로 자동 재계산한다.
+    # ⚠️ 신강/신약은 지장간 통근을 반영해야 해서 계속 wuxing(full)을 쓴다 — 여기로 바꾸지 말 것.
+    wuxing_eight: WuxingDistribution | None = None
     ten_gods: TenGodAssignment
     day_master_element: str         # 일간의 오행
     day_master_strength: Literal["strong", "weak", "neutral"]
@@ -182,15 +187,13 @@ class SajuChart(BaseModel):
     johu_yongsin: JohuYongsin | None = None                            # 조후용신(궁통보감 일간×월지)
 
     def pretty(self) -> str:
-        """원광만세력 스타일 간단 출력. 독음은 로케일(ko 한글 / vi 한월음)."""
-        from .constants import STEM_TO_WUXING, branch_reading, stem_reading
-
-        loc = self.input.locale
+        """원광만세력 스타일 간단 출력."""
+        from .constants import STEM_TO_WUXING, branch_korean, stem_korean
 
         def cell(p: Pillar | None) -> tuple[str, str]:
             if p is None:
                 return ("?", "?")
-            return (f"{p.stem}({stem_reading(p.stem, loc)})", f"{p.branch}({branch_reading(p.branch, loc)})")
+            return (f"{p.stem}({stem_korean(p.stem)})", f"{p.branch}({branch_korean(p.branch)})")
 
         cols = [cell(self.pillars.hour), cell(self.pillars.day),
                 cell(self.pillars.month), cell(self.pillars.year)]
@@ -207,7 +210,7 @@ class SajuChart(BaseModel):
             f"음력 {self.lunar_date}{' (윤달)' if self.is_leap_month else ''}  "
             f"성별 {self.input.gender.value}\n"
             f"{header}\n{line_stem}\n{line_brch}\n"
-            f"일간: {self.pillars.day_master}({stem_reading(self.pillars.day_master, loc)}) "
+            f"일간: {self.pillars.day_master}({stem_korean(self.pillars.day_master)}) "
             f"— {self.day_master_element} ({self.day_master_strength})\n"
             f"오행: {wx_str}\n"
         )

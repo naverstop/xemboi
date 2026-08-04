@@ -31,111 +31,6 @@ def _now() -> datetime:
     return datetime.utcnow()
 
 
-# ───────────────────────── 사용자 노출 메시지 로케일 ─────────────────────────
-# ko 는 기존 문구를 바이트 동일하게 유지(한국 서비스 불변), vi 만 분기. 금액은 {need}/{have}
-# 자리표시자에 로케일 구분자로 조판된 문자열을 넣는다(_grp). 키가 없으면 ko→키 순으로 폴백.
-_MSGS: dict[str, dict[str, str]] = {
-    "consultant_unavailable": {
-        "ko": "상담 가능한 상담사가 아니에요.",
-        "vi": "Tư vấn viên hiện không khả dụng.",
-    },
-    "insufficient_points": {
-        "ko": "포인트가 부족해요. (필요 {need}P · 보유 {have}P)",
-        "vi": "Không đủ điểm. (Cần {need} điểm · Hiện có {have} điểm)",
-    },
-    "already_active": {
-        "ko": "이미 진행 중이거나 대기 중인 상담이 있어요.",
-        "vi": "Bạn đang có một buổi tư vấn đang diễn ra hoặc đang chờ.",
-    },
-    "request_not_found": {
-        "ko": "상담 요청을 찾을 수 없어요.",
-        "vi": "Không tìm thấy yêu cầu tư vấn.",
-    },
-    "accept_not_yours": {
-        "ko": "본인에게 요청된 상담만 수락할 수 있어요.",
-        "vi": "Bạn chỉ có thể chấp nhận yêu cầu được gửi cho mình.",
-    },
-    "already_handled": {
-        "ko": "이미 처리되었거나 만료된 요청이에요.",
-        "vi": "Yêu cầu đã được xử lý hoặc đã hết hạn.",
-    },
-    "user_insufficient": {
-        "ko": "사용자 포인트가 부족해 상담을 시작할 수 없어요.",
-        "vi": "Người dùng không đủ điểm nên không thể bắt đầu buổi tư vấn.",
-    },
-    "process_not_yours": {
-        "ko": "본인에게 요청된 상담만 처리할 수 있어요.",
-        "vi": "Bạn chỉ có thể xử lý yêu cầu được gửi cho mình.",
-    },
-    "session_not_found": {
-        "ko": "세션을 찾을 수 없어요.",
-        "vi": "Không tìm thấy phiên tư vấn.",
-    },
-    "extend_not_yours": {
-        "ko": "본인 상담만 연장할 수 있어요.",
-        "vi": "Bạn chỉ có thể gia hạn buổi tư vấn của mình.",
-    },
-    "extend_only_active": {
-        "ko": "진행 중인 상담만 연장할 수 있어요.",
-        "vi": "Chỉ có thể gia hạn buổi tư vấn đang diễn ra.",
-    },
-    "extend_insufficient": {
-        "ko": "포인트가 부족해 연장할 수 없어요. (필요 {need}P)",
-        "vi": "Không đủ điểm để gia hạn. (Cần {need} điểm)",
-    },
-    "rating_range": {
-        "ko": "평점은 1~5 사이여야 해요.",
-        "vi": "Điểm đánh giá phải từ 1 đến 5.",
-    },
-    "rating_not_yours": {
-        "ko": "본인 상담만 평가할 수 있어요.",
-        "vi": "Bạn chỉ có thể đánh giá buổi tư vấn của mình.",
-    },
-    "rating_only_completed": {
-        "ko": "종료된 상담만 평가할 수 있어요.",
-        "vi": "Chỉ có thể đánh giá buổi tư vấn đã kết thúc.",
-    },
-    # 엔드포인트 계층에서 직접 raise 하는 참여자/권한 문구(consultation.py 공용).
-    "view_only_own": {
-        "ko": "본인 상담만 볼 수 있어요.",
-        "vi": "Bạn chỉ có thể xem buổi tư vấn của mình.",
-    },
-    "end_only_own": {
-        "ko": "본인 상담만 종료할 수 있어요.",
-        "vi": "Bạn chỉ có thể kết thúc buổi tư vấn của mình.",
-    },
-    "cancel_only_own": {
-        "ko": "본인 상담만 취소할 수 있어요.",
-        "vi": "Bạn chỉ có thể hủy buổi tư vấn của mình.",
-    },
-    "report_only_own": {
-        "ko": "본인 상담만 발급할 수 있어요.",
-        "vi": "Bạn chỉ có thể phát hành bản tư vấn của mình.",
-    },
-    "no_convo": {
-        "ko": "요약할 대화 내용이 없어요.",
-        "vi": "Không có nội dung trò chuyện để tóm tắt.",
-    },
-    "consultant_only": {
-        "ko": "입점 상담사 전용 기능이에요.",
-        "vi": "Tính năng chỉ dành cho tư vấn viên.",
-    },
-}
-
-
-def _grp(n: int, locale: str) -> str:
-    """천단위 구분 — ko/기본은 콤마, vi 는 마침표(베트남 관습)."""
-    s = f"{int(n):,}"
-    return s.replace(",", ".") if locale == "vi" else s
-
-
-def msg(key: str, locale: str = "ko", **kw: object) -> str:
-    """상담 도메인 사용자 노출 문구(로케일). ko 기본·폴백. kw 는 자리표시자 치환값."""
-    entry = _MSGS.get(key, {})
-    text = entry.get(locale) or entry.get("ko") or key
-    return text.format(**kw) if kw else text
-
-
 # ───────────────────────── 조회/직렬화 ─────────────────────────
 
 def get_session(db: Session, session_id: str) -> Optional[ConsultationSession]:
@@ -165,6 +60,11 @@ def session_dict(db: Session, s: ConsultationSession) -> dict[str, Any]:
         "ended_at": s.ended_at.isoformat() if s.ended_at else None,
         "consent_at": s.consent_at.isoformat() if s.consent_at else None,
         "pdf_token": s.pdf_token,
+        # A-1 상담 컨텍스트(사주 명식/타로 카드 스냅샷) — 상담사 채팅방 패널 렌더용
+        "source_kind": s.source_kind,
+        "source_context": s.source_context,
+        # A-2 예약 전환 세션 여부(선결제·유예 정책 표시용)
+        "reservation_id": s.reservation_id,
     }
 
 
@@ -179,16 +79,31 @@ def is_participant(db: Session, s: ConsultationSession, user: User) -> bool:
 # ───────────────────────── 수명주기 ─────────────────────────
 
 def request_session(
-    db: Session, user: User, consultant_id: int, *, consent: bool = False, locale: str = "ko"
+    db: Session,
+    user: User,
+    consultant_id: int,
+    *,
+    consent: bool = False,
+    source_kind: Optional[str] = None,
+    source_context: Optional[dict] = None,
 ) -> ConsultationSession:
-    """사용자 상담 요청 — 잔액·상담사 확인 후 requested 세션 생성(차감은 수락 시). locale 영속."""
+    """사용자 상담 요청 — 잔액·상담사 확인 후 requested 세션 생성(차감은 수락 시).
+
+    source_kind/source_context: A-1 상담 컨텍스트 스냅샷(사주 명식/타로 카드). API 계층이
+    소유 검증 후 서버측에서 만들어 넘긴다(클라이언트 페이로드 직접 저장 금지)."""
+    # 개인정보 처리(대화 저장·7일 후 파기) 동의는 입장 전 필수 — 서버에서 강제(프론트 우회 차단).
+    if not consent:
+        raise ValueError("대화 저장·7일 후 파기 안내에 동의해야 상담을 신청할 수 있어요.")
     c = db.get(Consultant, consultant_id)
-    if c is None or not c.is_active:
-        raise LookupError(msg("consultant_unavailable", locale))
-    price, dur, _comm = csvc.effective(db, c)
+    # 비활성/숨김(hidden)은 존재하지 않는 것으로 취급, 입점예정(coming_soon)은 신청 불가(서버 권위 게이트).
+    if c is None or not c.is_active or getattr(c, "status", "active") == "hidden":
+        raise LookupError("상담 가능한 상담사가 아니에요.")
+    if getattr(c, "status", "active") == "coming_soon":
+        raise ValueError("아직 오픈 준비 중인 상담사예요. 조금만 기다려 주세요.")
+    price, dur, comm = csvc.effective(db, c)
     bal = auth_service.get_balance(db, user.id)
     if bal < price:
-        raise ValueError(msg("insufficient_points", locale, need=_grp(price, locale), have=_grp(bal, locale)))
+        raise ValueError(f"포인트가 부족해요. (필요 {price:,}P · 보유 {bal:,}P)")
     # 사용자가 이미 진행/대기 중인 세션이 있으면 중복 방지
     active = db.execute(
         select(ConsultationSession).where(
@@ -197,16 +112,18 @@ def request_session(
         )
     ).scalars().first()
     if active is not None:
-        raise ValueError(msg("already_active", locale))
+        raise ValueError("이미 진행 중이거나 대기 중인 상담이 있어요.")
     s = ConsultationSession(
         id=uuid.uuid4().hex,
         user_id=user.id,
         consultant_id=c.id,
         specialty=c.specialty,
-        locale=locale if locale in ("ko", "vi") else "ko",
         status="requested",
         price_p=price,
         duration_min=dur,
+        commission_pct=comm,  # 요청 시 수수료 고정(정산 기준)
+        source_kind=source_kind,
+        source_context=source_context,
         consent_at=_now() if consent else None,
         requested_at=_now(),
     )
@@ -216,45 +133,60 @@ def request_session(
     return s
 
 
-def accept_session(
-    db: Session, session_id: str, consultant: Consultant, *, locale: str = "ko"
-) -> ConsultationSession:
+def accept_session(db: Session, session_id: str, consultant: Consultant) -> ConsultationSession:
     """상담사 수락 — 담당 확인 → 사용자 포인트 선차감 → active. (요건 ⑪ 수락 시 채팅 가능)"""
-    s = db.get(ConsultationSession, session_id)
+    s = db.get(ConsultationSession, session_id, with_for_update=True)  # 세션행 잠금 — 동시 cancel/decline 과 직렬화(status resurrection·이중지출 방지)
     if s is None:
-        raise LookupError(msg("request_not_found", locale))
+        raise LookupError("상담 요청을 찾을 수 없어요.")
     if s.consultant_id != consultant.id:
-        raise PermissionError(msg("accept_not_yours", locale))
+        raise PermissionError("본인에게 요청된 상담만 수락할 수 있어요.")
+    # 동일 상담사에 대한 동시 수락을 직렬화 — 상담사 행을 행잠금(FOR UPDATE)해 TOCTOU 더블부킹/이중차감 방지.
+    # (잠금 미획득 상태의 status/busy 검사는 두 accept 가 동시에 통과할 수 있어 레이스가 남음)
+    db.execute(select(Consultant.id).where(Consultant.id == consultant.id).with_for_update()).first()
+    db.refresh(s)  # 잠금 획득 후 최신 커밋 상태로 재평가(선행 accept 가 이미 반영됐을 수 있음)
     if s.status != "requested":
-        raise ValueError(msg("already_handled", locale))
+        raise ValueError("이미 처리되었거나 만료된 요청이에요.")
+    # 1:1 실시간 상담 — 이미 진행 중(active)인 다른 상담이 있으면 수락 불가(더블부킹·이중 선차감 방지).
+    busy = db.execute(
+        select(ConsultationSession.id).where(
+            ConsultationSession.consultant_id == consultant.id,
+            ConsultationSession.status == "active",
+            ConsultationSession.id != s.id,
+        )
+    ).first()
+    if busy is not None:
+        raise ValueError("이미 다른 상담을 진행 중이에요. 종료 후 수락해 주세요.")
     # 선차감(원자적). 잔액 부족이면 요청 취소 처리.
-    try:
-        auth_service.adjust_credit(db, s.user_id, -s.price_p, reason="consultation", ref_id=s.id)
-    except ValueError:
-        s.status = "cancelled"
-        db.commit()
-        raise ValueError(msg("user_insufficient", locale))
+    # A-2 예약 전환 세션(credits_charged>0)은 예약 시 이미 선결제(홀드) — 재차감 금지.
+    if not s.credits_charged:
+        try:
+            auth_service.adjust_credit(db, s.user_id, -s.price_p, reason="consultation", ref_id=s.id)
+        except ValueError:
+            s.status = "cancelled"
+            db.commit()
+            raise ValueError("사용자 포인트가 부족해 상담을 시작할 수 없어요.")
+        s.credits_charged = s.price_p
     now = _now()
     s.status = "active"
     s.accepted_at = now
     s.started_at = now
-    s.credits_charged = s.price_p
     consultant.presence = "busy"  # 상담 중 — 사용자 리스트에 '상담중' 표기(요건 ⑫)
     db.commit()
     db.refresh(s)
     return s
 
 
-def decline_session(
-    db: Session, session_id: str, consultant: Consultant, *, locale: str = "ko"
-) -> ConsultationSession:
-    """상담사 거절 — requested 상태에서만. 차감 전이라 환불 불필요."""
-    s = db.get(ConsultationSession, session_id)
+def decline_session(db: Session, session_id: str, consultant: Consultant) -> ConsultationSession:
+    """상담사 거절 — requested 상태에서만. 즉시 상담은 차감 전이라 환불 불필요,
+    예약 전환 세션(선결제)은 전액 환불."""
+    s = db.get(ConsultationSession, session_id, with_for_update=True)  # 동시 취소/거절 직렬화(이중환불 차단)
     if s is None:
-        raise LookupError(msg("request_not_found", locale))
+        raise LookupError("상담 요청을 찾을 수 없어요.")
+    db.refresh(s)  # 락 후 최신값(preload stale 방지)
     if s.consultant_id != consultant.id:
-        raise PermissionError(msg("process_not_yours", locale))
+        raise PermissionError("본인에게 요청된 상담만 처리할 수 있어요.")
     if s.status == "requested":
+        _refund(db, s, 1.0, reason="consultation_reserve_refund")  # 선결제 없으면 no-op(멱등)
         s.status = "cancelled"
         db.commit()
         db.refresh(s)
@@ -262,10 +194,22 @@ def decline_session(
 
 
 def cancel_requested(db: Session, session_id: str, *, no_show: bool = False) -> Optional[ConsultationSession]:
-    """미수락 타임아웃/사용자 취소 — requested 상태만. 차감 전이라 환불 없음."""
-    s = db.get(ConsultationSession, session_id)
-    if s is None or s.status != "requested":
+    """미수락 타임아웃/사용자 취소 — requested 상태만.
+    즉시 상담은 차감 전이라 환불 없음, 예약 전환 세션(선결제)은 전액 환불."""
+    # 행잠금 — session_driver(3s)·reservation_driver(30s) 두 스윕이 같은 grace 임계에서 동시에
+    #   cancel_requested 를 호출해 _refund 가 두 번 실행(이중환불)되던 것을 직렬화로 차단.
+    s = db.get(ConsultationSession, session_id, with_for_update=True)
+    if s is None:
         return s
+    db.refresh(s)  # 락 획득 후 최신값 재로드 — 호출부가 preload 한 stale 인스턴스로 이중환불되던 것 차단(accept_session 패턴)
+    if s.status != "requested":
+        return s
+    # 사용자 자발 취소(no_show=False)가 예약전환 세션이면 예약 late-refund 정책 비율 적용
+    #   (start_at 후 세션취소로 100% 환불받는 우회 차단). 상담사 미수락 노쇼(no_show=True)는 서비스 미제공이라 100%.
+    ratio = 1.0
+    if not no_show and getattr(s, "reservation_id", None):
+        ratio = _reserve_refund_ratio(db, s.reservation_id)
+    _refund(db, s, ratio, reason="consultation_reserve_refund")  # 선결제 없으면 no-op(멱등)
     s.status = "no_show" if no_show else "cancelled"
     db.commit()
     db.refresh(s)
@@ -284,23 +228,80 @@ def _refund(db: Session, s: ConsultationSession, ratio: float, reason: str) -> i
     return amount
 
 
+def _reserve_refund_ratio(db: Session, slot_id: str) -> float:
+    """예약 슬롯 start_at 기준 사용자취소 환불비율(full/late) — cancel_by_user 와 동일 정책.
+
+    예약전환 세션(start_at 이미 도래)을 사용자가 취소할 때, 예약취소 late-refund(예:50%) 대신
+    100% 환불받는 우회를 막기 위해 슬롯 정책 비율을 적용한다. 조회 실패 시 보수적으로 1.0(사용자 불이익 방지)."""
+    try:
+        from backend.app.repositories.consultation_models import ConsultationSlot
+        from backend.app.services import consultation_reservation_service as _rsvc
+        slot = db.get(ConsultationSlot, slot_id)
+        if slot is None or slot.start_at is None:
+            return 1.0
+        pol = _rsvc.reserve_policy(db)
+        hours_left = (slot.start_at - _now()).total_seconds() / 3600.0
+        return 1.0 if hours_left >= pol["full_refund_hours"] else max(0, min(100, pol["late_refund_pct"])) / 100.0
+    except Exception:  # noqa: BLE001
+        return 1.0
+
+
 def end_session(
-    db: Session, session_id: str, *, reason: str = "user_end", locale: str = "ko"
+    db: Session, session_id: str, *, reason: str = "user_end", by_consultant: bool = False
 ) -> ConsultationSession:
-    """상담 종료 — 경과시간 확정 + 정산 산출 + 파기예정 설정. 멱등."""
-    s = db.get(ConsultationSession, session_id)
+    """상담 종료 — 경과시간 확정 + 정산 산출 + 파기예정 설정. 멱등.
+
+    세션 행을 FOR UPDATE 로 잠가 _persist_message(동일 행 잠금)와 직렬화 — 종료 커밋과
+    인플라이트 메시지 저장의 레이스를 차단한다."""
+    s = db.execute(
+        select(ConsultationSession).where(ConsultationSession.id == session_id).with_for_update()
+    ).scalars().first()
     if s is None:
-        raise LookupError(msg("session_not_found", locale))
+        raise LookupError("세션을 찾을 수 없어요.")
+    db.refresh(s)  # 락 후 최신값 재로드 — 라우터가 get_session 으로 preload 한 stale 인스턴스(동시 accept/cancel
+    #   반영 전 status='requested')로 활성세션을 취소·이중환불하던 것 차단(accept/cancel/decline 과 동일 패턴).
     if s.status in _TERMINAL:
         return s
     now = _now()
+    # 미수락(requested·무선차감) 세션 종료 = 취소로 처리(D4) — 결제가 없었으므로 정산·매출을 만들지 않는다.
+    # (선결제 예약 세션은 credits_charged>0 이라 아래 정상 종료 경로로 감. 여기 걸리는 건 즉시상담 미수락뿐.)
+    if s.status == "requested":
+        # 미수락(아직 accept 전) 세션 종료 = 취소(정산 없음 → 유령정산·상담사 파밍 방지).
+        #   · 사용자 자발 종료(예약전환) = late-refund 정책 비율(start_at 후 /end 로 100% 환불받는 우회 차단).
+        #   · 상담사 종료 = 사실상 거절/미출석이므로 100% 환불(사용자에게 정책 페널티 전가 금지).
+        #   즉시상담은 credits_charged=0 → 어느 쪽이든 no-op.
+        if by_consultant or not getattr(s, "reservation_id", None):
+            _r = 1.0
+        else:
+            _r = _reserve_refund_ratio(db, s.reservation_id)
+        _refund(db, s, _r, reason="consultation_reserve_refund")
+        s.status = "cancelled"
+        s.ended_at = now
+        db.commit()
+        db.refresh(s)
+        return s
     s.ended_at = now
     if s.started_at:
         s.elapsed_sec = int((now - s.started_at).total_seconds())
-    s.status = "completed"
     retention = settings_service.get_int(db, "consultation_retention_days", 7)
     s.purge_after = now + timedelta(days=retention)
-    _ensure_settlement(db, s)
+    # 상담사 참여 검증(머니세이프티) — 수락(active) 후 상담사가 한 마디도 안 하고 끝났으면 서비스 미제공:
+    #   전액 환불 + 정산 미생성 + no_show 처리(매출·상담건수·평점 집계에서 제외). 상담사 잠수 파밍 차단.
+    #   (스키마 무변경 — 상담사 발화 메시지 유무로 판정. 정상 종료는 completed+정산 그대로.)
+    consultant_spoke = db.execute(
+        select(ConsultationMessage.id)
+        .where(
+            ConsultationMessage.session_id == s.id,
+            ConsultationMessage.sender == "consultant",
+        )
+        .limit(1)
+    ).first() is not None
+    if not consultant_spoke and (s.credits_charged or 0) > 0:
+        _refund(db, s, 1.0, reason="consultation_no_reply_refund")  # 멱등 전액 환불
+        s.status = "no_show"
+    else:
+        s.status = "completed"
+        _ensure_settlement(db, s)
     # 상담사 busy 해제 — 콘솔이 연결돼 있으면 online, 아니면 콘솔 disconnect 가 offline 처리.
     c = db.get(Consultant, s.consultant_id)
     if c is not None and c.presence == "busy":
@@ -317,11 +318,17 @@ def _ensure_settlement(db: Session, s: ConsultationSession) -> None:
     ).scalars().first()
     if exists is not None:
         return
-    revenue = s.credits_charged or s.price_p
+    # 실제 차감액(credits_charged)만 매출로 인정 — price_p 폴백 제거(D4): 미결제 세션의 유령 정산 방지.
+    revenue = s.credits_charged or 0
     if revenue <= 0:
         return
-    c = db.get(Consultant, s.consultant_id)
-    _p, _d, comm_pct = csvc.effective(db, c) if c else (0, 0, settings_service.get_int(db, "consultation_commission_pct", 20))
+    # 수수료는 요청 시 스냅샷(s.commission_pct) 우선 — in-flight 세션 정산을 요청 시점 조건으로 고정.
+    # 구버전 세션(NULL)만 effective()/전역값으로 폴백.
+    if s.commission_pct is not None:
+        comm_pct = s.commission_pct
+    else:
+        c = db.get(Consultant, s.consultant_id)
+        _p, _d, comm_pct = csvc.effective(db, c) if c else (0, 0, settings_service.get_int(db, "consultation_commission_pct", 20))
     tax_pct = settings_service.get_float(db, "consultation_tax_pct", 3.3)
     calc = csvc.compute_settlement(revenue, comm_pct, tax_pct)
     db.add(
@@ -340,19 +347,21 @@ def _ensure_settlement(db: Session, s: ConsultationSession) -> None:
     )
 
 
-def extend_session(db: Session, session_id: str, user: User, *, locale: str = "ko") -> ConsultationSession:
+def extend_session(db: Session, session_id: str, user: User) -> ConsultationSession:
     """블록 연장 — 동일 단가 추가 차감 + duration 만큼 시간 연장(active 상태만)."""
-    s = db.get(ConsultationSession, session_id)
+    # 행잠금 — 더블클릭/재시도로 동시 연장 시 extended_min read-modify-write lost-update(2P 차감·1블록만 반영) 차단.
+    s = db.get(ConsultationSession, session_id, with_for_update=True)
     if s is None:
-        raise LookupError(msg("session_not_found", locale))
+        raise LookupError("세션을 찾을 수 없어요.")
+    db.refresh(s)  # 락 후 최신값(preload stale 방지 — extended_min/credits_charged lost-update 차단)
     if s.user_id != user.id:
-        raise PermissionError(msg("extend_not_yours", locale))
+        raise PermissionError("본인 상담만 연장할 수 있어요.")
     if s.status != "active":
-        raise ValueError(msg("extend_only_active", locale))
+        raise ValueError("진행 중인 상담만 연장할 수 있어요.")
     try:
         auth_service.adjust_credit(db, user.id, -s.price_p, reason="consultation_extend", ref_id=s.id)
     except ValueError:
-        raise ValueError(msg("extend_insufficient", locale, need=_grp(s.price_p, locale)))
+        raise ValueError(f"포인트가 부족해 연장할 수 없어요. (필요 {s.price_p:,}P)")
     s.extended_min = (s.extended_min or 0) + s.duration_min
     s.credits_charged = (s.credits_charged or 0) + s.price_p
     db.commit()
@@ -413,19 +422,19 @@ def consultant_pending(db: Session, consultant: Consultant) -> list[dict[str, An
     return [session_dict(db, s) for s in rows]
 
 
-def submit_rating(
-    db: Session, session_id: str, user: User, rating: int, *, locale: str = "ko"
-) -> ConsultationSession:
+def submit_rating(db: Session, session_id: str, user: User, rating: int) -> ConsultationSession:
     """사용자 만족도 평점(1~5) — 종료된 본인 상담만. 간판 만족도 집계에 반영."""
     if rating < 1 or rating > 5:
-        raise ValueError(msg("rating_range", locale))
+        raise ValueError("평점은 1~5 사이여야 해요.")
     s = db.get(ConsultationSession, session_id)
     if s is None:
-        raise LookupError(msg("session_not_found", locale))
+        raise LookupError("세션을 찾을 수 없어요.")
     if s.user_id != user.id:
-        raise PermissionError(msg("rating_not_yours", locale))
+        raise PermissionError("본인 상담만 평가할 수 있어요.")
     if s.status != "completed":
-        raise ValueError(msg("rating_only_completed", locale))
+        raise ValueError("종료된 상담만 평가할 수 있어요.")
+    if s.rating is not None:
+        raise ValueError("이미 평가한 상담이에요. 평점은 한 번만 남길 수 있어요.")
     s.rating = int(rating)
     db.commit()
     db.refresh(s)
@@ -496,8 +505,32 @@ def purge_expired(db: Session, *, now: Optional[datetime] = None, limit: int = 1
         if s.pdf_token:
             n_pdf += _delete_pdf(s.pdf_token)
             s.pdf_token = None
+        # A-1 컨텍스트 스냅샷(명식/카드)도 PII — 함께 파기(마스킹). source_kind 는 통계용 보존.
+        if s.source_context is not None:
+            s.source_context = None
         s.purged = True
         n_sess += 1
     if n_sess:
         db.commit()
     return {"sessions": n_sess, "messages": n_msg, "pdfs": n_pdf}
+
+
+def purge_user_consultation_pii(db: Session, user_id: int) -> dict[str, int]:
+    """회원 탈퇴 시 — 해당 회원 상담 세션의 PII(대화·명식/타로 스냅샷·요약PDF)를 즉시 파기(D1/제21조).
+
+    세션·정산 메타는 상담사 정산 목적으로 보존(탈퇴로 user_id 는 SET NULL). purge_expired 와 동일 방식.
+    호출은 db.delete(user) 전에(아직 user_id 가 연결돼 있을 때). commit 은 호출측(delete_me)이 수행."""
+    rows = db.execute(
+        select(ConsultationSession).where(ConsultationSession.user_id == user_id)
+    ).scalars().all()
+    n_msg = n_pdf = 0
+    for s in rows:
+        res = db.execute(delete(ConsultationMessage).where(ConsultationMessage.session_id == s.id))
+        n_msg += int(res.rowcount or 0)
+        if s.pdf_token:
+            n_pdf += _delete_pdf(s.pdf_token)
+            s.pdf_token = None
+        if s.source_context is not None:
+            s.source_context = None
+        s.purged = True
+    return {"sessions": len(rows), "messages": n_msg, "pdfs": n_pdf}

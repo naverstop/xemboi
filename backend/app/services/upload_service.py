@@ -27,6 +27,12 @@ INBOX_DIR = PROJECT_ROOT / "data" / "inbox"
 APPROVED_DIR = PROJECT_ROOT / "data" / "processed" / "uploads"
 LEARN_NEW_DIR = PROJECT_ROOT / "학습자료_new"   # 야간 학습 배치의 PDF OCR 대상 적재소
 
+# 관리자/코퍼스 전용 예약 카테고리 — 회원 제출(공개 엔드포인트)로는 사칭할 수 없어야 한다.
+#   회원이 자신의 업로드를 예약 카테고리로 라벨링해 탈퇴 시 파기(제21조)를 우회하는 것을 차단하기 위해,
+#   회원 제출 경로에서 이 값들을 user_upload 로 강제 치환한다(단일 진실원). zip_import=관리자 zip 일괄,
+#   admin_direct=야간 학습 배치 적재본.
+RESERVED_UPLOAD_CATEGORIES = ("zip_import", "admin_direct")
+
 
 def _safe_title(s: str) -> str:
     return "".join(c if c.isalnum() or c in "._- " else "_" for c in s).strip() or "untitled"

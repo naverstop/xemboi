@@ -1,23 +1,197 @@
 <!doctype html>
-<html lang="vi">
+<html lang="ko">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <title>Xem Bói</title>
+
+    <!-- 첫 페인트 전 테마·JS 감지 (초기 랜딩 깜빡임 방지, 2026-07-30). module(main.tsx)은 defer라
+         첫 페인트 후 실행 → 흰 배경/정적 히어로가 번쩍임 → 여기서 동기 선세팅해 FOUC 제거. -->
+    <script>
+      (function () {
+        var de = document.documentElement;
+        try {
+          var t = localStorage.getItem("saju_theme");
+          var dark = t === "dark" || (!t && window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
+          de.setAttribute("data-theme", dark ? "dark" : "light");
+        } catch (e) {}
+        de.className += (de.className ? " " : "") + "js";
+      })();
+    </script>
+
+    <!-- ── SEO 기본 (외부 오픈 준비 2026-07-29) ───────────────────────────── -->
+    <title>무료 AI 사주·인생상담 | 인생상담 친구</title>
+    <meta name="description" content="무료 AI 사주 풀이와 인생 고민 상담을 친구처럼 편하게. 사주·궁합·작명·타로·신년운세·꿈해몽까지 명리 고서(古書) 기반으로 풀어드려요. 생년월일만 넣으면 성격·운세·올해의 흐름을 바로 확인하세요." />
+    <meta name="keywords" content="사주, 무료사주, AI사주, 무료운세, 사주풀이, 인생상담, 궁합, 작명, 개명, 아호, 타로, 신년운세, 꿈해몽, 운세" />
+    <meta name="robots" content="index, follow, max-image-preview:large" />
+    <meta name="author" content="인생상담 친구" />
+    <link rel="canonical" href="https://saju.songstock.art/" />
+    <!-- Google Search Console 소유확인(HTML 태그 방식, 2026-07-29) -->
+    <meta name="google-site-verification" content="2Zmz4_UsXMKjuQnbUlfsKWjD3_T4rF1sDWPxUFzBuwQ" />
+
+    <!-- ── Open Graph (카카오·페북·SNS 미리보기, P4) ───────────────────────── -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="인생상담 친구" />
+    <meta property="og:locale" content="ko_KR" />
+    <meta property="og:title" content="무료 AI 사주·인생상담 | 인생상담 친구" />
+    <meta property="og:description" content="무료 AI 사주 풀이와 인생 고민 상담을 친구처럼 편하게. 사주·궁합·작명·타로·신년운세까지, 지금 바로 나의 운세를 확인하세요." />
+    <meta property="og:url" content="https://saju.songstock.art/" />
+    <meta property="og:image" content="https://saju.songstock.art/og-image.jpg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="인생상담 친구 — AI 사주·인생상담" />
+
+    <!-- ── Twitter Card ───────────────────────────────────────────────────── -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="무료 AI 사주·인생상담 | 인생상담 친구" />
+    <meta name="twitter:description" content="무료 AI 사주 풀이와 인생 고민 상담을 친구처럼 편하게. 지금 바로 나의 운세를 확인하세요." />
+    <meta name="twitter:image" content="https://saju.songstock.art/og-image.jpg" />
+
+    <!-- ── PWA / 아이콘 ──────────────────────────────────────────────────── -->
     <link rel="manifest" href="/manifest.webmanifest" />
-    <meta name="theme-color" content="#0d9488" />
+    <meta name="theme-color" content="#0496d8" />
     <link rel="icon" type="image/svg+xml" href="/pwa-icon.svg" />
     <link rel="apple-touch-icon" href="/icons/icon-192.png" />
     <link rel="apple-touch-icon" sizes="512x512" href="/icons/icon-512.png" />
-    <link rel="mask-icon" href="/pwa-icon.svg" color="#0d9488" />
+    <link rel="mask-icon" href="/pwa-icon.svg" color="#0496d8" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-    <meta name="apple-mobile-web-app-title" content="Xem Bói" />
-    <script src="https://js.tosspayments.com/v1/payment"></script>
+    <meta name="apple-mobile-web-app-title" content="상담친구" />
+
+    <!-- ── 구조화 데이터(JSON-LD) — 검색엔진 이해도 향상 ────────────────────── -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "WebSite",
+          "@id": "https://saju.songstock.art/#website",
+          "url": "https://saju.songstock.art/",
+          "name": "인생상담 친구",
+          "description": "무료 AI 사주 풀이와 인생 고민 상담 서비스",
+          "inLanguage": "ko-KR"
+        },
+        {
+          "@type": "Organization",
+          "@id": "https://saju.songstock.art/#org",
+          "name": "인생상담 친구",
+          "url": "https://saju.songstock.art/",
+          "logo": "https://saju.songstock.art/icons/icon-512.png"
+        },
+        {
+          "@type": "Service",
+          "name": "AI 사주·인생상담",
+          "serviceType": "사주·명리 AI 상담",
+          "provider": { "@id": "https://saju.songstock.art/#org" },
+          "areaServed": "KR",
+          "description": "생년월일시 기반 사주 풀이와 궁합·작명·타로·신년운세·꿈해몽 상담"
+        },
+        {
+          "@type": "FAQPage",
+          "mainEntity": [
+            {
+              "@type": "Question",
+              "name": "무료로 이용할 수 있나요?",
+              "acceptedAnswer": { "@type": "Answer", "text": "네, 회원가입 후 매일 무료 사주 질문을 제공합니다. 더 깊은 풀이와 부가 메뉴는 포인트로 이용할 수 있어요." }
+            },
+            {
+              "@type": "Question",
+              "name": "어떤 근거로 사주를 풀이하나요?",
+              "acceptedAnswer": { "@type": "Answer", "text": "중국·일본·한국의 명리 고서(古書)와 검증된 자료를 근거로, 천간·지지·지장간·십성·신살·대운까지 정통 관법으로 계산해 풀이합니다." }
+            },
+            {
+              "@type": "Question",
+              "name": "태어난 시간을 모르면 이용할 수 없나요?",
+              "acceptedAnswer": { "@type": "Answer", "text": "태어난 시간을 몰라도 이용할 수 있습니다. 시주를 제외하고 나머지 명식으로 풀이해 드려요." }
+            }
+          ]
+        }
+      ]
+    }
+    </script>
+
+    <style>
+      /* 앱(JS) 로드 전 크롤러·첫 방문자가 보는 정적 히어로. React 마운트 시 교체됨. 시스템 폰트로 즉시 표시. */
+      #seo-hero { max-width: 780px; margin: 0 auto; padding: 40px 20px 64px; color: #1f2937;
+        font-family: "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif; line-height: 1.7; }
+      #seo-hero h1 { font-size: 28px; font-weight: 800; letter-spacing: -.01em; color: #0369a1; margin: 8px 0 6px; }
+      #seo-hero .lead { font-size: 16px; color: #374151; margin: 0 0 22px; }
+      #seo-hero h2 { font-size: 19px; font-weight: 700; color: #0b1324; margin: 30px 0 10px; }
+      #seo-hero ul { margin: 0; padding-left: 20px; }
+      #seo-hero li { margin: 6px 0; }
+      #seo-hero .faq dt { font-weight: 700; margin-top: 14px; }
+      #seo-hero .faq dd { margin: 4px 0 0; color: #374151; }
+      #seo-hero .brand { display: inline-block; font-weight: 800; color: #0496d8; }
+      @media (prefers-color-scheme: dark) { #seo-hero { color: #d7dde7; } #seo-hero h1 { color: #7cc7ee; }
+        #seo-hero h2 { color: #eef2f7; } #seo-hero .lead, #seo-hero .faq dd { color: #aeb6c2; } }
+
+      /* 초기 로딩 깜빡임 방지(2026-07-30): 앱 배경색을 첫 페인트부터 깔고(흰 플래시 제거),
+         JS 환경이면 정적 SEO 히어로를 숨긴 뒤 브랜드 스플래시만 보여준다(텍스트 교체 번쩍임 제거).
+         JS 미실행 크롤러는 .js 클래스가 없어 히어로를 그대로 읽는다(SEO 유지). */
+      html { background: #f7f5f0; }
+      html[data-theme="dark"] { background: #10151b; }
+      html.js #seo-hero { display: none; }
+      #app-splash { display: none; }
+      html.js #app-splash { display: flex; flex-direction: column; align-items: center; justify-content: center;
+        min-height: 100vh; gap: 18px; }
+      #app-splash .sp-logo { font-size: 30px; font-weight: 800; color: #0496d8; letter-spacing: 3px; }
+      #app-splash .sp-spin { width: 34px; height: 34px; border: 3px solid rgba(4, 150, 216, .22);
+        border-top-color: #0496d8; border-radius: 50%; animation: spspin .8s linear infinite; }
+      @keyframes spspin { to { transform: rotate(360deg); } }
+      @media (prefers-reduced-motion: reduce) { #app-splash .sp-spin { animation: none; } }
+    </style>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <!-- 정적 SEO 본문: JS 미실행 크롤러가 읽는 핵심 콘텐츠(P1·P2). React 마운트 시 실제 앱으로 교체된다. -->
+      <main id="seo-hero">
+        <span class="brand">四柱命理 · 인생상담 친구</span>
+        <h1>무료 AI 사주·인생상담 — 내 사주, AI에게 묻다</h1>
+        <p class="lead">중국·일본·한국의 명리 고서(古書)를 토대로 사주를 정통 관법으로 풀어내는 AI 사주·인생상담
+          서비스입니다. 생년월일시만 입력하면 성격·육친·건강과 올해의 흐름을 1:1로 풀이해 드리고, 이어지는 고민도
+          친구처럼 편하게 물어볼 수 있어요.</p>
+
+        <h2>이런 것들을 볼 수 있어요</h2>
+        <ul>
+          <li><strong>사주 상담</strong> — 내 사주로 성격·운세·올해의 흐름을 풀이</li>
+          <li><strong>궁합</strong> — 두 사람의 사주로 관계의 흐름을 분석</li>
+          <li><strong>작명·개명·아호</strong> — 사주의 부족한 오행을 보완하는 이름</li>
+          <li><strong>타로</strong> — 78장의 카드로 보는 지금의 이야기</li>
+          <li><strong>신년운세</strong> — 새해의 월별 흐름과 조언</li>
+          <li><strong>꿈해몽</strong> — 꿈이 전하는 상징 풀이</li>
+        </ul>
+
+        <h2>이용 방법</h2>
+        <ul>
+          <li>1. 생년월일시와 성별을 입력하세요. (태어난 시간을 몰라도 괜찮아요)</li>
+          <li>2. AI가 명식(천간·지지)을 세우고 사주를 정통 관법으로 풀이합니다.</li>
+          <li>3. 궁금한 점을 이어서 자유롭게 물어보세요.</li>
+        </ul>
+
+        <h2>자주 묻는 질문</h2>
+        <dl class="faq">
+          <dt>무료로 이용할 수 있나요?</dt>
+          <dd>네, 회원가입 후 매일 무료 사주 질문을 제공합니다. 더 깊은 풀이와 부가 메뉴는 포인트로 이용할 수 있어요.</dd>
+          <dt>어떤 근거로 사주를 풀이하나요?</dt>
+          <dd>명리 고서(古書)와 검증된 자료를 근거로 천간·지지·지장간·십성·신살·대운까지 계산해 풀이합니다.</dd>
+          <dt>태어난 시간을 모르면 이용할 수 없나요?</dt>
+          <dd>시간을 몰라도 이용할 수 있어요. 시주를 제외하고 나머지 명식으로 풀이해 드립니다.</dd>
+        </dl>
+
+        <p class="lead" style="margin-top:26px">잠시만 기다려 주세요 — 상담 화면을 불러오고 있어요.</p>
+      </main>
+      <!-- JS 사용자용 로딩 스플래시(정적 히어로 대신 표시 → 텍스트 교체 깜빡임 제거). React 마운트 시 함께 제거됨. -->
+      <div id="app-splash" aria-hidden="true">
+        <div class="sp-logo">四柱</div>
+        <div class="sp-spin"></div>
+      </div>
+    </div>
+    <noscript>
+      <p style="max-width:780px;margin:0 auto;padding:20px;font-family:system-ui,sans-serif">
+        인생상담 친구는 무료 AI 사주·인생상담 서비스입니다. 사주·궁합·작명·타로·신년운세·꿈해몽을 명리 고서
+        기반으로 풀이합니다. 이 서비스를 이용하려면 자바스크립트를 켜 주세요.
+      </p>
+    </noscript>
+    <script src="https://js.tosspayments.com/v2/standard"></script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

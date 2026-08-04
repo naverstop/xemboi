@@ -9,7 +9,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from backend.app.core.db import get_db
-from backend.app.core.deps import get_current_user, get_locale, get_optional_user
+from backend.app.core.deps import get_current_user, get_optional_user
 from backend.app.domain.tarot_dto import CreateTarotRequest, TarotMessageRequest, TarotPicksRequest
 from backend.app.repositories import tarot_repo
 from backend.app.repositories.auth_models import User
@@ -36,10 +36,9 @@ def create_tarot(
     req: CreateTarotRequest,
     db: Session = Depends(get_db),
     user: Optional[User] = Depends(get_optional_user),
-    locale: str = Depends(get_locale),
 ) -> dict[str, Any]:
     try:
-        return tarot_service.create_tarot(db, req.section, req.question, user=user, locale=locale)
+        return tarot_service.create_tarot(db, req.section, req.question, user=user)
     except chat_service.SessionLimitError as e:
         # 세션 개수 상한 초과 — chat 과 동일 상태코드(409)+detail("session_limit...").
         # 서비스에서 입장료 차감 '전'에 발생 → 초과 시 과금 없음.
@@ -220,3 +219,27 @@ def delete_tarot_session(
         raise HTTPException(status_code=404, detail="tarot not found")
     except PermissionError as e:
         raise HTTPException(status_code=403, detail=str(e))
+
+
+class TarotBulkDeleteReq(BaseModel):
+    ids: list[str]
+
+
+@router.post("/bulk-delete")
+def bulk_delete_tarot(
+    body: TarotBulkDeleteReq,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> dict[str, int]:
+    """체크한 타로 기록 여러 개를 한 번에 삭제(개별 DELETE 반복의 레이트리밋·부분실패 회피).
+
+    본인 소유만 삭제(타인/없음은 조용히 건너뜀). 삭제 성공 건수를 반환.
+    """
+    deleted = 0
+    for tid in body.ids[:500]:
+        try:
+            if tarot_repo.delete_session(db, tid, user.id):
+                deleted += 1
+        except (KeyError, PermissionError):
+            pass
+    return {"deleted": deleted}

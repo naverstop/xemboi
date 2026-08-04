@@ -141,9 +141,22 @@ class SajuRetriever:
         ).points
 
         if do_rerank and res:
-            # cross-encoder 재점수(sigmoid 0~1) → 관련도 임계 드롭 → (관련도, 신뢰등급) 정렬
-            scores = self._reranker().predict([(query, h.payload["text"]) for h in res])
-            ranked = [(h, float(p)) for h, p in zip(res, scores) if float(p) >= rerank_min_score]
+            # [RAG 전수감사 2026-07-22] 이 분기에 min_score·tier_boosts 가 없어 두 설정이
+            # 죽어 있었다 — min_score 를 0.45→0.99 로 올려도 결과가 완전히 동일했고,
+            # tier1 boost 를 9.9 로 줘도 상위 4건이 그대로였다(감수 자료 우대가 무효).
+            # → dense 하한을 리랭커 앞에서 적용하고, 신뢰등급 가중치를 리랭커 점수에 실제로 더한다.
+            if min_score > 0:
+                res = [h for h in res if h.score >= min_score]
+            scores = self._reranker().predict(
+                [(query, h.payload["text"]) for h in res]) if res else []
+            ranked = []
+            for h, p in zip(res, scores):
+                p = float(p)
+                if p < rerank_min_score:
+                    continue            # 관련도 임계는 원점수로 판정(가중치로 통과시키지 않는다)
+                if tier_boosts is not None:   # 통과한 것들 사이에서만 감수 자료를 우대
+                    p += tier_boosts.get(self._tier(h.payload), tier_boosts.get(2, 0.0))
+                ranked.append((h, p))
             ranked.sort(key=lambda hp: (hp[1], -self._tier(hp[0].payload)), reverse=True)
             res = [h for h, _p in ranked][:top_k]
         else:

@@ -158,6 +158,33 @@ def list_transactions(db: Session, user_id: int, limit: int = 50) -> list[dict[s
     ]
 
 
+def credit_ledger_summary(db: Session, user_id: int) -> dict[str, Any]:
+    """포인트 원장 정합성 요약 — 사용자가 '충전+적립−사용 = 현재 잔액'을 직접 대조(정합성 검증)할 수 있게.
+
+    전체 거래를 집계(목록 limit 과 무관). consistent = (원장 합 == credits.balance).
+    돈에 관한 화면이므로, 표시 잔액과 원장 합이 어긋나면 consistent=False 로 사용자에게 경고 노출.
+    """
+    rows = db.execute(
+        select(CreditTransaction.reason, CreditTransaction.delta)
+        .where(CreditTransaction.user_id == user_id)
+    ).all()
+    PURCHASE = {"purchase", "topup"}
+    purchased = sum(d for r, d in rows if d > 0 and r in PURCHASE)          # 실제 결제 충전
+    rewarded = sum(d for r, d in rows if d > 0 and r not in PURCHASE)       # 보너스·환불·리워드·지급
+    used = -sum(d for r, d in rows if d < 0)                                # 사용(차감) 절대값
+    computed = sum(d for _, d in rows)                                      # 원장 합
+    bal = db.execute(select(Credit.balance).where(Credit.user_id == user_id)).scalar() or 0
+    return {
+        "purchased": int(purchased),
+        "rewarded": int(rewarded),
+        "used": int(used),
+        "balance": int(bal),
+        "computed_balance": int(computed),
+        "consistent": int(bal) == int(computed),
+        "count": len(rows),
+    }
+
+
 def grant_credit(db: Session, user_id: int, delta: int, reason: str = "admin_grant") -> int:
     """관리자가 임의로 크레딧 +/- 조정. 부족 시 ValueError."""
     user = auth_service.get_user_by_id(db, user_id)
@@ -295,6 +322,22 @@ def get_stats(db: Session) -> dict[str, Any]:
         select(func.coalesce(func.sum(Payment.amount), 0)).where(Payment.status == "approved")
     ).scalar_one()
 
+    # 기간별 매출(승인 결제 합) — 결제 시각은 승인시각 우선(없으면 생성시각). 오늘/이번주/이번달/올해.
+    def _rev_since(start: "datetime") -> int:
+        return int(db.execute(
+            select(func.coalesce(func.sum(Payment.amount), 0))
+            .where(Payment.status == "approved")
+            .where(func.coalesce(Payment.approved_at, Payment.created_at) >= start)
+        ).scalar_one())
+
+    week_start = today_start - timedelta(days=today.weekday())          # 이번 주 월요일 00:00
+    month_start = datetime.combine(today.replace(day=1), datetime.min.time())
+    year_start = datetime.combine(date(today.year, 1, 1), datetime.min.time())
+    revenue_today = _rev_since(today_start)
+    revenue_week = _rev_since(week_start)
+    revenue_month = _rev_since(month_start)
+    revenue_year = _rev_since(year_start)
+
     total_balance = db.execute(
         select(func.coalesce(func.sum(Credit.balance), 0))
     ).scalar_one()
@@ -312,5 +355,33 @@ def get_stats(db: Session) -> dict[str, Any]:
         "today_questions": int(today_questions),
         "today_credits_spent": int(today_charged),
         "total_revenue_krw": int(total_revenue),
+        "revenue_today_krw": revenue_today,
+        "revenue_week_krw": revenue_week,
+        "revenue_month_krw": revenue_month,
+        "revenue_year_krw": revenue_year,
         "total_outstanding_credits": int(total_balance),
     }
+
+
+def list_all_payments(db: Session, limit: int = 20, offset: int = 0) -> tuple[list[dict[str, Any]], int]:
+    """전 회원 결제 내역(최신순, 페이지네이션) — 회원 이메일 포함. 관리자 통계 리스트용."""
+    total = db.execute(select(func.count(Payment.id))).scalar_one()
+    rows = db.execute(
+        select(Payment, User.email)
+        .join(User, User.id == Payment.user_id, isouter=True)
+        .order_by(Payment.id.desc())
+        .limit(limit).offset(offset)
+    ).all()
+    items = [
+        {
+            "order_id": p.order_id,
+            "email": email or "(탈퇴/없음)",
+            "amount": int(p.amount or 0),
+            "credit_granted": int(getattr(p, "credit_granted", 0) or 0),
+            "status": p.status,
+            "created_at": p.created_at.isoformat() if p.created_at else None,
+            "approved_at": p.approved_at.isoformat() if p.approved_at else None,
+        }
+        for p, email in rows
+    ]
+    return items, int(total)

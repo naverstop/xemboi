@@ -1,0 +1,64 @@
+{
+  "version": "draft-1 (감수 전)",
+  "note": "작호(作號) 유형 분류. ⚠️출전 표기 주의 — 이규보 「백운거사어록」이 든 것은 세 가지이고, '소처/소지/소우/소축' 네 유형이라는 정리와 그 용어는 현대 연구(강헌규·신용호)의 것이다. '고전이 정한 4법'이라고 쓰면 사칭이 된다. origin 필드가 그 구분을 코드에 남긴다.",
+  "source": "한국민족문화대백과사전 '호' https://encykorea.aks.ac.kr/Article/E0063656",
+  "types": [
+    {
+      "code": "socheo",
+      "name_ko": "소처이호",
+      "name_hanja": "所處以號",
+      "desc": "살거나 인연이 있는 곳에서 호를 취한다",
+      "groups": ["terrain", "dwelling"],
+      "origin": "modern_summary_of_classic",
+      "confidence": "high",
+      "source": "https://encykorea.aks.ac.kr/Article/E0063656"
+    },
+    {
+      "code": "soji",
+      "name_ko": "소지이호",
+      "name_hanja": "所志以號",
+      "desc": "이룬 뜻이나 이루고자 하는 뜻에서 취한다",
+      "groups": ["virtue"],
+      "origin": "modern_addition",
+      "confidence": "high",
+      "source": "https://encykorea.aks.ac.kr/Article/E0063656 (신용호가 더한 유형)"
+    },
+    {
+      "code": "sou",
+      "name_ko": "소우이호",
+      "name_hanja": "所遇以號",
+      "desc": "처한 환경과 여건에서 취한다",
+      "groups": ["direction", "honorific"],
+      "origin": "modern_summary_of_classic",
+      "confidence": "high",
+      "source": "https://encykorea.aks.ac.kr/Article/E0063656"
+    },
+    {
+      "code": "sochuk",
+      "name_ko": "소축이호",
+      "name_hanja": "所蓄以號",
+      "desc": "간직한 것 가운데 특히 아끼는 것에서 취한다",
+      "groups": ["plant", "sky"],
+      "origin": "modern_summary_of_classic",
+      "confidence": "high",
+      "source": "https://encykorea.aks.ac.kr/Article/E0063656"
+    }
+  ],
+  "aux_tags": [
+    {
+      "code": "citation",
+      "name_ko": "전거·차용",
+      "desc": "옛글이나 흠모하는 인물의 호에서 빌려온다",
+      "note": "위 4유형에 없는 보조 태그다 — 공식 분류어가 아님을 밝히고 쓸 것.",
+      "confidence": "medium",
+      "source": "김홍도 단원(이유방 호 차용) https://encykorea.aks.ac.kr/Article/E0011079"
+    }
+  ],
+  "rules": [
+    "호는 자(字)와 달리 스스로 짓는 것이 원칙이며, 스승이나 가까운 벗이 지어 주기도 한다.",
+    "한 사람이 여러 호를 가질 수 있다 — 처지와 시기에 따라 달리 쓴다(정약용, 김정희).",
+    "당호(堂號)는 본래 집의 이름인데 그 집 주인을 가리키게 되어 호처럼 쓰인 것이다.",
+    "자(字)는 관례를 치른 성인에게 웃어른이 지어 주는 호칭으로 호와 다르다.",
+    "시호(諡號)는 죽은 뒤 나라가 내리는 이름이라 살아 있는 사람에게 지어 줄 수 없다."
+  ]
+}

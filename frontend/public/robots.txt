@@ -1,0 +1,13 @@
+# 인생상담 친구 — 크롤러 정책
+User-agent: *
+Allow: /
+
+# 내부·관리·개인 화면은 색인 제외(콘텐츠 가치 없음/민감)
+Disallow: /api/
+Disallow: /admin
+Disallow: /settings
+Disallow: /uploads
+Disallow: /trend
+Disallow: /consultation/console
+
+Sitemap: https://saju.songstock.art/sitemap.xml
