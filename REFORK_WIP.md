@@ -1,6 +1,13 @@
 # 신규 화면 vi 게이팅 잔여 목록 (재분기 자체는 2026-08-05 main 머지·push 완료 — 85bb530)
 아래 '후속' 항목만 남음. 이 파일은 신규 화면 vi 완료 시 삭제.
 
+## PDF 전수감사 잔여(2026-08-05, 감사 w2xkmk9n7 — 심각·high 전부 수정완료, 아래는 med/low 후속)
+- AnswerActions 공유 신형 플로우 문구 다수 KO(한도 alert·카카오 카드·메일 폼 등 — :225·310·356·562-597) → answer.* 키화
+- email PDF 본문/제목 vi 문구(백엔드 분기 지점 마련됨 — 문구 자체 vi 작성)
+- Stable 고스트 폭 재적용 + KO 상수 정리(AnswerActions:22-40)
+- 신규화면 3종(부적·달력·오늘) PDF 메타 키 — 아래 vi 게이팅과 함께
+- [사용자 결정 회부] 공유 채널: 카카오를 vi에서 숨길지 Zalo로 대체할지
+
 ## 우선순위(사용자 가시순)
 1. PrivacyNotice(전 도구 페이지 상단 🔒 안내) 2. TodayPage(오늘의 운세) 3. AmuletPage(부적)
 4. PaymentsPage 내부(패스 카드·포인트 원장 표) 5. InstallPrompt 설치가이드 본문 6. ReviewsPage/ReviewStrip 라벨
