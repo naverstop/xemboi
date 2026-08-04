@@ -133,7 +133,6 @@ export default function AnswerActions({
   const [vidBusy, setVidBusy] = useState(false);
   const [pdfUrl, setPdfUrl] = useState("");   // 생성 완료 시 세팅 → '⤓ PDF 열기' 링크 노출(재생성/팝업차단 없이 열람)
   const { openCharge } = useCharge();
-  const [busy, setBusy] = useState(false);
   const inApp = inAppBrowser();   // 카톡/네이버/인스타 인앱 웹뷰 — Web Share(files) 막힘 → 저장 후 첨부 안내
   // 생성된 PDF 결과 캐시 — 공유/PDF 반복 클릭 시 재생성 방지
   const pdfCache = useRef<{ token: string; url: string; download_url: string; filename: string } | null>(null);
@@ -604,8 +603,8 @@ export default function AnswerActions({
           {copied ? tr("answer.copy_done") : tr("answer.copy_btn")}
         </button>
         <span className="share-wrap">
-          <button className="copy-btn" onClick={onShare} disabled={busy} title={tr("answer.share_title")}>
-            {shared ? tr("answer.share_done") : tr("answer.share_btn")}
+          <button className="copy-btn" onClick={onShare} disabled={shareBusy} title={tr("answer.share_title")}>
+            {shareBusy ? tr("answer.share_busy") : shared ? tr("answer.share_done") : tr("answer.share_btn")}
           </button>
           {menuOpen && (
             <>
@@ -684,8 +683,8 @@ export default function AnswerActions({
             {tr("answer.pdf_open")}
           </a>
         ) : (
-          <button className="copy-btn" onClick={onPdf} disabled={busy} title={tr("answer.pdf_title")}>
-            {busy ? tr("answer.pdf_busy") : tr("answer.pdf_btn")}
+          <button className="copy-btn" onClick={onPdf} disabled={pdfBusy} title={tr("answer.pdf_title")}>
+            {pdfBusy ? tr("answer.pdf_busy") : tr("answer.pdf_btn")}
           </button>
         )}
         {source === "chat" && messageId && (

@@ -41,6 +41,9 @@ export const miscKo = {
   vid_note_retention: "※ 48시간 동안만 보관되며 이후 서버에서 삭제됩니다.",
   vid_note_resave: "저장이 시작되지 않았다면 버튼을 다시 눌러 주세요.",
   save_short: "저장",
+  dl_redownload_confirm: "다시 다운로드 하시겠습니까?", dl_reopen_confirm: "다시 여시겠습니까?",
+  dl_opening: "⏳ 여는 중…", dl_downloading: "⏳ 다운로드 중…",
+  dl_open_done: "✅ 열람 완료 · 다시 열기", dl_done: "✅ 다운로드 완료",
   gen_fail: "생성에 실패했어요. 잠시 후 다시 시도해 주세요.",
 
   // ── DisclaimerGate ──
@@ -121,6 +124,9 @@ export const miscVi: typeof miscKo = {
   vid_note_retention: "※ Video chỉ lưu 48 giờ, sau đó bị xóa khỏi máy chủ.",
   vid_note_resave: "Nếu chưa bắt đầu lưu, hãy bấm nút lần nữa.",
   save_short: "Lưu",
+  dl_redownload_confirm: "Tải xuống lại?", dl_reopen_confirm: "Mở lại?",
+  dl_opening: "⏳ Đang mở…", dl_downloading: "⏳ Đang tải…",
+  dl_open_done: "✅ Đã mở · Mở lại", dl_done: "✅ Đã tải xuống",
   gen_fail: "Tạo thất bại. Vui lòng thử lại sau.",
 
   disc_aria: "Đồng ý tuyên bố miễn trừ",

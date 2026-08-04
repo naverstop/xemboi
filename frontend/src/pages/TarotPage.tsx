@@ -1416,9 +1416,9 @@ export default function TarotPage() {
               {explainText && !explainStreaming && !explainPreview && (
                 <AnswerActions
                   text={(pdfHeader ? pdfHeader.trim() + "\n\n" : "") + stripMarkdown(explainText)}
-                  pdfContent={`[질문] ${sess.question}\n[스프레드] ${spreadLabel} (${sec?.nm || sess.section})\n\n${stripMarkdown(explainText)}`}
+                  pdfContent={`${tr("tarot.pdf_q")} ${sess.question}\n${tr("tarot.pdf_spread")} ${spreadLabel} (${sec?.nm || sess.section})\n\n${stripMarkdown(explainText)}`}
                   tarotCards={(cards || []).map((c) => ({
-                    position_name: c.position_name, name_kr: c.name_kr, name_en: c.name_en,
+                    position_name: posMainName(c), name_kr: cardMainName(c), name_en: c.name_en,
                     orientation: c.orientation, image_url: c.image_url,
                   }))}
                   pdf={{
@@ -1450,7 +1450,7 @@ export default function TarotPage() {
                     {t.role === "assistant" && t.content && !t.is_preview &&
                       !(qStreaming && i === qaTurns.length - 1) && (
                       <AnswerActions
-                        text={`[질문] ${qaTurns[i - 1]?.role === "user" ? qaTurns[i - 1].content : ""}
+                        text={`${tr("tarot.pdf_q")} ${qaTurns[i - 1]?.role === "user" ? qaTurns[i - 1].content : ""}
 
 ${stripMarkdown(t.content)}`}
                         pdf={{
