@@ -60,6 +60,9 @@ function authHeaders(extra?: HeadersInit): HeadersInit {
   const h: Record<string, string> = { ...(extra as any) };
   const t = getToken();
   if (t) h["Authorization"] = `Bearer ${t}`;
+  // 로케일 헤더 — 백엔드 deps.get_locale 가 응답언어/역법 결정. 빈값이면 서버 default_locale.
+  const loc = localStorage.getItem("saju_lang");
+  if (loc) h["X-Locale"] = loc;
   return h;
 }
 

@@ -36,7 +36,7 @@ export async function streamSSE(
   try {
     const resp = await fetch(url, {
       method: "POST",
-      headers: { "Content-Type": "application/json", ...(tok ? { Authorization: `Bearer ${tok}` } : {}) },
+      headers: { "Content-Type": "application/json", ...(tok ? { Authorization: `Bearer ${tok}` } : {}), ...((l => l ? { "X-Locale": l } : {})(localStorage.getItem("saju_lang"))) },
       body: JSON.stringify({ explain_level: "normal", ...body }),
       signal: ctrl.signal,  // 페이지 이탈/워치독 abort → 연결 종료 → 백엔드 disconnect 감지 → LLM(GPU) 즉시 중단
     });
