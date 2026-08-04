@@ -1454,9 +1454,9 @@ export default function TarotPage() {
 
 ${stripMarkdown(t.content)}`}
                         pdf={{
-                          docTitle: `${memberName} 님의 타로 리딩`,
-                          personLine: `${memberName} 님`,
-                          item: ((qaTurns[i - 1]?.role === "user" ? qaTurns[i - 1].content : "") || "타로 추가 질문").slice(0, 40),
+                          docTitle: tr("tarot.pdf_doc", { name: memberName }),
+                          personLine: memberName,
+                          item: ((qaTurns[i - 1]?.role === "user" ? qaTurns[i - 1].content : "") || tr("tarot.pdf_item_q")).slice(0, 40),
                         }}
                         messageId={t.message_id}
                         source="tarot"

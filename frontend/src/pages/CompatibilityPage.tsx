@@ -604,9 +604,9 @@ export default function CompatibilityPage() {
             //   공유되므로 이름/호칭을 넣지 않는다. 특히 상대방(제3자)의 이름은 동의 없이 외부로 나가면
             //   안 됨. 이름 대신 생년(항상 정확)으로만 두 분을 구분한다. (명식 캡션도 동일 정책)
             const yr = (s?: string) => (s || "").split("-")[0];
-            const aDesc = yr(a.birth_date) ? `${yr(a.birth_date)}년생` : "첫 번째 분";
-            const bDesc = yr(b.birth_date) ? `${yr(b.birth_date)}년생` : "두 번째 분";
-            return { docTitle: "두 분의 궁합 종합 감정서", personLine: `${aDesc} · ${bDesc}`, item: "궁합 풀이" };
+            const aDesc = yr(a.birth_date) ? tr("compat.born_year", { yr: yr(a.birth_date) }) : tr("compat.person_first");
+            const bDesc = yr(b.birth_date) ? tr("compat.born_year", { yr: yr(b.birth_date) }) : tr("compat.person_second");
+            return { docTitle: tr("compat.pdf_doc"), personLine: `${aDesc} · ${bDesc}`, item: tr("compat.pdf_item") };
           })()}
           pdfHeader={compatPdfHeader(res)}
           feedbackMsgId={explainMsgId}
