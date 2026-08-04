@@ -165,6 +165,11 @@ def session_dict(db: Session, s: ConsultationSession) -> dict[str, Any]:
         "ended_at": s.ended_at.isoformat() if s.ended_at else None,
         "consent_at": s.consent_at.isoformat() if s.consent_at else None,
         "pdf_token": s.pdf_token,
+        # A-1 상담 컨텍스트(사주 명식/타로 카드 스냅샷) — 상담사 채팅방 패널 렌더용
+        "source_kind": s.source_kind,
+        "source_context": s.source_context,
+        # A-2 예약 전환 세션 여부(선결제·유예 정책 표시용)
+        "reservation_id": s.reservation_id,
     }
 
 
@@ -179,16 +184,31 @@ def is_participant(db: Session, s: ConsultationSession, user: User) -> bool:
 # ───────────────────────── 수명주기 ─────────────────────────
 
 def request_session(
-    db: Session, user: User, consultant_id: int, *, consent: bool = False, locale: str = "ko"
+    db: Session,
+    user: User,
+    consultant_id: int,
+    *,
+    consent: bool = False,
+    source_kind: Optional[str] = None,
+    source_context: Optional[dict] = None,
 ) -> ConsultationSession:
-    """사용자 상담 요청 — 잔액·상담사 확인 후 requested 세션 생성(차감은 수락 시). locale 영속."""
+    """사용자 상담 요청 — 잔액·상담사 확인 후 requested 세션 생성(차감은 수락 시).
+
+    source_kind/source_context: A-1 상담 컨텍스트 스냅샷(사주 명식/타로 카드). API 계층이
+    소유 검증 후 서버측에서 만들어 넘긴다(클라이언트 페이로드 직접 저장 금지)."""
+    # 개인정보 처리(대화 저장·7일 후 파기) 동의는 입장 전 필수 — 서버에서 강제(프론트 우회 차단).
+    if not consent:
+        raise ValueError("대화 저장·7일 후 파기 안내에 동의해야 상담을 신청할 수 있어요.")
     c = db.get(Consultant, consultant_id)
-    if c is None or not c.is_active:
-        raise LookupError(msg("consultant_unavailable", locale))
-    price, dur, _comm = csvc.effective(db, c)
+    # 비활성/숨김(hidden)은 존재하지 않는 것으로 취급, 입점예정(coming_soon)은 신청 불가(서버 권위 게이트).
+    if c is None or not c.is_active or getattr(c, "status", "active") == "hidden":
+        raise LookupError("상담 가능한 상담사가 아니에요.")
+    if getattr(c, "status", "active") == "coming_soon":
+        raise ValueError("아직 오픈 준비 중인 상담사예요. 조금만 기다려 주세요.")
+    price, dur, comm = csvc.effective(db, c)
     bal = auth_service.get_balance(db, user.id)
     if bal < price:
-        raise ValueError(msg("insufficient_points", locale, need=_grp(price, locale), have=_grp(bal, locale)))
+        raise ValueError(f"포인트가 부족해요. (필요 {price:,}P · 보유 {bal:,}P)")
     # 사용자가 이미 진행/대기 중인 세션이 있으면 중복 방지
     active = db.execute(
         select(ConsultationSession).where(
@@ -197,18 +217,21 @@ def request_session(
         )
     ).scalars().first()
     if active is not None:
-        raise ValueError(msg("already_active", locale))
+        raise ValueError("이미 진행 중이거나 대기 중인 상담이 있어요.")
     s = ConsultationSession(
         id=uuid.uuid4().hex,
         user_id=user.id,
         consultant_id=c.id,
         specialty=c.specialty,
-        locale=locale if locale in ("ko", "vi") else "ko",
         status="requested",
         price_p=price,
         duration_min=dur,
+        commission_pct=comm,  # 요청 시 수수료 고정(정산 기준)
+        source_kind=source_kind,
+        source_context=source_context,
         consent_at=_now() if consent else None,
         requested_at=_now(),
+        locale=(locale if locale in ("ko","vi") else "ko"),
     )
     db.add(s)
     db.commit()
@@ -216,47 +239,60 @@ def request_session(
     return s
 
 
-def accept_session(
-    db: Session, session_id: str, consultant: Consultant, *, locale: str = "ko"
-) -> ConsultationSession:
+def accept_session(db: Session, session_id: str, consultant: Consultant, locale: str = "ko") -> ConsultationSession:
     """상담사 수락 — 담당 확인 → 사용자 포인트 선차감 → active. (요건 ⑪ 수락 시 채팅 가능)"""
     s = db.get(ConsultationSession, session_id, with_for_update=True)  # 세션행 잠금 — 동시 cancel/decline 과 직렬화(status resurrection·이중지출 방지)
     if s is None:
-        raise LookupError(msg("request_not_found", locale))
+        raise LookupError("상담 요청을 찾을 수 없어요.")
     if s.consultant_id != consultant.id:
-        raise PermissionError(msg("accept_not_yours", locale))
+        raise PermissionError("본인에게 요청된 상담만 수락할 수 있어요.")
+    # 동일 상담사에 대한 동시 수락을 직렬화 — 상담사 행을 행잠금(FOR UPDATE)해 TOCTOU 더블부킹/이중차감 방지.
+    # (잠금 미획득 상태의 status/busy 검사는 두 accept 가 동시에 통과할 수 있어 레이스가 남음)
+    db.execute(select(Consultant.id).where(Consultant.id == consultant.id).with_for_update()).first()
+    db.refresh(s)  # 잠금 획득 후 최신 커밋 상태로 재평가(선행 accept 가 이미 반영됐을 수 있음)
     if s.status != "requested":
-        raise ValueError(msg("already_handled", locale))
+        raise ValueError("이미 처리되었거나 만료된 요청이에요.")
+    # 1:1 실시간 상담 — 이미 진행 중(active)인 다른 상담이 있으면 수락 불가(더블부킹·이중 선차감 방지).
+    busy = db.execute(
+        select(ConsultationSession.id).where(
+            ConsultationSession.consultant_id == consultant.id,
+            ConsultationSession.status == "active",
+            ConsultationSession.id != s.id,
+        )
+    ).first()
+    if busy is not None:
+        raise ValueError("이미 다른 상담을 진행 중이에요. 종료 후 수락해 주세요.")
     # 선차감(원자적). 잔액 부족이면 요청 취소 처리.
-    try:
-        auth_service.adjust_credit(db, s.user_id, -s.price_p, reason="consultation", ref_id=s.id)
-    except ValueError:
-        s.status = "cancelled"
-        db.commit()
-        raise ValueError(msg("user_insufficient", locale))
+    # A-2 예약 전환 세션(credits_charged>0)은 예약 시 이미 선결제(홀드) — 재차감 금지.
+    if not s.credits_charged:
+        try:
+            auth_service.adjust_credit(db, s.user_id, -s.price_p, reason="consultation", ref_id=s.id)
+        except ValueError:
+            s.status = "cancelled"
+            db.commit()
+            raise ValueError("사용자 포인트가 부족해 상담을 시작할 수 없어요.")
+        s.credits_charged = s.price_p
     now = _now()
     s.status = "active"
     s.accepted_at = now
     s.started_at = now
-    s.credits_charged = s.price_p
     consultant.presence = "busy"  # 상담 중 — 사용자 리스트에 '상담중' 표기(요건 ⑫)
     db.commit()
     db.refresh(s)
     return s
 
 
-def decline_session(
-    db: Session, session_id: str, consultant: Consultant, *, locale: str = "ko"
-) -> ConsultationSession:
+def decline_session(db: Session, session_id: str, consultant: Consultant, *, locale: str = "ko") -> ConsultationSession:
     """상담사 거절 — requested 상태에서만. 즉시 상담은 차감 전이라 환불 불필요,
     예약 전환 세션(선결제)은 전액 환불."""
     s = db.get(ConsultationSession, session_id, with_for_update=True)  # 동시 취소/거절 직렬화(이중환불 차단)
     if s is None:
-        raise LookupError(msg("request_not_found", locale))
+        raise LookupError("상담 요청을 찾을 수 없어요.")
     db.refresh(s)  # 락 후 최신값(preload stale 방지)
     if s.consultant_id != consultant.id:
-        raise PermissionError(msg("process_not_yours", locale))
+        raise PermissionError("본인에게 요청된 상담만 처리할 수 있어요.")
     if s.status == "requested":
+        _refund(db, s, 1.0, reason="consultation_reserve_refund")  # 선결제 없으면 no-op(멱등)
         s.status = "cancelled"
         db.commit()
         db.refresh(s)
@@ -388,11 +424,17 @@ def _ensure_settlement(db: Session, s: ConsultationSession) -> None:
     ).scalars().first()
     if exists is not None:
         return
-    revenue = s.credits_charged or s.price_p
+    # 실제 차감액(credits_charged)만 매출로 인정 — price_p 폴백 제거(D4): 미결제 세션의 유령 정산 방지.
+    revenue = s.credits_charged or 0
     if revenue <= 0:
         return
-    c = db.get(Consultant, s.consultant_id)
-    _p, _d, comm_pct = csvc.effective(db, c) if c else (0, 0, settings_service.get_int(db, "consultation_commission_pct", 20))
+    # 수수료는 요청 시 스냅샷(s.commission_pct) 우선 — in-flight 세션 정산을 요청 시점 조건으로 고정.
+    # 구버전 세션(NULL)만 effective()/전역값으로 폴백.
+    if s.commission_pct is not None:
+        comm_pct = s.commission_pct
+    else:
+        c = db.get(Consultant, s.consultant_id)
+        _p, _d, comm_pct = csvc.effective(db, c) if c else (0, 0, settings_service.get_int(db, "consultation_commission_pct", 20))
     tax_pct = settings_service.get_float(db, "consultation_tax_pct", 3.3)
     calc = csvc.compute_settlement(revenue, comm_pct, tax_pct)
     db.add(
@@ -536,6 +578,25 @@ def _delete_pdf(token: str) -> int:
     return n
 
 
+def purge_user_consultation_pii(db: Session, user_id: int) -> dict[str, int]:
+    """회원 탈퇴 시 — 해당 회원 상담 세션의 PII(대화·명식/타로 스냅샷·요약PDF)를 즉시 파기(D1/제21조).
+
+    세션·정산 메타는 상담사 정산 목적으로 보존(탈퇴로 user_id 는 SET NULL). purge_expired 와 동일 방식.
+    호출은 db.delete(user) 전에(아직 user_id 가 연결돼 있을 때). commit 은 호출측(delete_me)이 수행."""
+    rows = db.execute(
+        select(ConsultationSession).where(ConsultationSession.user_id == user_id)
+    ).scalars().all()
+    n_msg = n_pdf = 0
+    for s in rows:
+        res = db.execute(delete(ConsultationMessage).where(ConsultationMessage.session_id == s.id))
+        n_msg += int(res.rowcount or 0)
+        if s.pdf_token:
+            n_pdf += _delete_pdf(s.pdf_token)
+            s.pdf_token = None
+        if s.source_context is not None:
+            s.source_context = None
+        s.purged = True
+    return {"sessions": len(rows), "messages": n_msg, "pdfs": n_pdf}
 def purge_expired(db: Session, *, now: Optional[datetime] = None, limit: int = 1000) -> dict[str, int]:
     """보관기간(consultation_retention_days, 기본 7일) 지난 상담의 대화·요약 PDF를 **완전 파기**.
 
@@ -569,8 +630,13 @@ def purge_expired(db: Session, *, now: Optional[datetime] = None, limit: int = 1
         if s.pdf_token:
             n_pdf += _delete_pdf(s.pdf_token)
             s.pdf_token = None
+        # A-1 컨텍스트 스냅샷(명식/카드)도 PII — 함께 파기(마스킹). source_kind 는 통계용 보존.
+        if s.source_context is not None:
+            s.source_context = None
         s.purged = True
         n_sess += 1
     if n_sess:
         db.commit()
     return {"sessions": n_sess, "messages": n_msg, "pdfs": n_pdf}
+
+
