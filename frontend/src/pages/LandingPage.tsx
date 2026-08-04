@@ -4,6 +4,7 @@ import { Trans, useTranslation } from "react-i18next";
 import { Link, useNavigate } from "react-router-dom";
 import { api, useMe, type TrustStats } from "../api";
 import { entryCost, type EntryMenu } from "../lib/entryFee";
+import { fmtMoney } from "../lib/money";
 import { Ic, type IcName } from "../components/icons";
 import { zodiacStripKeys } from "../lib/zodiacAvatar";
 import MyeongriWheel from "../components/MyeongriWheel";
@@ -125,39 +126,23 @@ const Sinny = () => (<SVG bg="#fdf3e7">{defs("sy", "#F6B352", "#E2574C")}
 </SVG>);
 
 // B-2 오늘의 운세 폴백 아트 — 아침 해 + 일진 카드
-const TodayArt = () => (<SVG bg="#fff7e8">{defs("td", "#F6B352", "#0496d8")}
+const TodayArt = () => (<SVG bg="#fff7e8">{defs("td", "#F6B352", "#0d9488")}
   <circle cx="160" cy="128" r="52" fill="#F6B352" opacity=".9" />
   <rect x="0" y="128" width="320" height="72" fill="#fff" opacity=".6" />
   {[0, 1, 2, 3, 4].map((i) => (
     <line key={i} x1={160} y1={128} x2={160 + Math.cos((i * 36 - 90) * Math.PI / 180) * 78} y2={128 + Math.sin((i * 36 - 90) * Math.PI / 180) * 78} stroke="#F6B352" strokeWidth="3" opacity=".45" strokeLinecap="round" transform={`rotate(${i * 8 - 16} 160 128)`} />
   ))}
   <rect x="118" y="60" width="84" height="104" rx="10" fill="#fff" stroke="#e8dcc4" strokeWidth="2" transform="rotate(-4 160 112)" />
-  <text x="158" y="106" textAnchor="middle" fontSize="30" fontWeight="800" fill="#0496d8" transform="rotate(-4 160 112)">今日</text>
+  <text x="158" y="106" textAnchor="middle" fontSize="30" fontWeight="800" fill="#0d9488" transform="rotate(-4 160 112)">今日</text>
   <text x="158" y="140" textAnchor="middle" fontSize="14" fontWeight="700" fill="#B03A2E" transform="rotate(-4 160 112)">壬午</text>
 </SVG>);
 
-type Feat = { key: string; to: string; badge: string; title: string; desc: string; bullets: string[]; art: JSX.Element; icon: IcName; cta: string; menu?: EntryMenu };
-const FEATURES: Feat[] = [
-  { key: "today", to: "/today", badge: "오늘의 운세", title: "매일 아침, 오늘의 기운 확인",
-    desc: "오늘 일진과 내 일간의 십성·충합을 매일 무료로 계산해 드려요.",
-    bullets: ["매일 바뀌는 일진 풀이", "행운의 색·방위", "아침 8시 알림(선택)"], art: <TodayArt />,
-    icon: "calendar", cta: "오늘 운세 보기 (무료)" },
-  { key: "sang", to: "/chat", badge: "사주 상담", title: "내 사주, AI에게 묻다",
-    desc: "생년월일만 넣으면 성격·운세·올해의 흐름까지 1:1로 풀어드려요.",
-    bullets: ["명식·오행 근거 기반 풀이", "이어지는 추가 질문", "초보도 쉬운 풀이 모드"], art: <Sang />,
-    icon: "chat", cta: "무료 사주상담 시작" },
-  { key: "gunghap", to: "/compatibility", badge: "궁합", title: "두 사람의 인연을 사주로",
-    desc: "두 사주를 합·충·오행·신살로 비교해 궁합 점수와 해설을 보여드려요.",
-    bullets: ["펜타곤 시각화", "정답 없는 다관법 제시", "전체 평균과 비교"], art: <Gung />,
-    icon: "heart", cta: "궁합 보기", menu: "compat" },
-  { key: "taekil", to: "/taekil", badge: "택일", title: "좋은 날을 가리다",
-    desc: "혼인·이사·개업·계약… 목적에 맞는 길일을 기간에서 골라드려요.",
-    bullets: ["황도흑도·건제십이신", "내 사주와 충·형 회피", "관법별 추천 1위 비교"], art: <Taek />,
-    icon: "calendar", cta: "택일 하기", menu: "taekil" },
-  { key: "tarot", to: "/tarot", badge: "타로", title: "카드가 전하는 오늘의 답",
-    desc: "78장 가운데 직접 뽑은 카드로 연애·재물·선택의 갈림길을 읽어드려요.",
-    bullets: ["말굽 7장 · 켈틱 크로스 11장", "직접 뽑는 카드, 정·역방향", "포지션별 해석과 구체적 조언"], art: <Taro />,
-    icon: "tarot", cta: "타로 보기", menu: "tarot" },
+const FEATURES: { key: string; to: string; art: JSX.Element; icon: IcName; menu?: EntryMenu }[] = [
+  { key: "today", to: "/today", art: <TodayArt />, icon: "calendar" },
+  { key: "sang", to: "/chat", art: <Sang />, icon: "chat" },
+  { key: "gunghap", to: "/compatibility", art: <Gung />, icon: "heart", menu: "compat" },
+  { key: "taekil", to: "/taekil", art: <Taek />, icon: "calendar", menu: "taekil" },
+  { key: "tarot", to: "/tarot", art: <Taro />, icon: "tarot", menu: "tarot" },
 ];
 
 const FAQ = [
@@ -196,19 +181,20 @@ function FeatImg({ k, art }: { k: string; art: JSX.Element }) {
 /** B-5 신뢰 지표 — 전부 DB 실측값. 표본이 작으면(콜드스타트) 항목/전체를 숨긴다.
  *  운영자 결정(2026-07): 히어로 본문의 외딴 카드 → 우하단 1:1 상담 버튼 '위' 플로팅 배지로 이동. */
 function TrustStrip() {
+  const { t } = useTranslation();
   const [s, setS] = useState<TrustStats | null>(null);
   useEffect(() => {
     api.trustStats().then(setS).catch(() => {});
   }, []);
   if (!s) return null;
   const items: { num: string; label: string }[] = [];
-  if (s.consultations >= 50) items.push({ num: s.consultations.toLocaleString(), label: "누적 상담" });
+  if (s.consultations >= 50) items.push({ num: s.consultations.toLocaleString(), label: t("landing.trust_consult") });
   if (s.satisfaction_pct != null && s.feedback_votes >= 20)
-    items.push({ num: `${s.satisfaction_pct}%`, label: "만족도" });
-  if (s.reviews >= 5) items.push({ num: s.reviews.toLocaleString(), label: "이용 후기" });
+    items.push({ num: `${s.satisfaction_pct}%`, label: t("landing.trust_sat") });
+  if (s.reviews >= 5) items.push({ num: s.reviews.toLocaleString(), label: t("landing.trust_reviews") });
   if (!items.length) return null;
   return (
-    <div className="lp-trust-float" aria-label="서비스 이용 지표">
+    <div className="lp-trust-float" aria-label={t("landing.trust_aria")}>
       {items.map((it) => (
         <div className="lp-trust-item" key={it.label}>
           <b>{it.num}</b>
@@ -229,12 +215,12 @@ export default function LandingPage() {
       <section className="lp-hero">
         <div className="lp-hero-inner">
           <div className="lp-hero-text">
-            <span className="lp-eyebrow">사주·명리 AI</span>
-            <h1>사주로 풀어보는 나의 길</h1>
-            <p>상담·궁합·택일·작명까지. 명리 규칙과 AI가 근거와 함께 풀어드려요. 아래에서 원하는 기능을 골라보세요.</p>
+            <span className="lp-eyebrow">{t("landing.eyebrow")}</span>
+            <h1>{t("landing.hero_title")}</h1>
+            <p>{t("landing.hero_sub")}</p>
             <div className="lp-hero-cta">
               <button className="lp-btn-primary lp-btn-hero" onClick={() => navigate("/chat")}>
-                <span className="lp-btn-ic" aria-hidden><Ic name="chat" size={19} /></span> 무료로 시작하기
+                <span className="lp-btn-ic" aria-hidden><Ic name="chat" size={19} /></span> {t("landing.cta_start")}
               </button>
             </div>
             {me ? (
@@ -267,18 +253,18 @@ export default function LandingPage() {
           <Link key={f.key} to={f.to} className={`feat-section ${i % 2 ? "reverse" : ""}`}>
             <FeatImg k={f.key} art={f.art} />
             <div className="fs-text">
-              <span className="fs-badge">{f.badge}</span>
-              <h3>{f.title}</h3>
-              <p>{f.desc}</p>
+              <span className="fs-badge">{t(`landing.fc.${f.key}.badge`)}</span>
+              <h3>{t(`landing.fc.${f.key}.title`)}</h3>
+              <p>{t(`landing.fc.${f.key}.desc`)}</p>
               <ul className="fs-bullets">
-                {f.bullets.map((b, j) => <li key={j}>{b}</li>)}
+                {(t(`landing.fc.${f.key}.bullets`, { returnObjects: true }) as string[]).map((b, j) => <li key={j}>{b}</li>)}
               </ul>
               {f.menu ? (
-                <span className="fs-fee">💎 입장 {entryCost(me, f.menu).toLocaleString()}P <em>· 추가 질문 별도</em></span>
+                <span className="fs-fee">{t("landing.fee_entry", { cost: fmtMoney(entryCost(me, f.menu)) })} <em>{t("landing.fee_extra")}</em></span>
               ) : (
-                <span className="fs-fee fs-fee-free">🆓 무료로 시작</span>
+                <span className="fs-fee fs-fee-free">{t("landing.fee_free")}</span>
               )}
-              <span className="fs-cta"><span className="fs-cta-ic" aria-hidden><Ic name={f.icon} size={17} /></span>{f.cta} →</span>
+              <span className="fs-cta"><span className="fs-cta-ic" aria-hidden><Ic name={f.icon} size={17} /></span>{t(`landing.fc.${f.key}.cta`)} →</span>
             </div>
           </Link>
         ))}
@@ -286,14 +272,14 @@ export default function LandingPage() {
 
       {/* B-3 이용 후기 — 승인된 후기가 있을 때만 렌더 */}
       <section className="lp-section">
-        <ReviewStrip title="이용자 후기" limit={12} />
+        <ReviewStrip title={t("landing.reviews_title")} limit={12} />
       </section>
 
       {/* 무료 안내 CTA */}
       <section className="lp-cta-band">
-        <h2>지금 무료로 시작해 보세요</h2>
-        <p>비로그인 미리보기로 먼저 확인하고, 로그인하면 무료 질문을 받을 수 있어요.</p>
-        <button className="lp-btn-primary lg" onClick={() => navigate("/chat")}>사주 상담 시작</button>
+        <h2>{t("landing.cta2_title")}</h2>
+        <p>{t("landing.cta2_sub")}</p>
+        <button className="lp-btn-primary lg" onClick={() => navigate("/chat")}>{t("landing.cta2_btn")}</button>
       </section>
 
       {/* FAQ */}

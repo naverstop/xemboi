@@ -265,7 +265,7 @@ export default function App() {
           {/* 앱 설치 — 다른 메뉴와 동일 UI(FLUX 메달리온 아이콘) · 스누즈 무관 상시 진입점 */}
           <button type="button" className="app-install-btn"
                   onClick={() => { setNavOpen(false); window.dispatchEvent(new CustomEvent("saju:open-install-guide")); }}>
-            <MenuIc k="install" ic="bolt" /> 앱 설치
+            <MenuIc k="install" ic="bolt" /> {tr("nav.install")}
           </button>
           {/* 입점 신청 — 일반 사용자에겐 비노출(운영자 지시): 신청 이력자·상담사·관리자만 */}
           {showPartnerMenu && (
@@ -429,17 +429,17 @@ export default function App() {
       {/* 앱 설치 플로팅 — 좌하단(1:1 상담과 대칭). 설치 완료 시 자동 숨김.
           드로어(사이드바) 열림 중에는 숨김 — 사이드바 하단 로그인 버튼과 겹침 방지(드로어에 '앱 설치' 메뉴 있음). */}
       {showInstallFab && !navOpen && (
-        <button className="install-fab" aria-label="앱으로 설치하기"
+        <button className="install-fab" aria-label={tr("nav.install")}
                 onClick={() => window.dispatchEvent(new CustomEvent("saju:open-install-guide"))}>
           <span className="install-fab-ic" aria-hidden>📲</span>
-          <span className="install-fab-tx">앱 설치</span>
+          <span className="install-fab-tx">{tr("nav.install")}</span>
         </button>
       )}
       {/* 설치 완료(또는 이미 앱)면 '앱 설치'가 사라진 자리에 '공유' FAB — 친구에게 설치유도 링크 전달(운영자 지시) */}
       {!showInstallFab && !navOpen && <ShareFab />}
-      <button className="consult-fab" onClick={() => { setConsultSource(null); setConsultOpen(true); }} aria-label="1:1 상담하기">
+      <button className="consult-fab" onClick={() => { setConsultSource(null); setConsultOpen(true); }} aria-label={tr("consult.fab")}>
         <span className="consult-fab-ic" aria-hidden>💬</span>
-        <span className="consult-fab-tx">1:1 상담</span>
+        <span className="consult-fab-tx">{tr("consult.fab")}</span>
       </button>
       <ConsultationOverlay
         open={consultOpen}
