@@ -298,6 +298,12 @@ class Settings(BaseSettings):
     rate_limit_auth_per_min: int = 10
     rate_limit_default_per_min: int = 120
 
+    # PDF '생성'(POST /api/pdf/*) 전용 — 미로그인 반복 생성으로 디스크 채우는 남용 방지.
+    # 정상 사용(상담서·감정서·메일발송)은 분당 몇 회면 충분. 열람(GET)은 default.
+    rate_limit_pdf_per_min: int = 6
+    # 관리자 회원 PII 조회(목록/상세/거래/결제) 전용 저한도 — 대량 페이징 전수수집·내부자 남용 억제.
+    rate_limit_admin_per_min: int = 20
+
     # JWT Refresh
     refresh_token_bytes: int = 48
 
@@ -349,6 +355,9 @@ class Settings(BaseSettings):
     idle_warn_sec: int = 60
     # 답변 공유 무료 횟수(계획 7.2 K) — Level5(비로그인) 제외 전 회원
     share_quota_default: int = 5
+    # 공유용 상담서 PDF(data/pdf/{token}.pdf) 보관일수 — 링크공유 대비 개인정보/용량 보호.
+    # 이 기간 지난 파일은 스케줄러(04:25)가 정리. 링크는 그 전까지만 유효.
+    pdf_share_ttl_days: int = 30
     # 다중 사주 프로필 최대 개수(계획 7-D.2)
     max_profiles_per_user: int = 10
     # 연간회원(Level2) 이용기간: 1년 + 1개월 보너스(계획 5.1)

@@ -72,6 +72,10 @@ _F = "MalgunKR"
 _FB = "MalgunKRBold"  # <b> 볼드 렌더용(맑은고딕 볼드) — 본문 마크다운 강조에 사용
 _FT = "BatangKR"     # 제목·대상(명조 격식)
 _FS = "GungsuhKR"    # 관인 폴백 폰트(궁서체)
+_F_VI = "XemBoiViet"      # vi 본문(Be Vietnam Pro) — 베트남어 성조 글리프 전체 커버
+_FB_VI = "XemBoiVietBold"
+# PDF 활성 로케일 — generate_*(locale=) 가 설정. vi 면 _font()가 vi 폰트로 매핑(한자 지점은 _font_hanja).
+_ACTIVE_LOCALE = "ko"
 
 # 관인 이미지(「相談紙印」 상담지인) — scripts/gen_seal.py 로 생성. 있으면 이걸 날인.
 _SEAL_IMG = Path(__file__).resolve().parent / "assets" / "seal.png"
@@ -459,7 +463,9 @@ def _register_fonts() -> bool:
                 pass
         _FONTS_OK = True
         _warn_if_no_hanja(str(d / normal))
+        _register_vi_fonts()
         return _FONTS_OK
+    _register_vi_fonts()
     _FONTS_OK = False
     logging.getLogger("saju.pdf").error(
         "PDF 한글 폰트를 찾지 못했습니다. 리눅스라면 한자까지 있는 CJK 폰트를 설치하세요"
@@ -480,7 +486,31 @@ def _warn_if_no_hanja(path: str) -> None:
         pass
 
 
+
+_VI_FONT_DIR = Path(__file__).resolve().parent / "assets" / "fonts"
+
+
+def _register_vi_fonts() -> None:
+    """vi(베트남어) 본문 폰트 등록 — Be Vietnam Pro(성조 글리프 96/96). 실패해도 ko 체인 무영향."""
+    try:
+        if _F_VI not in pdfmetrics.getRegisteredFontNames():
+            pdfmetrics.registerFont(TTFont(_F_VI, str(_VI_FONT_DIR / "BeVietnamPro-Regular.ttf")))
+            pdfmetrics.registerFont(TTFont(_FB_VI, str(_VI_FONT_DIR / "BeVietnamPro-Bold.ttf")))
+            pdfmetrics.registerFontFamily(_F_VI, normal=_F_VI, bold=_FB_VI, italic=_F_VI, boldItalic=_FB_VI)
+    except Exception:  # noqa: BLE001
+        logging.getLogger("saju.pdf").warning("vi PDF 폰트(BeVietnamPro) 등록 실패 — vi 성조가 인쇄에서 빠질 수 있음")
+
 def _font(name: str) -> str:
+    # vi 활성 시 본문/제목/볼드를 vi 폰트로 매핑(등록돼 있을 때만). 간지·한자 지점은 _font_hanja 사용.
+    if _ACTIVE_LOCALE == "vi" and _F_VI in pdfmetrics.getRegisteredFontNames():
+        vi_map = {_F: _F_VI, _FB: _FB_VI, _FT: _FB_VI, _FS: _F_VI}
+        name = vi_map.get(name, name)
+    return name if name in pdfmetrics.getRegisteredFontNames() else (
+        _F_VI if _ACTIVE_LOCALE == "vi" and _F_VI in pdfmetrics.getRegisteredFontNames() else _F)
+
+
+def _font_hanja(name: str) -> str:
+    """간지·한자 전용 해석 — 로케일 무관 KO 체인(맑은고딕 등, 한자 글리프 보유)."""
     return name if name in pdfmetrics.getRegisteredFontNames() else _F
 
 
@@ -609,19 +639,26 @@ _PDF_GLYPH_FALLBACK = {"⚠": "※", "✓": "√", "✔": "√"}
 _ASCII_OK = set(range(0x20, 0x7F))
 
 
-@lru_cache(maxsize=1)
+_CP_CACHE: dict[str, frozenset[int]] = {}
+
+
 def _font_codepoints() -> frozenset[int]:
     """본문 글꼴이 실제로 그릴 수 있는 코드포인트 집합. 실패하면 빈 집합(=검사 생략).
 
     reportlab 이 폰트를 등록하며 이미 파싱해 둔 cmap(charToGlyph)을 그대로 쓴다 —
     별도 의존성(fontTools) 없이, 실제로 렌더에 쓰일 바로 그 폰트를 근거로 판정한다.
     """
+    key = _ACTIVE_LOCALE
+    if key in _CP_CACHE:
+        return _CP_CACHE[key]
     try:
         _register_fonts()
         face = getattr(pdfmetrics.getFont(_font(_F)), "face", None)
-        return frozenset(getattr(face, "charToGlyph", {}) or {})
+        cps = frozenset(getattr(face, "charToGlyph", {}) or {})
     except Exception:  # noqa: BLE001 — 글리프 검사는 부가 기능
-        return frozenset()
+        cps = frozenset()
+    _CP_CACHE[key] = cps
+    return cps
 
 
 def _sub_missing_glyphs(t: str) -> str:
@@ -704,6 +741,7 @@ def generate_consultation_pdf(
     saju_caption: str = "",
     tarot_cards: list[dict] | None = None,
     compat: dict | None = None,
+    locale: str = "ko",
 ) -> bytes:
     """상담서 PDF(bytes). 내용이 길면 자동으로 2·3장으로 연결된다.
 
@@ -713,6 +751,8 @@ def generate_consultation_pdf(
     compat(궁합)가 있으면 두 사람의 명식 2개 + 5요소 펜타곤을 넣는다(운영자 지적 #12).
     형식: {"a_chart","a_cap","b_chart","b_cap","factors":[(라벨,점수)...]}. 기본 None → 하위호환.
     """
+    global _ACTIVE_LOCALE
+    _ACTIVE_LOCALE = "vi" if locale == "vi" else "ko"   # 폰트 매핑·글리프 검사 기준
     _register_fonts()
     # 심층 방어 — 인쇄물은 되돌릴 수 없으므로 렌더러가 스스로 정리한다(전수감사 실측: 종합 감정서
     # 경로가 정리 체인을 안 타 '---' 5줄과 십성 한자 단독 '劫財'가 그대로 인쇄됐다). 체인은 멱등이라

@@ -206,6 +206,7 @@ def create_consultation_pdf(
     req: ConsultationPdfReq,
     db: Session = Depends(get_db),
     user: Optional[User] = Depends(get_optional_user),
+    locale: str = Depends(get_locale),
 ) -> ConsultationPdfResp:
     chart, caption, consult_date = _session_chart(db, req.session_id, user)
     compat, compat_date = _compat_data(db, req.compat_id, user)
@@ -216,6 +217,7 @@ def create_consultation_pdf(
             when=_parse_when(req.when) or consult_date or compat_date,  # 명시값 → 세션/궁합 상담일 → 오늘
             saju_chart=chart, saju_caption=caption,
             tarot_cards=req.tarot_cards, compat=compat,
+            locale=("vi" if (locale or "").startswith("vi") else "ko"),
         )
     except Exception as e:  # noqa: BLE001
         raise HTTPException(status_code=500, detail=f"pdf_generation_failed: {e}")
@@ -265,6 +267,7 @@ def create_consultation_report(
             item=req.item, content=body,
             when=_parse_when(req.when) or consult_date,  # 명시값 우선 → 세션 상담일 → (None이면 오늘)
             saju_chart=chart, saju_caption=caption,
+            locale=loc,
         )
     except Exception as e:  # noqa: BLE001
         raise HTTPException(status_code=500, detail=f"pdf_generation_failed: {e}")
