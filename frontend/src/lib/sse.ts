@@ -36,7 +36,13 @@ export async function streamSSE(
   try {
     const resp = await fetch(url, {
       method: "POST",
-      headers: { "Content-Type": "application/json", ...(tok ? { Authorization: `Bearer ${tok}` } : {}), ...((l => l ? { "X-Locale": l } : {})(localStorage.getItem("saju_lang"))) },
+      headers: (() => {
+        const h: Record<string, string> = { "Content-Type": "application/json" };
+        if (tok) h["Authorization"] = `Bearer ${tok}`;
+        const l = localStorage.getItem("saju_lang");
+        if (l) h["X-Locale"] = l;   // 스트림 경로도 로케일 동봉(생성 row locale과 이중 안전)
+        return h;
+      })(),
       body: JSON.stringify({ explain_level: "normal", ...body }),
       signal: ctrl.signal,  // 페이지 이탈/워치독 abort → 연결 종료 → 백엔드 disconnect 감지 → LLM(GPU) 즉시 중단
     });
