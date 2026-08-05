@@ -1353,7 +1353,13 @@ _SINNYEON_VOCAB_FIXES = [
     (_re.compile(r"기운들께서"), "기운들이"),
     (_re.compile(r"싱크로율"), "궁합"),                # '싱크로율이 맞아'→'궁합이 맞아'(받침ㅂ→조사 정상·명리 용어)
     (_re.compile(r"싱크(?=\s|를|가|는|이|$)"), "기운"),   # '편재 싱크' 등 정체불명어
+    (_re.compile(r"동僚"), "동료"), (_re.compile(r"或者是"), "또는"),   # 한자혼입 흔한 케이스
 ]
+# 중국어 구두점 → 한국어/표준(약모델이 열거에 、, 문장부호에 ，。 등을 씀).
+_ZH_PUNCT = str.maketrans({"、": "·", "，": ", ", "。": ". ", "？": "?", "！": "!", "：": ": ", "；": "; "})
+# 영어 코드스위칭 절 — 4+ 연속 영단어(앞 em-dash/구분자, 내부 em-dash·쉼표 허용). 신년운세 서술에 영문
+#   4단어↑는 약모델이 중간에 영어로 설명해버린 오염뿐이라 통째로 제거한다(원포인트 교정, 재생성 아님).
+_ENG_CLAUSE = _re.compile(r"\s*[—–\-]?\s*(?:[A-Za-z][A-Za-z'’\-]*[ ,—–]+){3,}[A-Za-z][A-Za-z'’\-]*[ .]*")
 
 
 def _has_chinese_only(line: str) -> bool:
@@ -1434,7 +1440,8 @@ def _parse_month_narratives(raw: str) -> tuple[dict[int, str], str]:
                     if int(_ml.group(1)) != n:
                         body = body[:_ml.start()].strip()
                         break
-                if body:
+                # 같은 달이 두 번 나오면(모델 중복 생성) '더 긴 서술'을 채택 — 중복 마커 누출·짧은 폴백 방지.
+                if body and len(body) > len(result.get(n, "")):
                     result[n] = body
     return result, closing
 
@@ -1513,13 +1520,17 @@ def _assemble_sinnyeon_domains(row: ToolSession, raw: str) -> str:
 
 
 def _fix_sinnyeon_vocab(text: str) -> str:
-    """③ 중국어 전용 줄 제거 + ⑤ 약모델 한국어 깨짐 결정적 교정(신년운세 최종본)."""
+    """③ 중국어 전용 줄 제거 + ⑤ 약모델 한국어 깨짐 결정적 교정 + 영어/중국어 코드스위칭 오염 제거(최종본)."""
     if not text:
         return text
     kept = [ln for ln in text.splitlines() if not _has_chinese_only(ln)]
     text = "\n".join(kept)
+    text = text.translate(_ZH_PUNCT)          # 중국어 구두점 정규화
+    text = _ENG_CLAUSE.sub(" ", text)          # 영어 코드스위칭 절 제거
     for pat, rep in _SINNYEON_VOCAB_FIXES:
         text = pat.sub(rep, text)
+    text = _re.sub(r"[ \t]{2,}", " ", text)     # 잔여 이중 공백
+    text = _re.sub(r"\s+([,.·])", r"\1", text)  # 공백 뒤 구두점 정리
     return text
 
 
