@@ -1399,24 +1399,31 @@ def _clean_month_narrative(body: str) -> str:
 
 
 def _parse_month_narratives(raw: str) -> tuple[dict[int, str], str]:
-    """배치 원문에서 '[[N월]] 서술' 블록과 '[[마무리]]' 블록을 파싱. 코드가 삽입한 [[N월]] 구분자만 신뢰
-    (본문 속 'N월' 언급에 안 흔들림). 없는 달은 폴백으로 대체돼 완결이 보장된다."""
+    """배치 원문에서 '[[N월]] 서술' 블록과 '[[마무리]]' 블록을 파싱. 코드가 삽입한 마커 구분자만 신뢰
+    (본문 속 'N월' 언급에 안 흔들림). 없는 달은 폴백으로 대체돼 완결이 보장된다.
+
+    ★[운영자 실측 2026-08-05] '위치 기반' 파싱 — 각 마커 본문은 '다음 마커 직전'까지다. 종전엔 [[마무리]]를
+    먼저 찾아 그 '뒤 전체'를 마무리로 잘랐는데, 약모델이 마무리를 달들 중간에 쓰면(1·2·마무리·3~12)
+    3~12월이 통째로 마무리에 딸려가 폴백 처리 + raw '[[3월]]' 마커가 화면에 새어나왔다(재현 확정).
+    이제 [[마무리]]도 다음 마커까지만 본문으로 삼아, 뒤에 오는 달들을 삼키지 않는다."""
     result: dict[int, str] = {}
     closing = ""
     if not raw:
         return result, closing
-    cm = _CLOSING_MARK.search(raw)
-    if cm:
-        closing = _clean_month_narrative(raw[cm.end():])
-        raw = raw[:cm.start()]
-    marks = [(mt.start(), mt.end(), int(mt.group(1))) for mt in _MONTH_MARK.finditer(raw)]
-    for i, (_st, en, n) in enumerate(marks):
-        if not (1 <= n <= 12):
-            continue
+    # [[N월]] 과 [[마무리]] 를 한 번에, 등장 순서대로 스캔(마커 사이 = 본문)
+    _MARK = _re.compile(r"\[\[\s*(\d{1,2})\s*월\s*\]\]|\[\[\s*마무리\s*\]\]")
+    marks = [(mt.start(), mt.end(), mt.group(1)) for mt in _MARK.finditer(raw)]  # group(1)=월번호 or None(=마무리)
+    for i, (_st, en, num) in enumerate(marks):
         nxt = marks[i + 1][0] if i + 1 < len(marks) else len(raw)
         body = _clean_month_narrative(raw[en:nxt])
-        if body:
-            result[n] = body
+        if not body:
+            continue
+        if num is None:            # [[마무리]] — 다음 마커까지만(뒤 달 안 삼킴). 여러 개면 마지막 우선.
+            closing = body
+        else:
+            n = int(num)
+            if 1 <= n <= 12:
+                result[n] = body
     return result, closing
 
 
@@ -2033,8 +2040,19 @@ def _stream_message_inner(
             _mm_seq = [int(mt.group(1)) for mt in _MONTH_MARK.finditer(_raw_all)
                        if 1 <= int(mt.group(1)) <= 12]
             _bad_order = _mm_seq != sorted(_mm_seq)
+            # [운영자 실측 2026-08-05] 마무리가 '마지막 달보다 앞'에 오면(예: 1·2·마무리·3~12)도 순서
+            #   뒤섞임 — canon 으로 정순 재배열해 마무리가 달 사이에 끼거나 뒤 달이 마무리에 딸려가는 것을 없앤다.
+            _cm_pos = (_CLOSING_MARK.search(_raw_all) or None)
+            _last_mon_pos = max((mt.start() for mt in _MONTH_MARK.finditer(_raw_all)), default=-1)
+            if _cm_pos is not None and _last_mon_pos > _cm_pos.start():
+                _bad_order = True
             _had_gap = bool(_missing_m or _missing_d)
-            if _missing_m or _missing_d:
+            # 표적 보강 '재시도 루프'(최대 3회) — [운영자 실측 2026-08-05] 약모델이 단일패스에서 달을 심하게
+            #   빠뜨려(3~6달만 쓰고 조기종료가 잦음) 1회 보강으론 못 채운다. 남은 결측만 다시 요청하며 12달·
+            #   5영역 완결로 수렴시킨다(빈 응답이면 진전 없음 → 중단, 남은 결측은 폴백 문장). 전면 재생성 아님.
+            _bf_round = 0
+            while (_missing_m or _missing_d) and _bf_round < 3:
+                _bf_round += 1
                 _bfp: list[str] = []
                 if _missing_d:
                     _bfp.append("누락된 영역 " + " · ".join(f"'[[{k}]]'" for k in _missing_d)
@@ -2059,8 +2077,10 @@ def _stream_message_inner(
                         _bf = ev[1]
                     else:
                         yield ev
-                if _bf and _bf.strip():
-                    _raw_all += "\n\n" + _bf
+                if not (_bf and _bf.strip()):
+                    break                                      # 진전 없음 → 무한루프 방지
+                _raw_all += "\n\n" + _bf
+                _missing_m, _missing_d = _sinnyeon_missing(_raw_all)   # 남은 결측 재판정 후 다음 라운드
         # [GUARD 신년운세 1.0 — 조건 완화 금지] ★1차 생성물 보존 원칙 — 정본 '전문 교체'는 완결이 깨진 런(달·영역 누락,
         #   순서 뒤섞임)에만 한다. 멀쩡한 런까지 매번 재조립본으로 갈아끼우니 클리너가 모델의 부가 구조
         #   (분기 요약 등)를 깎아 "2차가 1차보다 못한" 품질 역전이 났다(운영자 실측). 멀쩡한 런은 화면
