@@ -269,3 +269,9 @@ def test_fix_sinnyeon_vocab_corrects_pencchi():
     """약모델이 '편(便)'을 '펜치'로 뭉갠 오타를 결정적 교정('낮은 펜치이며'→'낮은 편이며')."""
     out = T._fix_sinnyeon_vocab("재물운은 상대적으로 낮은 펜치이며 조심할 일이 많습니다.")
     assert "낮은 편이며" in out and "펜치" not in out
+
+
+def test_fix_sinnyeon_vocab_corrects_closing_endings():
+    """닫는 상투구 뭉갬 교정 — '바랍니디요/바람니다'→'바랍니다'(유료 리포트 마지막 문장 오타 차단)."""
+    assert T._fix_sinnyeon_vocab("힘 내시기 바랍니디요.").strip() == "힘 내시기 바랍니다."
+    assert T._fix_sinnyeon_vocab("대응방식 결정하기 바람니다.").strip() == "대응방식 결정하기 바랍니다."
