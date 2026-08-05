@@ -1943,6 +1943,18 @@ def _sinnyeon_norm_sent(sent: str) -> str:
     return _re.sub(r"[^가-힣]", "", sent)[:40]
 
 
+_SINNYEON_GRAM_K = 15   # 재활용 감지 단위 — 15자+ 공통 '클로즈'(부분문자열)면 같은 문구 재탕으로 본다.
+
+
+def _sinnyeon_15grams(text: str) -> set[str]:
+    """한글만 남긴 뒤 15자 슬라이딩 시그니처 집합 — 문장 '앞부분'이 아니라 '어디에 있든' 공통 클로즈를 잡는다.
+    [운영자 실측 2026-08-06] 약모델이 도입부만 바꾸고('일곱 번째 달에는…') 뒤 문구를 재탕해, 앞40자 비교가
+    못 잡던 교차 반복('…자기 성장을 위해 다양한 경험들을 쌓아보는 것도 좋겠습니다' 3·7·12월)을 시그니처로 검출."""
+    t = _re.sub(r"[^가-힣]", "", text)
+    k = _SINNYEON_GRAM_K
+    return {t[i:i + k] for i in range(len(t) - k + 1)} if len(t) >= k else set()
+
+
 def _sinnyeon_month_narr_map(answer: str) -> dict[int, str]:
     """완성 답에서 {월번호: 서술본문} 추출 — '· 관계 —' 팩트라인 이후가 서술(코드 헤더 제외)."""
     out: dict[int, str] = {}
@@ -1956,26 +1968,19 @@ def _sinnyeon_month_narr_map(answer: str) -> dict[int, str]:
 
 
 def _sinnyeon_dup_months(answer: str) -> list[int]:
-    """앞선 달과 문장이 겹쳐, 겹친 문장을 빼면 서술이 붕괴(고유 ≤1문장)하는 달만 반환 — 표적 재생성 대상.
-    (문장 일부만 공유하고 고유 문장이 2개 이상 남는 달은 '유효한 다른 내용'으로 보고 건드리지 않는다.)"""
+    """앞선 달과 '15자+ 공통 클로즈'(같은 문구 재탕)를 가진 달을 반환 — 표적 재생성 대상.
+
+    [운영자 실측 2026-08-06] 종전 '앞40자 문장' 비교는 도입부만 바꾼 재탕('일곱 번째 달에는…' + 뒤 문구 복붙)을
+    통째로 놓쳤다(사용자 출력에서 3·7·11·12월 재활용을 0개로 오판). 시그니처(15-gram) 교집합으로 '어디에 있든'
+    공통 클로즈를 검출 — 전면 문장 복붙(붕괴)도 15-gram을 공유하므로 함께 잡힌다(종전 기준의 상위 집합)."""
     narrs = _sinnyeon_month_narr_map(answer)
     seen: set[str] = set()
     dup: list[int] = []
     for n in sorted(narrs):
-        sents = [x.strip() for x in _SENT_SPLIT.split(narrs[n]) if len(_sinnyeon_norm_sent(x)) >= 12]
-        if not sents:
-            continue
-        uniq = 0
-        dup_here = False
-        for sent in sents:
-            k = _sinnyeon_norm_sent(sent)
-            if k in seen:
-                dup_here = True
-            else:
-                uniq += 1
-                seen.add(k)
-        if dup_here and uniq <= 1:
+        g = _sinnyeon_15grams(narrs[n])
+        if g and (g & seen):        # 앞선 달과 15자+ 공통 클로즈 = 문구 재탕
             dup.append(n)
+        seen |= g
     return dup
 
 
@@ -1999,9 +2004,11 @@ def _sinnyeon_regen_gate(body: str) -> str:
 
 
 def _sinnyeon_regen_months(brief: str, sys_content: str, s, targets: list[int],
-                           row: ToolSession, avoid: dict[int, str]) -> dict[int, str]:
+                           row: ToolSession, avoid: dict[int, str],
+                           avoid_grams: set[str] | None = None) -> dict[int, str]:
     """지정한 달들의 서술을 '그 달 십성 뜻으로, 앞달과 다르게' 재생성 → {월: 서술}. 항목별 스레드 병렬.
-    코드가 마커 없이 '순수 서술'만 받아 호출부가 splice(헤더 불변)한다. 실패 항목은 원본 유지(빈 결과)."""
+    코드가 마커 없이 '순수 서술'만 받아 호출부가 splice(헤더 불변)한다. 실패 항목은 원본 유지(빈 결과).
+    avoid_grams(다른 달 15-gram 집합)와 15자+ 겹치는 후보는 거부·재시도 — 재생성이 같은 클로즈를 재탕 못 함."""
     r = row.result_json or {}
     day_stem = r.get("day_stem") or ""
     try:
@@ -2039,7 +2046,9 @@ def _sinnyeon_regen_months(brief: str, sys_content: str, s, targets: list[int],
             "십성·운성·신살·간지·점수·소제목·마커·번호·연도·인용부호 금지, 한국어 서술 문장만. "
             "다른 달과 겹치지 않게 이 달 십성에 맞는 소재로. 이미 다른 달에 쓴 문장(겹치면 안 됨):\n" + _av
         )
-        for _try in range(3):                      # 게이트 폐기 시 최대 3회 재시도(폐기율↓·불량은 0 유지)
+        _ag = avoid_grams or set()
+        _last = ""                                  # 게이트는 통과했으나 겹친 후보(전부 실패 시 최후 채택)
+        for _try in range(3):                      # 게이트 폐기·클로즈 재탕 시 최대 3회 재시도(폐기율↓·불량 0)
             try:
                 out = chat_service._call_ollama(
                     [{"role": "system", "content": sys_content},
@@ -2048,9 +2057,15 @@ def _sinnyeon_regen_months(brief: str, sys_content: str, s, targets: list[int],
             except Exception:  # noqa: BLE001 — 한 항목 실패 → 재시도, 끝내 실패면 원본 유지
                 out = None
             body = _sinnyeon_regen_gate(_clean_month_narrative(out or ""))
-            if body:
-                results[n] = body
-                return
+            if not body:
+                continue
+            if _sinnyeon_15grams(body) & _ag:      # 다른 달과 15자+ 겹침 = 또 재탕 → 재시도
+                _last = body
+                continue
+            results[n] = body
+            return
+        if _last:                                   # 3회 다 겹쳤으면 그나마 게이트 통과본 채택(원본 재탕보다 나음)
+            results[n] = _last
 
     ths = [threading.Thread(target=_one, args=(n,), daemon=True) for n in targets]
     for t in ths:
@@ -2397,10 +2412,17 @@ def _stream_message_inner(
         #   지연 0), 1라운드. 코드 헤더·팩트라인 불변, canon/판정기준 불변(별도 패스에서 '서술만' 교체).
         _dups = _sinnyeon_dup_months(answer)
         if _dups:
-            _avoid = {k: v[:120] for k, v in _sinnyeon_month_narr_map(answer).items() if k not in _dups}
+            _narr_all = _sinnyeon_month_narr_map(answer)
+            _avoid = {k: v[:120] for k, v in _narr_all.items() if k not in _dups}
+            # 재생성이 '다른 달과 겹치지 않게' — 재생성 안 하는 달들의 15-gram 을 거부셋으로(재탕 차단)
+            _av_grams: set[str] = set()
+            for _k, _v in _narr_all.items():
+                if _k not in _dups:
+                    _av_grams |= _sinnyeon_15grams(_v)
             _regen = None
             for ev in chat_service._bg_with_heartbeat(
-                    s, lambda tg=list(_dups): _sinnyeon_regen_months(brief, sys_content, s, tg, row, _avoid),
+                    s, lambda tg=list(_dups): _sinnyeon_regen_months(
+                        brief, sys_content, s, tg, row, _avoid, _av_grams),
                     progress_phase="generating"):
                 if ev[0] == "result":
                     _regen = ev[1]
