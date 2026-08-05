@@ -1335,6 +1335,9 @@ def stream_message(
 #   쓰게 하면 A1(완결)·A2(형식통일)·C(사실훼손)를 한 번에 잡는다.
 _MONTH_MARK = _re.compile(r"\[\[\s*(\d{1,2})\s*월\s*\]\]")
 _CLOSING_MARK = _re.compile(r"\[\[\s*마무리\s*\]\]")
+# 줄머리가 'N월…'(마커 없는 월 서술 시작) — 약모델이 마무리·다른 달 뒤에 마커 없이 이어 쓴 월 서술이
+#   그 섹션 본문에 딸려오는 것을 잘라내는 데 쓴다(자기 달 인트로는 번호가 같아 보존).
+_MONTH_LINE_START = _re.compile(r"(?m)^\s*(\d{1,2})\s*월(?=[\s에은는이가을를도의\(（:：]|$)")
 # 코드가 이미 렌더하는 '팩트 라벨' 줄 — 모델 서술에 섞여 오면 제거(중복·오염 방지). '큰 흐름' 등 서술은 보존.
 _FACT_LABEL = _re.compile(
     r"^\s*[·•\-*#>]*\s*(월간\s*십성|월지\s*십성|12\s*운성|십이운성|12\s*신살|십이신살|지장간|"
@@ -1419,11 +1422,20 @@ def _parse_month_narratives(raw: str) -> tuple[dict[int, str], str]:
         if not body:
             continue
         if num is None:            # [[마무리]] — 다음 마커까지만(뒤 달 안 삼킴). 여러 개면 마지막 우선.
-            closing = body
+            # 모델이 마무리 뒤에 '마커 없이' 쓴 월 서술(6월에는…)이 마무리 본문에 딸려오는 것 차단 —
+            #   줄머리가 'N월…'인 지점부터 잘라낸다(마무리 요약이 그런 줄로 시작하는 일은 없음).
+            _ml = _MONTH_LINE_START.search(body)
+            closing = body[:_ml.start()].strip() if _ml else body
         else:
             n = int(num)
             if 1 <= n <= 12:
-                result[n] = body
+                # 마커 없이 딸려온 '다른 달' 서술을 잘라낸다(자기 달 'n월에는…' 인트로는 번호 같아 보존).
+                for _ml in _MONTH_LINE_START.finditer(body):
+                    if int(_ml.group(1)) != n:
+                        body = body[:_ml.start()].strip()
+                        break
+                if body:
+                    result[n] = body
     return result, closing
 
 
@@ -1758,6 +1770,44 @@ def _assemble_sinnyeon_full(row: ToolSession, raw: str) -> str | None:
     return "\n\n".join(p for p in out if p and p.strip()).strip()
 
 
+def _sinnyeon_backfill(brief: str, sys_content: str, s, missing_m: list[int], missing_d: list[str]) -> str:
+    """누락된 달·영역을 '항목별 병렬'로 표적 생성하고, [[마커]]는 코드가 확정 부착해 반환.
+
+    [운영자 실측 2026-08-05] 배치 백필(여러 달을 한 콜로 + 프롬프트에 '[[N월]] 마커 붙여라')은 약모델이
+    마커를 무시하고 'N월에는…' 평문으로 써 파싱 실패 → 폴백 + 평문이 마무리 뒤로 누출됐다. 각 콜을 '한
+    항목'으로 좁히면 준수율↑, 마커는 코드가 붙이므로 파싱이 100% 된다. 항목별 스레드 병렬(NUM_PARALLEL 내)."""
+    _titles = {k: t for _l, k, t in _SINNYEON_DOMAINS}
+    items: list[tuple[str, str]] = [("month", str(m)) for m in missing_m] + [("dom", k) for k in missing_d]
+    results: dict[tuple[str, str], str] = {}
+
+    def _one(kind: str, key: str) -> None:
+        if kind == "month":
+            instr = (f"{key}월 한 달만, 그 달에 '생길 수 있는 일·조심할 점·활용 조언'을 2~4문장 순수 서술로만 "
+                     "쓰세요. 십성·운성·신살·간지 같은 표 값이나 소제목·마커·번호목록은 쓰지 말고, 한국어 문장만.")
+            marker = f"[[{key}월]]"
+        else:
+            instr = (f"'{_titles.get(key, key)}' 영역만, 올 한 해 그 영역의 흐름과 활용 조언을 2~3문장 순수 "
+                     "서술로만 쓰세요(점수·표값·소제목·마커 금지). 한국어 문장만.")
+            marker = f"[[{key}]]"
+        try:
+            out = chat_service._call_ollama(
+                [{"role": "system", "content": sys_content},
+                 {"role": "user", "content": f"{brief}\n\n[이번에 쓸 부분만] {instr}"}],
+                num_predict=768)
+        except Exception:  # noqa: BLE001 — 한 항목 실패 → 그 항목만 폴백 문장 유지
+            out = None
+        body = _clean_month_narrative(out or "")
+        if body:
+            results[(kind, key)] = f"{marker}\n{body}"
+
+    ths = [threading.Thread(target=_one, args=it, daemon=True) for it in items]
+    for t in ths:
+        t.start()
+    for t in ths:
+        t.join(timeout=s.ollama_timeout_sec + 30)
+    return "\n\n".join(results[it] for it in items if it in results)   # 원 순서 유지
+
+
 def _stream_message_inner(
     db: Session, tool_id: str, message: str, user: User | None = None,
     depth: str = "deep", explain_level: str = "normal",
@@ -2048,38 +2098,24 @@ def _stream_message_inner(
                 _bad_order = True
             _had_gap = bool(_missing_m or _missing_d)
             # 표적 보강 '재시도 루프'(최대 3회) — [운영자 실측 2026-08-05] 약모델이 단일패스에서 달을 심하게
-            #   빠뜨려(3~6달만 쓰고 조기종료가 잦음) 1회 보강으론 못 채운다. 남은 결측만 다시 요청하며 12달·
-            #   5영역 완결로 수렴시킨다(빈 응답이면 진전 없음 → 중단, 남은 결측은 폴백 문장). 전면 재생성 아님.
+            #   빠뜨린다(3~6달만 쓰고 조기종료가 잦음). ★마커는 코드가 붙이는 '항목별 병렬 백필'(_sinnyeon_backfill)
+            #   로 채운다 — 배치 백필은 모델이 마커를 무시하고 평문으로 써 파싱 실패→폴백+평문 누출됐다(재현 확정).
+            #   남은 결측만 다시 요청하며 12달·5영역 완결로 수렴(빈 결과면 중단·무한루프 방지). 전면 재생성 아님.
             _bf_round = 0
             while (_missing_m or _missing_d) and _bf_round < 3:
                 _bf_round += 1
-                _bfp: list[str] = []
-                if _missing_d:
-                    _bfp.append("누락된 영역 " + " · ".join(f"'[[{k}]]'" for k in _missing_d)
-                                + " 마커로 시작해 각 2~3문장 서술만 쓰세요(점수·표값·소제목 금지).")
-                if _missing_m:
-                    _bfp.append("'" + "·".join(f"{m}월" for m in _missing_m)
-                                + "'을 하나도 빠짐없이 번호순으로, 각 달을 '[[N월]]' 마커로 시작해 2~4문장 "
-                                "서술만 쓰세요. 표의 값(십성·운성·신살·간지)은 쓰지 말고 달마다 다른 내용으로.")
-                _bf_user = (f"{brief}\n\n[이번에 쓸 부분만] " + " ".join(_bfp)
-                            + " ★한국어 문장만(중국어 금지), 위에 지시한 마커 외 다른 섹션은 절대 쓰지 마세요.")
-                _bf_np = min(3072, 512 + 160 * (len(_missing_m) + len(_missing_d)))
-                def _backfill_call(_u=_bf_user, _sc=sys_content, _np=_bf_np):
-                    try:
-                        return chat_service._call_ollama(
-                            [{"role": "system", "content": _sc}, {"role": "user", "content": _u}],
-                            num_predict=_np)
-                    except Exception:  # noqa: BLE001 — 보강 실패 → 해당 섹션 폴백 문장 유지(부가 기능)
-                        return None
-                _bf = None
-                for ev in chat_service._bg_with_heartbeat(s, _backfill_call, progress_phase="generating"):
+                _wrapped = None
+                for ev in chat_service._bg_with_heartbeat(
+                        s, lambda mm=list(_missing_m), md=list(_missing_d):
+                        _sinnyeon_backfill(brief, sys_content, s, mm, md),
+                        progress_phase="generating"):
                     if ev[0] == "result":
-                        _bf = ev[1]
+                        _wrapped = ev[1]
                     else:
                         yield ev
-                if not (_bf and _bf.strip()):
+                if not (_wrapped and _wrapped.strip()):
                     break                                      # 진전 없음 → 무한루프 방지
-                _raw_all += "\n\n" + _bf
+                _raw_all += "\n\n" + _wrapped
                 _missing_m, _missing_d = _sinnyeon_missing(_raw_all)   # 남은 결측 재판정 후 다음 라운드
         # [GUARD 신년운세 1.0 — 조건 완화 금지] ★1차 생성물 보존 원칙 — 정본 '전문 교체'는 완결이 깨진 런(달·영역 누락,
         #   순서 뒤섞임)에만 한다. 멀쩡한 런까지 매번 재조립본으로 갈아끼우니 클리너가 모델의 부가 구조
