@@ -1551,6 +1551,7 @@ def _fix_sinnyeon_vocab(text: str) -> str:
         text = pat.sub(rep, text)
     # 한글에 '붙어 있는' 인라인 한자(순간抓住·동僚 등 코드스위칭) 제거 — 괄호 병기(正財·丑)는 '(' 뒤라 안 걸림.
     text = _re.sub(r"(?<=[가-힣])[一-鿿]+", "", text)
+    text = _re.sub(r"(?m)^[ \t]+$", "", text)         # 공백만 있는 줄 비움(헤더-서술 사이 ' ' 줄 정리)
     text = _re.sub(r"[ \t]{2,}", " ", text)          # 잔여 이중 공백(줄바꿈은 보존)
     text = _re.sub(r"[ \t]+([,.])", r"\1", text)     # ★공백 뒤 쉼표·마침표만(줄바꿈·중점 '·'은 절대 안 건드림 —
     #   종전 \s+([,.·]) 가 '#### 1월\n· 십성'의 줄바꿈을 먹어 헤더를 한 줄로 뭉갠 버그 수정)
@@ -1654,13 +1655,25 @@ _SINNYEON_SINGLE_INSTR = (
     "리포트 결손입니다).")
 
 
+# 모델의 '자연스러운 영역 서술 시작'(마커를 빠뜨렸을 때) — 줄머리 키워드로 영역을 인식한다.
+_SINNYEON_DOMAIN_PATTERNS = [
+    ("직업", _re.compile(r"^(직업|직무|일자리|직장|커리어|사업)")),
+    ("재물", _re.compile(r"^(재물|재산|금전|자산|재정)")),
+    ("대인", _re.compile(r"^(대인|인간관계|사회생활|사회적|사회\s*및|사람들과의|교류|사회\s*생활)")),
+    ("연애", _re.compile(r"^(연애|사랑|이성|애정|결혼)")),
+    ("건강", _re.compile(r"^(건강|신체|체력|컨디션)")),
+]
+
+
 class _SinnyeonScaffold:
-    """단일패스 스트림 변환기 — 모델의 [[마커]]를 감지 즉시 결정적 헤더(제목·점수·팩트라인)로 치환해 흘린다.
+    """단일패스 스트림 변환기 — 모델의 [[마커]]뿐 아니라 '마커 없는 평문 섹션 시작'(삼월·직업 운은…)도 줄
+    단위로 감지해 결정적 헤더(제목·점수·팩트라인)를 실시간으로 꽂는다 → 모델이 마커를 빠뜨려도 1차가 깨끗.
 
-    청크 경계에 마커가 걸치는 것을 홀드백(HOLD자 보류)으로 처리 — 화면에는 마커가 절대 노출되지 않는다.
-    마커가 아예 없는 출력(모델이 형식 무시)이면 변환 없이 원문이 그대로 흐른다(구 단일패스와 동일)."""
+    동시에 '정규화 raw'(감지한 섹션에 [[마커]] 주입한 원문)를 쌓아 둔다 — 호출부가 결측판정·canon 입력으로
+    쓰면, 모델이 순서대로 다 쓴 경우(마커 없어도) 결측 0·순서 정상 → canon 교체 0회(1차=최종, 핀포인트만).
+    [운영자 실측 2026-08-06] 약모델이 마커를 5회 중 4회 빠뜨려(특히 영역) 1차가 지저분하던 것을 해결."""
 
-    HOLD = 14   # '[[ 12월 ]]' 최장 마커보다 길게
+    MAXLINE = 400   # \n 없이 이 이상 쌓이면 흘린다(스트리밍 정지 방지). 마커 꼬리는 별도 보류.
 
     def __init__(self, row: ToolSession):
         r = row.result_json or {}
@@ -1682,56 +1695,124 @@ class _SinnyeonScaffold:
                 continue
             self.month_headers[n] = _sinnyeon_month_header(mth, day_stem, year_branch)
         self.buf = ""
-        self.seen: list[str] = []
+        self.norm: list[str] = []          # 정규화 raw(마커 주입) 누적
+        self.headed: set[str] = set()      # 헤더 삽입 완료 섹션('총운','직업'..,'1월'..'12월','마무리')
         self._domains_opened = False
         self._months_opened = False
+        self._at_line_start = True
 
-    def _header_for(self, key: str) -> str | None:
-        mm = _re.fullmatch(r"(\d{1,2})\s*월", key)
-        if mm:
-            h = self.month_headers.get(int(mm.group(1)))
-            if h is None:
-                return None
-            pre = "" if self._months_opened else "### ③ 월별 흐름\n\n"
-            self._months_opened = True
-            return pre + h
+    # ── 섹션 키 → 결정적 헤더(중복 방지: 이미 headed면 None) ──
+    def _month_header(self, n: int) -> str | None:
+        h = self.month_headers.get(n)
+        if h is None:
+            return None
+        pre = "" if self._months_opened else "### ③ 월별 흐름\n\n"
+        self._months_opened = True
+        return pre + h
+
+    def _domain_header(self, key: str) -> str | None:
         h = self.headers.get(key)
-        if h is not None and key not in ("총운", "마무리") and not self._domains_opened:
+        if h is None:
+            return None
+        if not self._domains_opened:
             self._domains_opened = True
             h = "### ② 영역별 심화\n\n" + h
         return h
 
-    def _xform(self, text: str) -> str:
+    def _header_for_key(self, key: str) -> str | None:
+        mm = _re.fullmatch(r"(\d{1,2})\s*월", key)
+        if mm:
+            k = f"{int(mm.group(1))}월"
+            if k in self.headed:
+                return None
+            h = self._month_header(int(mm.group(1)))
+            if h:
+                self.headed.add(k)
+            return h
+        if key in self.headed:
+            return None
+        if key in ("총운", "마무리"):
+            self.headed.add(key)
+            return self.headers.get(key)
+        h = self._domain_header(key)
+        if h:
+            self.headed.add(key)
+        return h
+
+    def _xform_markers(self, text: str) -> str:
         def _rep(m: "_re.Match[str]") -> str:
-            key = m.group(1).strip()
-            h = self._header_for(key)
-            if h is None:
-                return ""          # 알 수 없는 마커는 화면 오염 방지 위해 제거
-            self.seen.append(key)
-            return f"\n\n{h}\n\n"
+            h = self._header_for_key(m.group(1).strip())
+            return f"\n\n{h}\n\n" if h else ""   # 이미 헤딩됐거나 모르는 마커 → 제거(화면 오염 방지)
         return _SCAF_ANY.sub(_rep, text)
+
+    def _plain_section(self, seg: str) -> tuple[str, str] | None:
+        """마커 없는 '줄 시작' seg 에서 섹션(월/영역/총운/마무리) 감지 → (헤더, 키) or None."""
+        s = seg.strip()
+        if len(s) < 6:
+            return None
+        m = _MONTH_LINE_START.match(s)          # 1) 월 시작(숫자·한자수·서수)
+        if m:
+            n = _month_line_num(m)
+            if n and f"{n}월" not in self.headed:
+                h = self._month_header(n)
+                if h:
+                    self.headed.add(f"{n}월")
+                    return h, f"{n}월"
+            return None                          # 이미 헤딩된 월/인식실패 → 헤더 없이 통과
+        if "총운" in self.headed and not self._months_opened:   # 2) 영역 시작(총운 뒤·월 시작 전에만 — 오탐 최소)
+            for key, pat in _SINNYEON_DOMAIN_PATTERNS:
+                if key not in self.headed and pat.match(s):
+                    h = self._domain_header(key)
+                    if h:
+                        self.headed.add(key)
+                        return h, key
+        if not self.headed:                      # 3) 첫 실질 줄 = 총운 리드
+            self.headed.add("총운")
+            return self.headers["총운"], "총운"
+        if "마무리" not in self.headed and s.startswith("마무리"):   # 4) 마무리
+            self.headed.add("마무리")
+            return self.headers["마무리"], "마무리"
+        return None
+
+    def _emit(self, seg: str, line_start: bool) -> str:
+        """seg 를 화면용으로 변환 + 정규화 raw 누적. line_start=True 면 섹션 감지 수행."""
+        if _SCAF_ANY.search(seg):               # 마커 있는 줄
+            self.norm.append(seg)
+            return self._xform_markers(seg)
+        if line_start:
+            ps = self._plain_section(seg)
+            if ps:
+                hdr, key = ps
+                self.norm.append(f"\n\n[[{key}]]\n{seg}")   # 정규화: 감지 섹션에 마커 주입
+                return f"\n\n{hdr}\n\n{seg}"
+        self.norm.append(seg)
+        return seg
 
     def feed(self, tok: str) -> str:
         self.buf += tok
-        cut = len(self.buf) - self.HOLD
-        if cut <= 0:
-            return ""
-        # 완성 마커가 커트에 걸치면 마커 시작 앞으로 후퇴(쪼개져 화면에 새는 것 방지 — 실측 단위테스트)
-        for m in _SCAF_ANY.finditer(self.buf):
-            if m.start() < cut < m.end():
-                cut = m.start()
+        out: list[str] = []
+        while True:
+            nl = self.buf.find("\n")
+            if nl >= 0:
+                line, self.buf = self.buf[:nl], self.buf[nl + 1:]
+                out.append(self._emit(line, self._at_line_start))
+                out.append("\n"); self.norm.append("\n")
+                self._at_line_start = True
+            elif len(self.buf) > self.MAXLINE and "[[" not in self.buf[-16:]:
+                seg, self.buf = self.buf, ""     # \n 없이 길어진 줄 — 앞을 흘리고 다음은 연속줄
+                out.append(self._emit(seg, self._at_line_start))
+                self._at_line_start = False
+            else:
                 break
-        opn = self.buf.rfind("[[")
-        if opn != -1 and opn < cut and "]]" not in self.buf[opn:]:
-            cut = opn              # 미완 마커('[[총' …)는 통째로 보류
-        if cut <= 0:
-            return ""
-        out, self.buf = self.buf[:cut], self.buf[cut:]
-        return self._xform(out)
+        return "".join(out)
 
     def flush(self) -> str:
-        out, self.buf = self.buf, ""
-        return self._xform(out)
+        rest, self.buf = self.buf, ""
+        return self._emit(rest, self._at_line_start) if rest.strip() else ""
+
+    def normalized_raw(self) -> str:
+        """감지한 섹션에 [[마커]]가 주입된 원문 — 결측판정·canon 입력용(모델의 서술 보존)."""
+        return "".join(self.norm)
 
 
 def _scaf_split(raw: str) -> tuple[str, str, str] | None:
@@ -2119,7 +2200,9 @@ def _stream_message_inner(
     # ── 옵션 D: 마커 원문을 결정적 어셈블러로 재조립 — 5영역·12달·마무리 '완결'을 코드가 보장(누락=폴백 문장,
     #    순서 뒤섞임=정순 재배열). 스트림 표시본과 실질 같으면 화면 유지, 다르면(누락 보충 등) 1회만 교체 알림.
     if _sinnyeon_single and local_ok and not _degen_aborted and answer.strip():
-        _raw_all = "".join(_raw_parts)
+        # 스캐폴드가 '평문 섹션 시작'을 감지해 [[마커]]를 주입한 '정규화 raw' — 모델이 마커를 빠뜨려도
+        #   결측판정·canon 이 그 섹션을 '있음'으로 보고, 순서 정상이면 canon 교체 0회(1차=최종). [운영자 승인]
+        _raw_all = _scaf.normalized_raw() if _scaf is not None else "".join(_raw_parts)
         # 표적 보강(실측 게이트 r1형: 모델이 3달 쓰고 조기종료) — 마커는 썼는데 일부 영역/달이 빠졌으면
         # '빠진 것만' 소형 콜 1회로 채운다(전면 재생성 아님 — 잘 나온 본문 불변, 폴백 문장 대신 실서술).
         _had_gap = False
