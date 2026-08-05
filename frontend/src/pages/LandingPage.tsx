@@ -145,11 +145,26 @@ const FEATURES: { key: string; to: string; art: JSX.Element; icon: IcName; menu?
   { key: "tarot", to: "/tarot", art: <Taro />, icon: "tarot", menu: "tarot" },
 ];
 
-const FAQ = [
-  { q: "정확한가요?", a: "합·충·오행·십성·신살을 규칙으로 계산한 근거에 AI 해설을 더합니다. 관법은 정답이 없어 여러 관점을 함께 보여드립니다." },
-  { q: "무료인가요?", a: "비로그인은 답변의 50% 미리보기를 제공하고, 로그인하면 무료 질문과 전체 보기를 이용할 수 있어요." },
-  { q: "태어난 시를 몰라요.", a: "‘시 모름’으로도 분석할 수 있어요(시주 제외)." },
-];
+// FAQ 구조화 데이터(JSON-LD, SEO) — 현재 로케일의 landing.faq 카탈로그로 생성해 <head>에 주입.
+// (index.html의 정적 vi본은 JS 미실행 크롤러용 — SPA 로케일 전환 시 이 스크립트가 로케일 일치본을 제공)
+const FAQ_JSONLD_ID = "landing-faq-jsonld";
+function injectFaqJsonLd(faq: { q: string; a: string }[]): void {
+  document.getElementById(FAQ_JSONLD_ID)?.remove();
+  if (!Array.isArray(faq) || faq.length === 0) return;
+  const el = document.createElement("script");
+  el.type = "application/ld+json";
+  el.id = FAQ_JSONLD_ID;
+  el.text = JSON.stringify({
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: faq.map((f) => ({
+      "@type": "Question",
+      name: f.q,
+      acceptedAnswer: { "@type": "Answer", text: f.a },
+    })),
+  });
+  document.head.appendChild(el);
+}
 
 // 살아있는 카드(1~3초 자연 모션 루프) — SVD로 베이크한 webm이 있는 키. 영상→이미지→SVG 3단 폴백.
 // ⚠️ 운영자 결정(2026-07-07): SVD 모션은 프레임 후반 캐릭터 표정이 깨져 사용 보류 — 비워 둠(정지 이미지 사용).
@@ -206,9 +221,14 @@ function TrustStrip() {
 }
 
 export default function LandingPage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const me = useMe();
+  // FAQ JSON-LD — 로케일(언어 전환 포함)과 항상 일치. 이탈 시 제거.
+  useEffect(() => {
+    injectFaqJsonLd(t("landing.faq", { returnObjects: true }) as { q: string; a: string }[]);
+    return () => { document.getElementById(FAQ_JSONLD_ID)?.remove(); };
+  }, [t, i18n.language]);
   return (
     <div className="landing">
       {/* 히어로 */}

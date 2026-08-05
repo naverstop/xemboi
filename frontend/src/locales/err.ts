@@ -23,6 +23,12 @@ export const errKo = {
   s_other: "요청 처리 중 오류가 발생했어요. ({{status}})",
   // FastAPI 입력 검증 오류
   validation: "입력값을 확인해 주세요: {{msgs}}",
+  // 답변 말투(사투리) 라벨 — api.ts DIALECTS 표시용(value는 서버 전송 enum, label만 로케일)
+  dialect_standard: "표준어",
+  dialect_gyeongsang: "경상도",
+  dialect_jeolla: "전라도",
+  dialect_gangwon: "강원도",
+  dialect_jeju: "제주도",
 };
 
 export const errVi: typeof errKo = {
@@ -43,4 +49,10 @@ export const errVi: typeof errKo = {
   s500: "Máy chủ đang gặp sự cố tạm thời. Vui lòng thử lại sau.",
   s_other: "Đã xảy ra lỗi khi xử lý yêu cầu. ({{status}})",
   validation: "Vui lòng kiểm tra dữ liệu nhập: {{msgs}}",
+  // 답변 말투(사투리) 라벨 — api.ts DIALECTS 표시용(value는 서버 전송 enum, label만 로케일)
+  dialect_standard: "Giọng chuẩn",
+  dialect_gyeongsang: "Giọng Gyeongsang",
+  dialect_jeolla: "Giọng Jeolla",
+  dialect_gangwon: "Giọng Gangwon",
+  dialect_jeju: "Giọng Jeju",
 };

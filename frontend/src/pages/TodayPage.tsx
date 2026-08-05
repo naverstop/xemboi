@@ -14,29 +14,32 @@ import { canNativeFileShare } from "../lib/webShare";
 import DownloadGuard from "../components/DownloadGuard";
 import ShareQuotaNote from "../components/ShareQuotaNote";
 import { Link } from "react-router-dom";
+import { useTranslation, Trans } from "react-i18next";
+import i18n from "../i18n";
 
 function fmtToday(iso: string): string {
   const d = new Date(iso + "T00:00:00");
-  return `${d.getMonth() + 1}월 ${d.getDate()}일 (${"일월화수목금토"[d.getDay()]})`;
+  return i18n.t("today.date_fmt", { m: d.getMonth() + 1, d: d.getDate(), w: i18n.t("today.weekdays").split(",")[d.getDay()] });
 }
 
 // 결과를 복사/공유/PDF용 plain text로 직렬화(공용 액션바 규약)
 function todayText(res: TodayFortune): string {
   const lines = [
-    `[오늘의 운세] ${fmtToday(res.date)} · 일진 ${res.iljin.label}`,
-    `오늘의 기운: ${res.ten_god.ko}(${res.ten_god.hanja}) — 일간 ${res.day_master.ko}(${res.day_master.stem}) 기준`,
+    i18n.t("today.txt_title", { date: fmtToday(res.date), iljin: res.iljin.label }),
+    i18n.t("today.txt_energy", { tg: res.ten_god.ko, hanja: res.ten_god.hanja, dm: res.day_master.ko, stem: res.day_master.stem }),
     res.ten_god.line,
   ];
   if (res.relation) lines.push(`${res.relation.kind === "chung" ? "⚠️" : "🤝"} ${res.relation.note}`);
-  lines.push(`행운의 색 ${res.lucky.color} · 행운의 방위 ${res.lucky.direction} · 오늘의 오행 ${res.lucky.element}`);
+  lines.push(i18n.t("today.txt_lucky", { color: res.lucky.color, dir: res.lucky.direction, elem: res.lucky.element }));
   if (res.year?.domains?.length) {
-    lines.push(`\n[올해(${res.year.seun.year} ${res.year.seun.stem_ko}${res.year.seun.branch_ko}년) 배경 흐름]`);
+    lines.push("\n" + i18n.t("today.txt_year_head", { year: res.year.seun.year, gz: `${res.year.seun.stem_ko}${res.year.seun.branch_ko}` }));
     res.year.domains.forEach((d) => lines.push(`- ${d.label} ${d.value}`));
   }
   return lines.join("\n");
 }
 
 export default function TodayPage() {
+  const { t: tr } = useTranslation();
   const [b, setB] = useState<BirthValue>({ birth_date: "", birth_time: "", unknown_time: false, gender: "male", calendar: "solar", is_leap_month: false, apply_true_solar_time: true, birth_longitude: 126.98 });
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -64,7 +67,7 @@ export default function TodayPage() {
       };
       setCard(await api.createShareCard(birth));
     } catch (e: any) {
-      setErr(e?.message || "공유 카드를 만들지 못했어요.");
+      setErr(e?.message || tr("today.card_fail"));
     } finally {
       setCardBusy(false);
     }
@@ -97,12 +100,12 @@ export default function TodayPage() {
     try {
       const q = await api.shareQuota();
       if (!q.unlimited && q.remaining <= 0) {
-        alert("무료 공유 횟수를 모두 사용했어요. 월 패스를 이용하면 더 많이 공유할 수 있어요.");
+        alert(tr("today.share_quota_alert"));
         return false;
       }
       return true;
     } catch (e: any) {
-      if (gateOf(e) === "login") { alert("공유하려면 먼저 로그인해 주세요."); return false; }
+      if (gateOf(e) === "login") { alert(tr("today.share_login_alert")); return false; }
       return true;   // 그 외 장애는 공유를 막지 않는다(가용성 우선)
     }
   }
@@ -130,21 +133,21 @@ export default function TodayPage() {
       const absUrl = window.location.origin + card.url;
       try {
         const blob = await fetch(card.url).then((r) => r.blob());
-        const file = new File([blob], card.filename || "오늘의운세.png", { type: "image/png" });
+        const file = new File([blob], card.filename || tr("today.card_filename"), { type: "image/png" });
         const nav: any = navigator;
         if (canNativeFileShare([file])) {
           try {
-            await nav.share({ files: [file], title: "오늘의 운세" });
+            await nav.share({ files: [file], title: tr("today.share_title") });
             await countShare("link");   // 성공 확정 후 1회 집계(취소 시 미집계)
           } catch (e: any) {
-            if (e?.name !== "AbortError") toast("공유에 실패했어요. 링크 복사로 전달해 주세요.");
+            if (e?.name !== "AbortError") toast(tr("today.share_fail_toast"));
           }
           return;
         }
       } catch { /* 폴백 진행 */ }
       if (kakaoAvailable()) {
         const sent = await shareKakaoLink({
-          title: "오늘의 운세", description: "오늘 일진과 나의 기운을 확인해 보세요.",
+          title: tr("today.share_title"), description: tr("today.share_desc"),
           url: absUrl, imageUrl: absUrl,
         });
         if (sent) { await countShare("kakao"); return; }
@@ -153,10 +156,10 @@ export default function TodayPage() {
       try {
         await navigator.clipboard.writeText(absUrl);
         await countShare("link");       // 복사 성공이 확인된 뒤에만 집계
-        toast("카드 링크를 복사했어요. 원하는 곳에 붙여넣어 공유해 주세요!");
+        toast(tr("today.link_copied"));
       } catch {
         // 복사 실패 — 아무것도 나가지 않았으므로 차감하지 않는다(예전엔 차감만 되고 안내도 없었다).
-        toast("이미지를 길게 눌러 저장 후 공유해 주세요.");
+        toast(tr("today.longpress_save"));
       }
     } finally {
       shareLock.current = false;
@@ -177,7 +180,7 @@ export default function TodayPage() {
       setRes(await api.todayFortune(birth));
       if (scroll) setTimeout(() => document.getElementById("tool-result")?.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
     } catch (e: any) {
-      setErr(e?.message || "오늘의 운세를 불러오지 못했어요.");
+      setErr(e?.message || tr("today.load_fail"));
     } finally { setLoading(false); }
   }
 
@@ -191,9 +194,9 @@ export default function TodayPage() {
     <div className="compat-page">
       <PrivacyNotice variant="tool" />
       <header className="compat-hero">
-        <div className="compat-hero-badge">今日</div>
-        <h1>오늘의 운세</h1>
-        <p>매일 바뀌는 <b>오늘 일진(日辰)</b>과 내 일간의 <b>십성·충합</b>을 규칙으로 계산해 드려요. 로그인해 두면 매일 아침 알림으로 받아볼 수 있어요. <b>무료</b>입니다.</p>
+        <div className="compat-hero-badge">{tr("today.hero_badge")}</div>
+        <h1>{tr("today.hero_title")}</h1>
+        <p><Trans i18nKey="today.hero_desc" components={{ b: <b /> }} /></p>
       </header>
 
       <div className="tool-form">
@@ -203,9 +206,9 @@ export default function TodayPage() {
 
       <div className="compat-actions">
         <button className="compat-cta" disabled={!b.birth_date || loading} onClick={() => run(b)}>
-          {loading ? "보는 중…" : "🌅 오늘 운세 보기 (무료)"}
+          {loading ? tr("today.loading") : tr("today.cta")}
         </button>
-        {!b.birth_date && <div className="cta-hint">생년월일을 입력해 주세요</div>}
+        {!b.birth_date && <div className="cta-hint">{tr("today.cta_hint")}</div>}
       </div>
       {err && <div className="compat-err">{err}</div>}
 
@@ -213,7 +216,7 @@ export default function TodayPage() {
         <div id="tool-result" className="compat-result">
           <div className="cr-headline">
             <span className="cr-names">{fmtToday(res.date)}</span>
-            <span className="cr-grade" style={{ background: "var(--brand-grad)" }}>일진 {res.iljin.label}</span>
+            <span className="cr-grade" style={{ background: "var(--brand-grad)" }}>{tr("today.iljin_badge", { label: res.iljin.label })}</span>
           </div>
 
           {/* 오늘의 핵심 — 십성 기운 */}
@@ -221,7 +224,7 @@ export default function TodayPage() {
             <div className="td-tengod">
               <span className="big">{res.ten_god.ko}</span>
               <span className="hj">({res.ten_god.hanja})</span>
-              <span className="sub">일간 {res.day_master.ko}({res.day_master.stem}) 기준 오늘의 기운</span>
+              <span className="sub">{tr("today.tengod_sub", { dm: res.day_master.ko, stem: res.day_master.stem })}</span>
             </div>
             <p className="td-line">{res.ten_god.line}</p>
             {res.relation && (
@@ -231,15 +234,15 @@ export default function TodayPage() {
 
           {/* 행운 요소 */}
           <div className="td-lucky">
-            <span className="td-chip">🎨 행운의 색 <b>{res.lucky.color}</b></span>
-            <span className="td-chip">🧭 행운의 방위 <b>{res.lucky.direction}</b></span>
-            <span className="td-chip">🌿 오늘의 오행 <b>{res.lucky.element}</b></span>
+            <span className="td-chip">{tr("today.lucky_color")} <b>{res.lucky.color}</b></span>
+            <span className="td-chip">{tr("today.lucky_dir")} <b>{res.lucky.direction}</b></span>
+            <span className="td-chip">{tr("today.lucky_elem")} <b>{res.lucky.element}</b></span>
           </div>
 
           {/* 올해 배경(연 단위) */}
           {res.year?.domains?.length > 0 && (
             <>
-              <div className="cr-sub">올해({res.year.seun.year}) 배경 흐름 <span>— {res.year.seun.stem_ko}{res.year.seun.branch_ko}년 기준, 연중 동일</span></div>
+              <div className="cr-sub">{tr("today.year_head", { year: res.year.seun.year })} <span>{tr("today.year_head_sub", { gz: `${res.year.seun.stem_ko}${res.year.seun.branch_ko}` })}</span></div>
               <div className="sy-domains">
                 {res.year.domains.map((d) => (
                   <div key={d.label} className="sy-domain">
@@ -257,9 +260,9 @@ export default function TodayPage() {
             text={todayText(res)}
             source="tool"
             pdf={{
-              docTitle: `${who} 님의 오늘의 운세`,
-              personLine: `${who} 님`,
-              item: `${fmtToday(res.date)} 오늘의 운세`,
+              docTitle: tr("today.pdf_doc", { who }),
+              personLine: tr("today.pdf_person", { who }),
+              item: tr("today.pdf_item", { date: fmtToday(res.date) }),
             }}
           />
 
@@ -268,20 +271,20 @@ export default function TodayPage() {
           <div className="td-share">
             {card ? (
               <div className="td-card-box">
-                <img src={card.url} alt="오늘의 운세 공유 카드" />
+                <img src={card.url} alt={tr("today.card_alt")} />
                 <div className="td-card-actions">
                   <span className="share-wrap">
-                    <button onClick={shareCard}>공유하기</button>
+                    <button onClick={shareCard}>{tr("today.share_btn")}</button>
                     {cardHint && <span className="share-hint" role="status">{cardHint}</span>}
                   </span>
-                  <DownloadGuard href={card.download_url} doneLabel="✅ 저장 완료">⤓ 저장</DownloadGuard>
+                  <DownloadGuard href={card.download_url} doneLabel={tr("today.save_done")}>{tr("today.save_btn")}</DownloadGuard>
                 </div>
                 <ShareQuotaNote className="share-quota-note inline" />
               </div>
             ) : cardBusy ? (
-              <div className="td-share-loading" role="status">📤 오늘 운세 공유 카드를 만들고 있어요…</div>
+              <div className="td-share-loading" role="status">{tr("today.card_making")}</div>
             ) : (
-              <button className="td-share-btn" onClick={makeCard}>📤 오늘 운세 공유 카드 만들기</button>
+              <button className="td-share-btn" onClick={makeCard}>{tr("today.card_make_btn")}</button>
             )}
           </div>
 
@@ -292,9 +295,9 @@ export default function TodayPage() {
               isPreview={!!res.is_preview}
               autoStart={false}
               pdf={{
-                docTitle: `${who} 님의 오늘의 운세`,
-                personLine: `${who} 님`,
-                item: `${fmtToday(res.date)} 오늘의 운세`,
+                docTitle: tr("today.pdf_doc", { who }),
+                personLine: tr("today.pdf_person", { who }),
+                item: tr("today.pdf_item", { date: fmtToday(res.date) }),
               }}
               pdfHeader={todayText(res)}
               feedbackSource="tool"
@@ -303,7 +306,7 @@ export default function TodayPage() {
             />
           )}
 
-          <p className="td-note">더 깊은 풀이가 궁금하면 <Link to="/chat">사주 상담</Link>에서 이어서 물어보세요.</p>
+          <p className="td-note"><Trans i18nKey="today.note" components={{ chat: <Link to="/chat" /> }} /></p>
         </div>
       )}
     </div>

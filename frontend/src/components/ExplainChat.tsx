@@ -180,27 +180,27 @@ export default function ExplainChat({
       {!qaOnly && (
         <>
           <div className="cr-sub" ref={explainTopRef} style={{ scrollMarginTop: 72 }}>
-            해설 {stage === "refining" && <span className="cr-refine-tag">보강 중…</span>}
+            {tr("explain.head")} {stage === "refining" && <span className="cr-refine-tag">{tr("compat.refining")}</span>}
           </div>
           <div className="explain-body">
             {!explainOn ? (
               <button className="explain-cta" onClick={startExplain}>
-                🔮 자세히 설명해 드릴까요?{" "}
+                {tr("explain.cta")}{" "}
                 {entryPaid
-                  ? <span className="free-tag included">입장료 포함</span>
-                  : <span className="free-tag">무료</span>}
+                  ? <span className="free-tag included">{tr("explain.included_tag")}</span>
+                  : <span className="free-tag">{tr("explain.free_tag")}</span>}
               </button>
             ) : (
               <>
                 {explain ? renderRich(explain) : (
                   explainFailed ? (
                     <div className="explain-retry">
-                      <span>해설 생성이 지연되고 있어요. 네트워크나 서버 사정일 수 있어요.</span>
-                      <button type="button" className="explain-retry-btn" onClick={retryExplain}>🔄 다시 시도 (무과금)</button>
+                      <span>{tr("explain.delay")}</span>
+                      <button type="button" className="explain-retry-btn" onClick={retryExplain}>{tr("explain.retry_btn")}</button>
                     </div>
                   ) : (
                     <span className="gen-live" role="status" aria-live="polite">
-                      🔮 <b>설명을 생성하고 있어요</b> <TypingDots />
+                      <Trans i18nKey="explain.generating" components={{ b: <b /> }} />{" "}<TypingDots />
                     </span>
                   )
                 )}
@@ -241,8 +241,8 @@ export default function ExplainChat({
             {t.role === "assistant" && t.content && !t.is_preview && pdf &&
               !(qStreaming && i === turns.length - 1) && (
               <AnswerActions
-                text={`[질문] ${turns[i - 1]?.role === "user" ? turns[i - 1].content : ""}\n\n${stripMarkdown(t.content)}`}
-                pdf={{ ...pdf, item: ((turns[i - 1]?.role === "user" ? turns[i - 1].content : "") || pdf.item || "추가 질문").slice(0, 40) }}
+                text={`${tr("explain.q_prefix")} ${turns[i - 1]?.role === "user" ? turns[i - 1].content : ""}\n\n${stripMarkdown(t.content)}`}
+                pdf={{ ...pdf, item: ((turns[i - 1]?.role === "user" ? turns[i - 1].content : "") || pdf.item || tr("compat.qa_title")).slice(0, 40) }}
                 messageId={feedbackSource ? t.message_id : undefined}
                 source={feedbackSource}
                 sessionId={feedbackSessionId}

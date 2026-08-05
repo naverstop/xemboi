@@ -1,6 +1,7 @@
 /** 프리미엄 사주 입력 — 빠른입력 + 날짜/시각 + 성별·양음력 세그먼트 토글. 전 메뉴 공용. */
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import i18n from "../i18n";
 import AdvancedBirthSettings from "./AdvancedBirthSettings";
 import TimeSelect from "./TimeSelect";
 import { DEFAULT_BIRTH_TIME } from "../lib/birthTime";
@@ -36,15 +37,16 @@ export function profileToBirthValue(p: any): Partial<BirthValue> {
   return out;
 }
 
-/** 저장값을 사람이 읽는 한 줄로 — '기억된 내 정보' 강조 표시용(예: 1999년 9월 30일 · 09:30 · 남자 · 양력). */
+/** 저장값을 사람이 읽는 한 줄로 — '기억된 내 정보' 강조 표시용
+ *  (ko: 1999년 9월 30일 · 09:30 · 남자 · 양력 / vi: 30/9/1999 · 09:30 · Nam · Dương lịch). */
 export function readableBirth(v: BirthValue): string {
   if (!v.birth_date) return "";
   const [y, m, d] = v.birth_date.split("-");
-  const parts = [`${+y}년 ${+m}월 ${+d}일`];
-  if (v.unknown_time) parts.push("시 모름");
+  const parts = [i18n.t("birth.date_ymd", { y: +y, m: +m, d: +d })];
+  if (v.unknown_time) parts.push(i18n.t("chat.unknown_time"));
   else if ((v.birth_time || "").trim()) parts.push(v.birth_time);
-  parts.push(v.gender === "female" ? "여자" : "남자");
-  parts.push(v.calendar === "lunar" ? (v.is_leap_month ? "음력(윤달)" : "음력") : "양력");
+  parts.push(v.gender === "female" ? i18n.t("birth.gender_female") : i18n.t("birth.gender_male"));
+  parts.push(v.calendar === "lunar" ? (v.is_leap_month ? i18n.t("birth.lunar_leap") : i18n.t("chat.lunar")) : i18n.t("chat.solar"));
   return parts.join(" · ");
 }
 
@@ -131,9 +133,9 @@ export default function BirthFields({
       {/* 기억된 내 정보 — 자동입력됐음을 사람이 읽는 형식으로 크게·강조(오해 방지, 운영자 지적) */}
       {remembered && value.birth_date && (
         <div className="bf-remembered" role="status">
-          <span className="bfr-badge">🔖 기억된 내 정보</span>
+          <span className="bfr-badge">{tr("birth.remembered_badge")}</span>
           <span className="bfr-main">{readableBirth(value)}</span>
-          <span className="bfr-sub">자동으로 불러왔어요 · 바꾸려면 아래에서 수정하세요</span>
+          <span className="bfr-sub">{tr("birth.remembered_sub")}</span>
         </div>
       )}
 

@@ -3,6 +3,8 @@
  *  타로 '내 기록'과 동일 UX. 클릭 시 무차감 GET(getTool/getCompatibility)으로 결과를 되살린다.
  */
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
+import i18n from "../i18n";
 
 export type PastItem = {
   id: string;
@@ -16,37 +18,39 @@ export default function PastResultsDrawer({
   loading,
   onOpen,
   onPick,
-  emptyText = "아직 저장된 결과가 없어요.",
-  note = "🕰 지난 결과는 언제든 다시 볼 수 있어요 — 재열람은 포인트가 차감되지 않아요.",
-  label = "지난 결과",
+  emptyText,
+  note,
+  label,
 }: {
   items: PastItem[] | null;
   loading?: boolean;
   onOpen: () => void;             // 드로어를 열 때 목록 새로고침
   onPick: (id: string) => void;   // 항목 선택 → 무차감 복원
-  emptyText?: string;
-  note?: string;
-  label?: string;
+  emptyText?: string;             // 기본=로케일 libx.past_empty
+  note?: string;                  // 기본=로케일 libx.past_note
+  label?: string;                 // 기본=로케일 libx.past_label
 }) {
+  const { t: tr } = useTranslation();
   const [open, setOpen] = useState(false);
+  const labelTx = label ?? tr("libx.past_label");
   return (
     <div className="past-float">
       <button
         className="past-hist-btn"
         onClick={() => { onOpen(); setOpen((v) => !v); }}
-        title="입장료 없이 지난 결과를 다시 봅니다"
+        title={tr("libx.past_title")}
       >
-        🗂 {label}{items && items.length > 0 ? <em> {items.length}</em> : null}
+        🗂 {labelTx}{items && items.length > 0 ? <em> {items.length}</em> : null}
       </button>
       {open && (
-        <aside className="past-drawer" role="dialog" aria-label={label}>
+        <aside className="past-drawer" role="dialog" aria-label={labelTx}>
           <div className="past-drawer-head">
-            <span>{label}</span>
-            <button className="past-drawer-x" aria-label="닫기" onClick={() => setOpen(false)}>✕</button>
+            <span>{labelTx}</span>
+            <button className="past-drawer-x" aria-label={tr("pay.close")} onClick={() => setOpen(false)}>✕</button>
           </div>
-          <div className="past-drawer-note">{note}</div>
-          {loading && <div className="past-drawer-empty">불러오는 중…</div>}
-          {!loading && items && items.length === 0 && <div className="past-drawer-empty">{emptyText}</div>}
+          <div className="past-drawer-note">{note ?? tr("libx.past_note")}</div>
+          {loading && <div className="past-drawer-empty">{tr("libx.loading")}</div>}
+          {!loading && items && items.length === 0 && <div className="past-drawer-empty">{emptyText ?? tr("libx.past_empty")}</div>}
           {!loading && items && items.map((it) => (
             <button key={it.id} className="past-item" onClick={() => { onPick(it.id); setOpen(false); }}>
               <div className="past-item-title">{it.title}</div>
@@ -60,10 +64,11 @@ export default function PastResultsDrawer({
   );
 }
 
-/** created_at(ISO) → 'M월 D일 HH:mm' 한국시간 표기(목록 카드용). */
+/** created_at(ISO) → 로케일 날짜·시각 표기(목록 카드용). ko='M월 D일 HH:mm' / vi='D/M HH:mm'. */
 export function fmtWhen(iso: string): string {
   try {
-    return new Date(iso).toLocaleString("ko-KR", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" });
+    const loc = i18n.language?.startsWith("vi") ? "vi-VN" : "ko-KR";
+    return new Date(iso).toLocaleString(loc, { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" });
   } catch {
     return "";
   }

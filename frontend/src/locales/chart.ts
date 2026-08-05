@@ -76,6 +76,31 @@ export const chartKo = {
   daewoon_forward: "순행",
   daewoon_backward: "역행",
   daewoon_title: "대운 ({{dir}}, 대운수 {{age}}세)",
+  dw_now: "지금",
+
+  // ── 기질 6축·영역별 운세(SajuChart 하단 지표) ──
+  trait_aria: "기질 레이더",
+  metrics_traits_title: "기질 6축",
+  metrics_traits_sub: "십성 분포",
+  metrics_domains_title: "영역별 운세 비중",
+  metrics_domains_sub: "올해 세운 반영",
+  seun_label: " ({{year}} 세운 {{ganji}})",
+  trust_badge: "🔒 결정적 계산",
+  trust_tx: "명식·대운·조후용신을 <b>규칙으로 산출</b> — 지어내지 않아요",
+  // lib/sajuMetrics.ts traits()의 key(drive…) → 표시 라벨 (trait_{key})
+  trait_drive: "자기주도",
+  trait_express: "표현력",
+  trait_money: "재물감각",
+  trait_duty: "책임감",
+  trait_learn: "배움",
+  trait_social: "관계유연",
+  // 영역별 운세 — 백엔드 domain_scores·프론트 폴백(sajuMetrics.domains)의 한국어 라벨 키 → 표시
+  domain: { 직업운: "직업운", 재물운: "재물운", 대인운: "대인운", 연애운: "연애운", 건강운: "건강운" },
+
+  // ── 오행 균형 오각(OhaengRadar — 작명·개명) ──
+  or_aria: "오행 균형 오각 차트",
+  or_cur: "현재 사주",
+  or_comp_default: "이름 보완 후",
 
   // ── 명리 도감(MyeongriWheel) ──
   mw_aria: "명리 기초 도감 — 천간과 지지",
@@ -181,6 +206,27 @@ export const chartVi: typeof chartKo = {
   daewoon_forward: "Thuận",
   daewoon_backward: "Nghịch",
   daewoon_title: "Đại vận ({{dir}}, khởi vận {{age}} tuổi)",
+  dw_now: "Hiện tại",
+
+  trait_aria: "Radar khí chất",
+  metrics_traits_title: "6 trục khí chất",
+  metrics_traits_sub: "Phân bố thập thần",
+  metrics_domains_title: "Tỷ trọng vận trình theo lĩnh vực",
+  metrics_domains_sub: "Đã tính Tuế vận năm nay",
+  seun_label: " ({{year}} Tuế vận {{ganji}})",
+  trust_badge: "🔒 Tính toán xác định",
+  trust_tx: "Lá số·Đại vận·Điều hậu dụng thần <b>tính theo quy tắc</b> — không bịa ra",
+  trait_drive: "Tự chủ",
+  trait_express: "Biểu đạt",
+  trait_money: "Nhạy tài lộc",
+  trait_duty: "Trách nhiệm",
+  trait_learn: "Học hỏi",
+  trait_social: "Khéo quan hệ",
+  domain: { 직업운: "Vận sự nghiệp", 재물운: "Vận tiền tài", 대인운: "Vận quan hệ", 연애운: "Vận tình duyên", 건강운: "Vận sức khỏe" },
+
+  or_aria: "Biểu đồ ngũ giác cân bằng ngũ hành",
+  or_cur: "Lá số hiện tại",
+  or_comp_default: "Sau khi bổ khuyết bằng tên",
 
   mw_aria: "Cẩm nang mệnh lý cơ bản — Thiên can và Địa chi",
   mw_tab_gan: "Thiên can",

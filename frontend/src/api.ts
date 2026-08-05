@@ -593,12 +593,14 @@ export function consultantConsoleWsUrl(): string {
   return `${proto}://${location.host}/api/consultation/consultant/ws?token=${encodeURIComponent(getToken() || "")}`;
 }
 
+// 답변 말투(사투리) 선택지 — value는 서버 전송 enum(불변), label은 로케일 표시용(err.dialect_*).
+// label을 getter로 두어 언어 전환 시점의 로케일 문자열을 항상 반환한다(모듈 상수 고정 방지).
 export const DIALECTS: { value: string; label: string }[] = [
-  { value: "standard", label: "표준어" },
-  { value: "gyeongsang", label: "경상도" },
-  { value: "jeolla", label: "전라도" },
-  { value: "gangwon", label: "강원도" },
-  { value: "jeju", label: "제주도" },
+  { value: "standard", get label() { return i18n.t("err.dialect_standard"); } },
+  { value: "gyeongsang", get label() { return i18n.t("err.dialect_gyeongsang"); } },
+  { value: "jeolla", get label() { return i18n.t("err.dialect_jeolla"); } },
+  { value: "gangwon", get label() { return i18n.t("err.dialect_gangwon"); } },
+  { value: "jeju", get label() { return i18n.t("err.dialect_jeju"); } },
 ];
 
 export type SajuProfileInput = {
@@ -1167,9 +1169,18 @@ export type ToolResponse = {
   reused?: boolean;   // 24시간 내 동일 입력 재조회 → 기존 세션 반환(무과금) 안내용
 };
 
+// 택일 용도 표시 라벨 — key는 서버 전송 enum(불변), 라벨은 기존 taekil.purpose_* 카탈로그 재사용.
+// getter로 두어 언어 전환 시점의 로케일 문자열을 항상 반환한다(Object.keys 등 기존 사용처 불변).
 export const PURPOSE_LABELS: Record<TaekilPurpose, string> = {
-  wedding: "혼인", birth: "출산", moving: "이사", opening: "개업", contract: "계약",
-  ceremony: "고사·제사", surgery: "수술", travel: "여행", general: "일반",
+  get wedding() { return i18n.t("taekil.purpose_wedding"); },
+  get birth() { return i18n.t("taekil.purpose_birth"); },
+  get moving() { return i18n.t("taekil.purpose_moving"); },
+  get opening() { return i18n.t("taekil.purpose_opening"); },
+  get contract() { return i18n.t("taekil.purpose_contract"); },
+  get ceremony() { return i18n.t("taekil.purpose_ceremony"); },
+  get surgery() { return i18n.t("taekil.purpose_surgery"); },
+  get travel() { return i18n.t("taekil.purpose_travel"); },
+  get general() { return i18n.t("taekil.purpose_general"); },
 };
 
 // ---- 고객센터(CONTACT US) ----

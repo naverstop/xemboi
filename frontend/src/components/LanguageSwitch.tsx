@@ -52,7 +52,9 @@ const ITEMS: { loc: Locale; Flag: () => JSX.Element; label: string }[] = [
   { loc: "ko", Flag: FlagKR, label: "한국어" },
 ];
 
-export default function LanguageSwitch() {
+// compact: 국기만(라벨 숨김) 컴팩트 배지 — 로그인 카드 좌상단처럼 폭이 좁은 곳용.
+//   기본(라벨 포함)은 사이드바 콘텐츠 상단(App.tsx .app-content)용.
+export default function LanguageSwitch({ compact = false }: { compact?: boolean } = {}) {
   const { i18n } = useTranslation();
   if (!VN_BUILD) return null; // 한국 빌드에는 표시하지 않음(불변)
 
@@ -68,9 +70,9 @@ export default function LanguageSwitch() {
       role="group"
       aria-label="Language / Ngôn ngữ"
       style={{
-        position: "absolute", // .app-content(relative) 기준 → 사이드바 밖, 모바일에서도 보임
+        position: "absolute", // 부모(relative) 기준 좌상단. App=.app-content / Login=.auth-card
         top: 12,
-        left: 16,
+        left: compact ? 12 : 16,
         zIndex: 40,
         display: "flex",
         gap: 4,
@@ -89,24 +91,25 @@ export default function LanguageSwitch() {
             type="button"
             aria-pressed={active}
             title={label}
+            aria-label={compact ? label : undefined}
             onClick={() => pick(loc)}
             style={{
               display: "flex",
               alignItems: "center",
-              gap: 6,
-              padding: "4px 10px",
+              gap: compact ? 0 : 6,
+              padding: compact ? "5px 7px" : "4px 10px",
               fontSize: 13,
               lineHeight: 1.2,
               borderRadius: 999,
               cursor: "pointer",
               fontWeight: active ? 700 : 400,
-              border: active ? "1px solid #6366f1" : "1px solid transparent",
-              background: active ? "rgba(99,102,241,.14)" : "transparent",
+              border: active ? "1px solid #0d9488" : "1px solid transparent",
+              background: active ? "rgba(13,148,136,.14)" : "transparent",
               color: "inherit",
             }}
           >
             <Flag />
-            <span>{label}</span>
+            {!compact && <span>{label}</span>}
           </button>
         );
       })}

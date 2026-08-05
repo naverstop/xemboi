@@ -67,7 +67,7 @@ export default function TaekilPage() {
   const me = useMe();
   const ensureEntry = useEnsureEntry();
   // 상담서 제목/대상 표기 — ⚠️ 호칭=이메일 아이디 고정(운영자 결정) — lib/displayName.ts
-  const who = displayName(me, "접속자");
+  const who = displayName(me, tr("taekil.visitor"));
   // 공통 '기억하기' — 저장본(회원 프로필/비회원 LS) 자동 채움 + 자동 저장
   const { remember, toggleRemember } = useBirthMemory(b, (patch) => setB((prev) => ({ ...prev, ...patch })));
   // 이탈→복귀/새로고침 시 마지막 결과 자동 복원(무차감) + '지난 결과' 목록
@@ -79,7 +79,7 @@ export default function TaekilPage() {
   const past = usePastList<PastItem>(() =>
     api.listTools(["taekil"]).then((r) => r.items.map((it) => ({
       id: it.tool_id,
-      title: (PURPOSE_LABELS as Record<string, string>)[it.kind] ? `${(PURPOSE_LABELS as Record<string, string>)[it.kind]} 택일` : "택일",
+      title: (PURPOSE_LABELS as Record<string, string>)[it.kind] ? tr("taekil.pdf_item", { label: tr(`taekil.purpose_${it.kind}`) }) : tr("taekil.hero_title"),
       subtitle: it.birth_date || undefined, when: fmtWhen(it.created_at),
     }))),
   );
@@ -131,7 +131,7 @@ export default function TaekilPage() {
         <PastResultsDrawer
           items={past.items} loading={past.loading}
           onOpen={past.refresh} onPick={(id) => restore(id)}
-          label="지난 택일" emptyText="아직 저장된 택일 결과가 없어요."
+          label={tr("taekil.past_label")} emptyText={tr("taekil.past_empty")}
         />
       )}
       <header className="compat-hero">
@@ -160,21 +160,21 @@ export default function TaekilPage() {
           </div>
         </div>
         <EntryFeeNotice menu="taekil" />
-        {purpose === "birth" && <PersonHd icon="🙋" label="부모 ①" sub="입력하시는 본인(부모)이에요." />}
-        {purpose === "wedding" && <PersonHd icon="🙋" label="본인" sub="결혼 당사자 본인의 사주예요." />}
+        {purpose === "birth" && <PersonHd icon="🙋" label={tr("taekil.parent1")} sub={tr("taekil.parent1_sub")} />}
+        {purpose === "wedding" && <PersonHd icon="🙋" label={tr("taekil.self")} sub={tr("taekil.self_sub")} />}
         <RememberBirthToggle remember={remember} onToggle={toggleRemember} />
         <BirthFields value={b} onChange={(patch) => setB((prev) => ({ ...prev, ...patch }))} remembered={remember} />
         {purpose === "birth" && (
           <>
-            <PersonHd icon="👪" label="부모 ②"
-                      sub={<><b>(선택)</b> 출산 택일의 경우, 부모님의 사주와 연계하여 출산일을 계산하여 최적의 날짜를 추천드립니다.</>} />
+            <PersonHd icon="👪" label={tr("taekil.parent2")}
+                      sub={<Trans i18nKey="taekil.parent2_sub" components={{ b: <b /> }} />} />
             <BirthFields value={b2} onChange={(patch) => setB2((prev) => ({ ...prev, ...patch }))} />
           </>
         )}
         {purpose === "wedding" && (
           <>
-            <PersonHd icon="💑" label="상대(배우자)"
-                      sub={<><b>(선택)</b> 입력 시 신랑·신부 <b>양측 명식</b>으로 정밀 판정해요 — 성별을 꼭 확인하세요.</>} />
+            <PersonHd icon="💑" label={tr("taekil.partner_label")}
+                      sub={<Trans i18nKey="taekil.partner_sub" components={{ b: <b /> }} />} />
             <BirthFields value={b2} onChange={(patch) => setB2((prev) => ({ ...prev, ...patch }))} />
           </>
         )}
@@ -200,7 +200,7 @@ export default function TaekilPage() {
       {res && (
         <div id="tool-result" className="compat-result">
           {res.credits_charged > 0 && (
-            <div className="charge-receipt">✓ 입장료 {res.credits_charged.toLocaleString()} P 차감됨</div>
+            <div className="charge-receipt">{tr("taekil.entry_charged", { n: fmtNum(res.credits_charged), pt: tr("pay.pt") })}</div>
           )}
           <div className="cr-headline">
             <span className="cr-names">{res.result.purpose_label}</span>
@@ -218,9 +218,9 @@ export default function TaekilPage() {
                       background: res.result.applied_rule.startsWith("정식") ? "var(--brand-soft,#efe7d6)" : "var(--soft,#f3f5f8)",
                       color: res.result.applied_rule.startsWith("정식") ? "var(--brand,#8a6d3b)" : "var(--muted,#5b6472)",
                       border: "1px solid var(--line,#e6e0d5)" }}>
-                적용 관법: {res.result.applied_rule}
+                {tr("taekil.applied_rule", { rule: res.result.applied_rule })}
               </span>
-              <span style={{ color: "var(--ink-400,#8a93a3)" }}>택일은 정답이 없어 적용 관법을 함께 표기합니다.</span>
+              <span style={{ color: "var(--ink-400,#8a93a3)" }}>{tr("taekil.applied_rule_note")}</span>
             </div>
           )}
           {res.result.sewoon_note && (
@@ -233,10 +233,10 @@ export default function TaekilPage() {
           {res.result.no_gil ? (
             <div style={{ fontSize: 13, lineHeight: 1.55, color: "var(--danger,#c0392b)",
                           background: "var(--danger-soft,#fdecea)", padding: "10px 13px", borderRadius: 10, margin: "8px 0 10px" }}>
-              ⚠ 이 기간에는 뚜렷한 <b>길일이 없어요</b>. 아래는 그나마 나은 <b>차선(참고)</b>일 뿐 ‘추천 길일’이 아닙니다 — 검색 기간을 넓혀 다시 찾아보시길 권합니다.
+              <Trans i18nKey="taekil.no_gil_warn" components={{ b: <b /> }} />
             </div>
           ) : (
-            <div className="cr-sub">추천 길일</div>
+            <div className="cr-sub">{tr("taekil.recommended")}</div>
           )}
           <div className="taekil-grid">
             {((res.result.no_gil ? res.result.alt : res.result.best) || []).map((d: any, i: number) => (
@@ -250,7 +250,7 @@ export default function TaekilPage() {
                   {d.saenggi && <span className={`dc-saenggi ${d.saenggi_gil === "gil" ? "gil" : d.saenggi_gil === "hyung" ? "hyung" : ""}`} title={tr("taekil.saenggi_title")}>{d.saenggi}</span>}
                   {d.sonless && <span className="dc-son">{tr("taekil.sonless")}</span>}
                 </div>
-                <div className="dc-score">{d.score}점 · {d.grade}</div>
+                <div className="dc-score">{tr("taekil.score_grade", { score: d.score, grade: d.grade })}</div>
                 {(() => {
                   // 차선(흉일) 카드는 모든 경고를, 추천 길일 카드는 어드바이저리(십악대패·월운 흉월·비겁일)만 배지로.
                   const show = (w: string) => res.result.no_gil || /십악대패|월운 흉월|비겁일/.test(w);
@@ -288,11 +288,11 @@ export default function TaekilPage() {
                   <div key={p.label} className="tp-chip">
                     <div className="tp-label">{p.label}</div>
                     {p.locked ? (
-                      <div className="tp-date" style={{ color: "var(--muted,#8a93a3)" }}>🔒 로그인 후 공개</div>
+                      <div className="tp-date" style={{ color: "var(--muted,#8a93a3)" }}>{tr("taekil.locked_login")}</div>
                     ) : (
                       <>
                         <div className="tp-date">{p.top_date}</div>
-                        <div className="tp-meta">{p.top_ganzhi} · {p.top_score}점</div>
+                        <div className="tp-meta">{tr("taekil.persp_meta", { ganzhi: p.top_ganzhi, score: p.top_score })}</div>
                       </>
                     )}
                   </div>
@@ -336,12 +336,12 @@ export default function TaekilPage() {
               양 부모 명식이 상담사에게 전달됨(kind=birth). 위치=답변설명(해설) 아래(운영자 지정). */}
           {purpose === "birth" && me && res.tool_id && (
             <ConsultBanner
-              title="출산일은 함부로 정할 수 없어 상담사 님과 1:1 상담을 권합니다"
-              desc="부모님 두 분의 사주 명식이 상담사에게 그대로 전해져요 — 추천일은 참고만 하시고 함께 정하세요"
+              title={tr("taekil.consult_title")}
+              desc={tr("taekil.consult_desc")}
               onClick={() =>
                 window.dispatchEvent(
                   new CustomEvent("saju:consult-open", {
-                    detail: { kind: "birth", refId: res.tool_id, label: "출산 택일 상담" },
+                    detail: { kind: "birth", refId: res.tool_id, label: tr("taekil.consult_label") },
                   })
                 )
               }

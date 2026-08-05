@@ -11,6 +11,8 @@
  *  - 그 외 iOS 인앱(인스타·페북 등): 프로그램적 탈출 불가 → 'copy'(주소 복사 + 수동 안내)
  */
 
+import i18n from "../i18n";
+
 export function isIOS(): boolean {
   return /iphone|ipad|ipod/i.test(window.navigator.userAgent);
 }
@@ -23,18 +25,19 @@ export type InAppInfo = { inApp: boolean; kakao: boolean; name: string };
 
 export function inAppBrowser(): InAppInfo {
   const ua = window.navigator.userAgent;
-  if (/KAKAOTALK/i.test(ua)) return { inApp: true, kakao: true, name: "카카오톡" };
-  if (/KAKAOSTORY/i.test(ua)) return { inApp: true, kakao: false, name: "카카오스토리" };
-  if (/NAVER\(inapp/i.test(ua)) return { inApp: true, kakao: false, name: "네이버앱" };
-  if (/Instagram/i.test(ua)) return { inApp: true, kakao: false, name: "인스타그램" };
-  if (/Threads/i.test(ua)) return { inApp: true, kakao: false, name: "스레드" };
-  if (/FBAN|FBAV|FB_IAB/i.test(ua)) return { inApp: true, kakao: false, name: "페이스북" };
-  if (/Line\//i.test(ua)) return { inApp: true, kakao: false, name: "라인" };
-  if (/MicroMessenger/i.test(ua)) return { inApp: true, kakao: false, name: "위챗" };
-  if (/musical_ly|Bytedance/i.test(ua)) return { inApp: true, kakao: false, name: "틱톡" };
-  if (/DaumApps|everytimeApp|band\//i.test(ua)) return { inApp: true, kakao: false, name: "앱 내 브라우저" };
+  // 표시명은 호출 시점 로케일로 해석(ko 한글 표기 / vi 로마자 표기 — misc.inapp_*). UA 정규식은 내부값.
+  if (/KAKAOTALK/i.test(ua)) return { inApp: true, kakao: true, name: i18n.t("misc.inapp_kakaotalk") };
+  if (/KAKAOSTORY/i.test(ua)) return { inApp: true, kakao: false, name: i18n.t("misc.inapp_kakaostory") };
+  if (/NAVER\(inapp/i.test(ua)) return { inApp: true, kakao: false, name: i18n.t("misc.inapp_naver") };
+  if (/Instagram/i.test(ua)) return { inApp: true, kakao: false, name: i18n.t("misc.inapp_instagram") };
+  if (/Threads/i.test(ua)) return { inApp: true, kakao: false, name: i18n.t("misc.inapp_threads") };
+  if (/FBAN|FBAV|FB_IAB/i.test(ua)) return { inApp: true, kakao: false, name: i18n.t("misc.inapp_facebook") };
+  if (/Line\//i.test(ua)) return { inApp: true, kakao: false, name: i18n.t("misc.inapp_line") };
+  if (/MicroMessenger/i.test(ua)) return { inApp: true, kakao: false, name: i18n.t("misc.inapp_wechat") };
+  if (/musical_ly|Bytedance/i.test(ua)) return { inApp: true, kakao: false, name: i18n.t("misc.inapp_tiktok") };
+  if (/DaumApps|everytimeApp|band\//i.test(ua)) return { inApp: true, kakao: false, name: i18n.t("misc.inapp_generic") };
   // 최후 폴백: 앱 이름을 안 밝히는 Android 인앱 웹뷰(; wv). 정상 크롬·삼성인터넷 UA엔 ';wv'가 없어 오탐 낮음.
-  if (/android/i.test(ua) && /;\s*wv[);]/i.test(ua)) return { inApp: true, kakao: false, name: "앱 내 브라우저" };
+  if (/android/i.test(ua) && /;\s*wv[);]/i.test(ua)) return { inApp: true, kakao: false, name: i18n.t("misc.inapp_generic") };
   return { inApp: false, kakao: false, name: "" };
 }
 
