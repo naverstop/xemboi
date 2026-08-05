@@ -17,13 +17,17 @@ import {
   isIOS, isIOSSafari, isStandalonePwa as isStandalone,
 } from "../lib/inapp";
 
-const AOS_STEPS: { ic: string; text: ReactNode }[] = [
-  { ic: "🌐", text: <><b>Chrome</b>으로 이 사이트를 여세요.</> },
-  { ic: "⋮", text: <>우측 상단 <b>메뉴(⋮)</b> → <b>&ldquo;앱 설치&rdquo;</b> 또는 <b>&ldquo;홈 화면에 추가&rdquo;</b>를 누르세요.</> },
-  { ic: "✅", text: <><b>&ldquo;설치&rdquo;</b>를 누르면 홈 화면과 앱 서랍에 <b>상담친구</b> 앱이 생겨요.</> },
-];
+// Android 설치 단계 — 문구는 install.aos_step* 로케일 키(렌더 시점 해석). 아이콘은 로케일 중립.
+function aosSteps(): { ic: string; text: ReactNode }[] {
+  return [
+    { ic: "🌐", text: <Trans i18nKey="install.aos_step1" components={{ b: <b /> }} /> },
+    { ic: "⋮", text: <Trans i18nKey="install.aos_step2" components={{ b: <b /> }} /> },
+    { ic: "✅", text: <Trans i18nKey="install.aos_step3" components={{ b: <b /> }} /> },
+  ];
+}
 
 export default function InstallPrompt() {
+  const { t: tr } = useTranslation();
   const { showPopup, showIosGuide, accept, snooze, canInstall } = usePwaInstall();
   const [manualOpen, setManualOpen] = useState(false);            // 상시 진입점(스누즈 무관)
   const [tab, setTab] = useState<"ios" | "aos">(isIOS() ? "ios" : "aos");
@@ -102,17 +106,16 @@ export default function InstallPrompt() {
     return (
       <div className="pwa-overlay" onClick={close}>
         <div className="pwa-modal pwa-guide" onClick={(e) => e.stopPropagation()}>
-          <h3>📲 앱 설치 안내</h3>
+          <h3>{tr("install.warn_title")}</h3>
           <div className="pwa-inapp-warn" role="alert">
-            <b>⚠️ 지금은 {inApp.name} 안의 브라우저예요.</b><br />
-            여기서는 <b>앱 설치(홈 화면 추가)가 안 돼요.</b> {browserName}에서 열면 바로 설치할 수 있어요.
+            <Trans i18nKey="install.warn_body" values={{ name: inApp.name, browser: browserName }} components={{ b: <b />, br: <br /> }} />
           </div>
           {!copyGuide ? (
             <>
               <button className="pwa-escape" onClick={onEscapeConsent}>
-                🧭 {browserName}에서 열기 (동의)
+                {tr("install.warn_open", { browser: browserName })}
               </button>
-              <p className="pwa-note">버튼을 누르면 {browserName}(기기 기본 브라우저)로 이 페이지가 열리고, 설치 안내가 이어집니다.</p>
+              <p className="pwa-note">{tr("install.warn_note", { browser: browserName })}</p>
             </>
           ) : (
             <>
@@ -120,19 +123,18 @@ export default function InstallPrompt() {
                 <li style={{ listStyle: "none" }}>
                   <span className="pwa-step-ic" aria-hidden>🔗</span>
                   <span className="pwa-step-tx">
-                    {copied ? <b>주소가 복사됐어요!</b> : "주소를 복사했어요."} {inApp.name}에서는 자동 이동이 막혀 있어요 —
-                    화면 <b>우측 상단/하단 메뉴(⋯)</b>에서 <b>"{browserName}로 열기"</b>를 누르거나,
-                    {browserName}를 직접 열어 <b>주소창에 붙여넣기</b> 해주세요.
+                    {copied ? <b>{tr("install.copied_strong")}</b> : tr("install.copied_plain")}{" "}
+                    <Trans i18nKey="install.copy_guide" values={{ name: inApp.name, browser: browserName }} components={{ b: <b /> }} />
                   </span>
                 </li>
               </div>
               <button className="pwa-escape" onClick={copyLink}>
-                {copied ? "✅ 복사됨" : "🔗 주소 다시 복사"}
+                {copied ? tr("install.copy_again_done") : tr("install.copy_again")}
               </button>
             </>
           )}
           <div className="pwa-actions">
-            <button onClick={close}>그냥 둘러보기</button>
+            <button onClick={close}>{tr("install.just_browse")}</button>
           </div>
         </div>
       </div>
@@ -144,9 +146,9 @@ export default function InstallPrompt() {
     return (
       <div className="pwa-overlay" onClick={close}>
         <div className="pwa-modal" onClick={(e) => e.stopPropagation()}>
-          <h3>앱으로 설치하기</h3>
-          <p>✅ 이미 앱으로 실행 중이에요! 홈 화면 아이콘으로 언제든 바로 열 수 있어요.</p>
-          <div className="pwa-actions"><button onClick={close}>확인</button></div>
+          <h3>{tr("misc.pwa_title")}</h3>
+          <p>{tr("install.already_installed")}</p>
+          <div className="pwa-actions"><button onClick={close}>{tr("misc.pwa_confirm")}</button></div>
         </div>
       </div>
     );
@@ -157,11 +159,11 @@ export default function InstallPrompt() {
     return (
       <div className="pwa-overlay" onClick={close}>
         <div className="pwa-modal" onClick={(e) => e.stopPropagation()}>
-          <h3>앱으로 설치하기</h3>
-          <p>홈 화면에 추가하면 더 빠르게 실행되고, 오늘의 운세 알림을 받을 수 있어요.</p>
+          <h3>{tr("misc.pwa_title")}</h3>
+          <p>{tr("misc.pwa_popup_body")}</p>
           <div className="pwa-actions">
-            <button className="secondary" onClick={close}>나중에</button>
-            <button onClick={installNow}>설치</button>
+            <button className="secondary" onClick={close}>{tr("misc.pwa_later")}</button>
+            <button onClick={installNow}>{tr("misc.pwa_install")}</button>
           </div>
         </div>
       </div>
@@ -173,18 +175,18 @@ export default function InstallPrompt() {
   return (
     <div className="pwa-overlay" onClick={close}>
       <div className="pwa-modal pwa-guide" onClick={(e) => e.stopPropagation()}>
-        <h3>📲 앱으로 설치하기</h3>
+        <h3>📲 {tr("misc.pwa_title")}</h3>
 
         {inApp.inApp && (
           <div className="pwa-inapp-warn" role="alert">
-            <b>⚠️ 지금은 {inApp.name} 안의 브라우저예요.</b> 여기서는 홈 화면에 추가할 수 없어요.
+            <Trans i18nKey="install.guide_inapp" values={{ name: inApp.name }} components={{ b: <b /> }} />
             {inApp.kakao ? (
               <button className="pwa-escape" onClick={onEscapeConsent}>
-                🧭 {isIOS() ? "Safari" : "Chrome"}(기본 브라우저)로 열기
+                {tr("install.open_default", { browser: isIOS() ? "Safari" : "Chrome" })}
               </button>
             ) : (
               <button className="pwa-escape" onClick={copyLink}>
-                {copied ? "✅ 복사됨 — Safari에 붙여넣어 여세요" : "🔗 주소 복사 (Safari에 붙여넣기)"}
+                {copied ? tr("install.copy_safari_done") : tr("install.copy_safari")}
               </button>
             )}
           </div>
@@ -194,8 +196,8 @@ export default function InstallPrompt() {
             버튼 한 번이면 네이티브 설치 창이 떠서 바로 설치된다(다른 앱처럼). */}
         {canInstall && !inApp.inApp && (
           <div className="pwa-oneclick">
-            <button className="pwa-install-now" onClick={installNow}>📲 한 번에 설치하기</button>
-            <p className="pwa-oneclick-note">이 버튼 한 번이면 홈 화면에 <b>상담친구</b> 앱이 설치돼요.</p>
+            <button className="pwa-install-now" onClick={installNow}>{tr("install.oneclick_btn")}</button>
+            <p className="pwa-oneclick-note"><Trans i18nKey="install.oneclick_note" components={{ b: <b /> }} /></p>
           </div>
         )}
 
@@ -207,12 +209,12 @@ export default function InstallPrompt() {
         {tab === "aos" ? (
           <>
             {canInstall ? (
-              <p className="pwa-hint pwa-hint-ok">✅ 위 <b>&ldquo;한 번에 설치하기&rdquo;</b> 버튼을 누르면 끝이에요. 버튼이 안 보이면 아래 방법으로도 돼요.</p>
+              <p className="pwa-hint pwa-hint-ok"><Trans i18nKey="install.aos_hint_ok" components={{ b: <b /> }} /></p>
             ) : !inApp.inApp ? (
-              <p className="pwa-hint">Chrome에서 잠깐 둘러보시면 <b>&ldquo;한 번에 설치하기&rdquo; 버튼이 자동으로 나타나요.</b> 안 나오면 아래 방법으로 하세요.</p>
+              <p className="pwa-hint"><Trans i18nKey="install.aos_hint" components={{ b: <b /> }} /></p>
             ) : null}
             <ol className="pwa-steps">
-              {AOS_STEPS.map((s, i) => (
+              {aosSteps().map((s, i) => (
                 <li key={i}>
                   <span className="pwa-step-ic" aria-hidden>{s.ic}</span>
                   <span className="pwa-step-no" aria-hidden>{i + 1}</span>
@@ -226,7 +228,7 @@ export default function InstallPrompt() {
         )}
 
         <div className="pwa-actions">
-          <button onClick={close}>확인</button>
+          <button onClick={close}>{tr("misc.pwa_confirm")}</button>
         </div>
       </div>
     </div>
@@ -237,15 +239,16 @@ export default function InstallPrompt() {
  *  - Safari가 아니면(Chrome-iOS·인앱 등): 진짜 설치가 안 되므로 Safari로 유도(주소 복사).
  *  - Safari면: 공유 버튼 위치(하단 가운데) → 공유시트의 '홈 화면에 추가'를 그림+화살표로 안내. */
 function IosInstallGuide({ iosSafari, copied, onCopy }: { iosSafari: boolean; copied: boolean; onCopy: () => void }) {
+  const { t: tr } = useTranslation();
   const [help, setHelp] = useState(false);
   return (
     <div className="pwa-ios">
       {!iosSafari && (
         <div className="pwa-ios-safari" role="alert">
-          <b>⚠️ 아이폰은 <u>Safari</u>에서만 앱으로 설치돼요.</b>
-          <span>지금 브라우저(크롬 등)에서는 홈 화면에 추가해도 진짜 앱이 안 돼요. 아래 버튼으로 주소를 복사해 <b>Safari</b> 주소창에 붙여넣어 여세요.</span>
+          <Trans i18nKey="install.ios_only_safari" components={{ b: <b />, u: <u /> }} />
+          <span><Trans i18nKey="install.ios_safari_body" components={{ b: <b /> }} /></span>
           <button className="pwa-escape" onClick={onCopy}>
-            {copied ? "✅ 주소 복사됨 — Safari에 붙여넣기" : "🔗 주소 복사 → Safari로 열기"}
+            {copied ? tr("install.ios_copy_done") : tr("install.ios_copy")}
           </button>
         </div>
       )}
@@ -253,47 +256,47 @@ function IosInstallGuide({ iosSafari, copied, onCopy }: { iosSafari: boolean; co
       {/* 시각 가이드: ① 하단 공유 버튼 위치 ② 공유시트의 '홈 화면에 추가' */}
       <div className="pwa-ios-vis" aria-hidden>
         <div className="pwa-ios-sheet">
-          <div className="pwa-ios-row">복사</div>
+          <div className="pwa-ios-row">{tr("install.sheet_copy")}</div>
           <div className="pwa-ios-row hl">
-            <span className="pwa-ios-row-tx">홈 화면에 추가</span>
+            <span className="pwa-ios-row-tx">{tr("install.sheet_add_home")}</span>
             <span className="pwa-ios-row-ic">➕</span>
           </div>
-          <div className="pwa-ios-row">책갈피 추가</div>
-          <div className="pwa-ios-arrow">여기를 누르세요</div>
+          <div className="pwa-ios-row">{tr("install.sheet_bookmark")}</div>
+          <div className="pwa-ios-arrow">{tr("install.sheet_tap_here")}</div>
         </div>
         <div className="pwa-ios-bar">
-          <span className="pwa-ios-share" title="공유"><i /></span>
-          <span className="pwa-ios-bar-tx">① 화면 <b>아래 가운데</b> 공유 버튼</span>
+          <span className="pwa-ios-share" title={tr("install.sheet_share_title")}><i /></span>
+          <span className="pwa-ios-bar-tx"><Trans i18nKey="install.sheet_bar_hint" components={{ b: <b /> }} /></span>
         </div>
       </div>
 
       <ol className="pwa-steps pwa-ios-steps">
         <li>
           <span className="pwa-step-ic" aria-hidden>⬆️</span><span className="pwa-step-no" aria-hidden>1</span>
-          <span className="pwa-step-tx">Safari 화면 <b>아래 가운데 공유 버튼(⬆︎)</b>을 누르세요.</span>
+          <span className="pwa-step-tx"><Trans i18nKey="install.ios_step1" components={{ b: <b /> }} /></span>
         </li>
         <li>
           <span className="pwa-step-ic" aria-hidden>➕</span><span className="pwa-step-no" aria-hidden>2</span>
-          <span className="pwa-step-tx">목록을 아래로 내려 <b>&ldquo;홈 화면에 추가&rdquo;</b>를 누르세요.</span>
+          <span className="pwa-step-tx"><Trans i18nKey="install.ios_step2" components={{ b: <b /> }} /></span>
         </li>
         <li>
           <span className="pwa-step-ic" aria-hidden>✅</span><span className="pwa-step-no" aria-hidden>3</span>
-          <span className="pwa-step-tx">오른쪽 위 <b>&ldquo;추가&rdquo;</b> → 홈 화면의 <b>상담친구</b> 아이콘으로 실행!</span>
+          <span className="pwa-step-tx"><Trans i18nKey="install.ios_step3" components={{ b: <b /> }} /></span>
         </li>
       </ol>
 
       <button className="pwa-ios-help-toggle" onClick={() => setHelp((v) => !v)} aria-expanded={help}>
-        {help ? "▲ 닫기" : "❓ ‘홈 화면에 추가’가 안 보이나요?"}
+        {help ? tr("install.help_close") : tr("install.help_open")}
       </button>
       {help && (
         <div className="pwa-ios-help">
-          <p>• 공유 목록을 <b>아래로 더 스크롤</b>해 보세요. 아래쪽에 있어요.</p>
-          <p>• 주소창의 <b>브라우저가 Safari인지</b> 확인하세요. 크롬·카카오·인스타에서는 안 보여요.</p>
-          <p>• 그래도 없으면 위 <b>주소 복사</b> 후 Safari를 직접 열어 붙여넣어 주세요.</p>
+          <p><Trans i18nKey="install.help1" components={{ b: <b /> }} /></p>
+          <p><Trans i18nKey="install.help2" components={{ b: <b /> }} /></p>
+          <p><Trans i18nKey="install.help3" components={{ b: <b /> }} /></p>
         </div>
       )}
 
-      <p className="pwa-note">설치하면 전체 화면 앱으로 열리고, iOS 16.4 이상에서는 <b>아침 운세 알림</b>도 받을 수 있어요.</p>
+      <p className="pwa-note"><Trans i18nKey="install.ios_note" components={{ b: <b /> }} /></p>
     </div>
   );
 }

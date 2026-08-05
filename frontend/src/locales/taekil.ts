@@ -23,8 +23,16 @@ export const taekilKo = {
   desc_general: "일반 길일 — 황도길일·사주·손없는날을 고루 반영합니다.",
   // 부모(출산)
   parent1: "부모 ①",
+  parent1_sub: "입력하시는 본인(부모)이에요.",
   parent2: "부모 ②",
   parent2_opt: "(선택 — 입력 시 두 분 모두와의 궁합으로 가립니다)",
+  parent2_sub: "<b>(선택)</b> 출산 택일의 경우, 부모님의 사주와 연계하여 출산일을 계산하여 최적의 날짜를 추천드립니다.",
+  self_sub: "결혼 당사자 본인의 사주예요.",
+  partner_label: "상대(배우자)",
+  partner_sub: "<b>(선택)</b> 입력 시 신랑·신부 <b>양측 명식</b>으로 정밀 판정해요 — 성별을 꼭 확인하세요.",
+  // 지난 결과 드로어
+  past_label: "지난 택일",
+  past_empty: "아직 저장된 택일 결과가 없어요.",
   // 검색 기간
   label_period: "검색 기간",
   days_opt: "{{n}}일",
@@ -37,6 +45,11 @@ export const taekilKo = {
   parent: "부모",
   self: "본인",
   day_branch: "{{who}} 일지 {{branch}}",
+  entry_charged: "✓ 입장료 {{n}} {{pt}} 차감됨",
+  applied_rule: "적용 관법: {{rule}}",
+  applied_rule_note: "택일은 정답이 없어 적용 관법을 함께 표기합니다.",
+  no_gil_warn: "⚠ 이 기간에는 뚜렷한 <b>길일이 없어요</b>. 아래는 그나마 나은 <b>차선(참고)</b>일 뿐 ‘추천 길일’이 아닙니다 — 검색 기간을 넓혀 다시 찾아보시길 권합니다.",
+  locked_login: "🔒 로그인 후 공개",
   recommended: "추천 길일",
   saenggi_title: "생기복덕(본명괘 기준)",
   sonless: "손없는날",
@@ -53,6 +66,10 @@ export const taekilKo = {
   pdf_item: "{{label}} 택일",
   pdf_header_title: "[추천 길일]",
   pdf_line: "- {{date}} ({{ganzhi}}) · {{score}}점 · {{grade}}",
+  // 출산 택일 상담사 배너
+  consult_title: "출산일은 함부로 정할 수 없어 상담사 님과 1:1 상담을 권합니다",
+  consult_desc: "부모님 두 분의 사주 명식이 상담사에게 그대로 전해져요 — 추천일은 참고만 하시고 함께 정하세요",
+  consult_label: "출산 택일 상담",
   // 용도 선택 칩 라벨(백엔드 purpose_label 과 동일값 — 셀렉터 즉시 표시용)
   purpose_wedding: "혼인",
   purpose_birth: "출산",
@@ -86,8 +103,16 @@ export const taekilVi: typeof taekilKo = {
   desc_general: "Ngày tốt chung — cân nhắc đều ngày hoàng đạo·Tứ Trụ·ngày không sát chủ.",
   // 부모(출산)
   parent1: "Cha mẹ ①",
+  parent1_sub: "Chính là bạn (cha/mẹ) — người đang nhập thông tin.",
   parent2: "Cha mẹ ②",
   parent2_opt: "(tùy chọn — nếu nhập, chọn ngày theo sự hợp tuổi với cả hai người)",
+  parent2_sub: "<b>(tùy chọn)</b> Với chọn ngày sinh con, chúng tôi liên kết với lá số của cha mẹ để tính ngày sinh và đề xuất ngày tốt nhất.",
+  self_sub: "Lá số Tứ Trụ của chính người kết hôn.",
+  partner_label: "Đối phương (vợ/chồng)",
+  partner_sub: "<b>(tùy chọn)</b> Nếu nhập, hệ thống phán đoán chính xác theo <b>lá số cả hai bên</b> cô dâu·chú rể — hãy kiểm tra kỹ giới tính.",
+  // 지난 결과 드로어
+  past_label: "Chọn ngày trước đây",
+  past_empty: "Chưa có kết quả chọn ngày nào được lưu.",
   // 검색 기간
   label_period: "Khoảng thời gian tìm",
   days_opt: "{{n}} ngày",
@@ -100,6 +125,11 @@ export const taekilVi: typeof taekilKo = {
   parent: "Cha mẹ",
   self: "Bản thân",
   day_branch: "Địa chi ngày {{branch}} ({{who}})",
+  entry_charged: "✓ Đã trừ phí vào cửa {{n}} {{pt}}",
+  applied_rule: "Trường phái áp dụng: {{rule}}",
+  applied_rule_note: "Chọn ngày không có đáp án tuyệt đối nên chúng tôi ghi kèm trường phái áp dụng.",
+  no_gil_warn: "⚠ Trong khoảng thời gian này <b>không có ngày tốt rõ rệt</b>. Bên dưới chỉ là <b>phương án thay thế (tham khảo)</b>, không phải ‘ngày tốt đề xuất’ — bạn nên mở rộng khoảng thời gian tìm và thử lại.",
+  locked_login: "🔒 Đăng nhập để xem",
   recommended: "Ngày tốt đề xuất",
   saenggi_title: "Sinh khí phúc đức (theo bản mệnh quái)",
   sonless: "Ngày không sát chủ",
@@ -116,6 +146,10 @@ export const taekilVi: typeof taekilKo = {
   pdf_item: "Chọn ngày {{label}}",
   pdf_header_title: "[Ngày tốt đề xuất]",
   pdf_line: "- {{date}} ({{ganzhi}}) · {{score}} điểm · {{grade}}",
+  // 출산 택일 상담사 배너
+  consult_title: "Ngày sinh con không thể tự ý quyết định — chúng tôi khuyên bạn tư vấn 1:1 với tư vấn viên",
+  consult_desc: "Lá số Tứ Trụ của cả hai cha mẹ được chuyển nguyên vẹn cho tư vấn viên — ngày đề xuất chỉ để tham khảo, hãy cùng nhau quyết định",
+  consult_label: "Tư vấn chọn ngày sinh con",
   // 용도 선택 칩 라벨
   purpose_wedding: "Cưới hỏi",
   purpose_birth: "Sinh con",

@@ -335,12 +335,12 @@ function SajuProfilesCard() {
           />
           <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
             <div style={{ flex: 1 }}>
-              <label style={{ display: "block", fontSize: 13, marginBottom: 4 }}>생년월일</label>
+              <label style={{ display: "block", fontSize: 13, marginBottom: 4 }}>{tr("settings.birth_date")}</label>
               {/* 빠른 입력(운영자 지적 2026-07-27): 20080810 처럼 8자리를 치면 자동으로 YYYY-MM-DD 로
                   채운다. 종전엔 type=date 세그먼트라 tab 이동이 필요해 8자리 연속 입력이 안 됐다. */}
               <input
                 type="text" inputMode="numeric" maxLength={10}
-                placeholder="숫자 8자리 예: 20080810"
+                placeholder={tr("settings.birth_quick_ph")}
                 style={{ width: "100%", marginBottom: 6 }}
                 onChange={(e) => {
                   const d = e.target.value.replace(/\D/g, "");

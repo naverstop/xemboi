@@ -306,9 +306,9 @@ export default function CompatibilityPage() {
   const { t: tr } = useTranslation();
   const ensureEntry = useEnsureEntry();
   const { openCharge } = useCharge();
-  const memberName = displayName(me, "본인");  // ⚠️ 호칭=이메일 아이디 고정(운영자 결정) — lib/displayName.ts
-  const [a, setA] = useState<PState>(() => blankPerson("나"));
-  const [b, setB] = useState<PState>(() => blankPerson("상대"));
+  const memberName = displayName(me, tr("compat.member_fallback"));  // ⚠️ 호칭=이메일 아이디 고정(운영자 결정) — lib/displayName.ts
+  const [a, setA] = useState<PState>(() => blankPerson(tr("compat.self")));
+  const [b, setB] = useState<PState>(() => blankPerson(tr("compat.other")));
   const [profiles, setProfiles] = useState<SajuProfile[]>([]);
   const [depth, setDepth] = useState<"basic" | "deep">("deep");
   const [loading, setLoading] = useState(false);
@@ -347,7 +347,7 @@ export default function CompatibilityPage() {
   const past = usePastList<PastItem>(() =>
     api.listCompat().then((r) => r.items.map((it) => ({
       id: it.compat_id,
-      title: `${it.a_label || "나"} · ${it.b_label || "상대"} 궁합`,
+      title: tr("compat.past_title", { a: it.a_label || tr("compat.self"), b: it.b_label || tr("compat.other") }),
       subtitle: [it.a_birth_date, it.b_birth_date].filter(Boolean).join("  ·  ") || undefined,
       when: fmtWhen(it.created_at),
     }))),
@@ -355,7 +355,7 @@ export default function CompatibilityPage() {
 
   async function makeInvite() {
     if (inviteBusy) return;
-    if (!a.birth_date) { setErr("먼저 '나'(첫 번째 사람)의 생년월일을 입력해 주세요."); return; }
+    if (!a.birth_date) { setErr(tr("compat.invite_need_a")); return; }
     setInviteBusy(true); setErr(null);
     try {
       const r = await api.compatInviteCreate({
@@ -366,8 +366,8 @@ export default function CompatibilityPage() {
       });
       setInviteUrl(r.url);
     } catch (e: any) {
-      if (e?.status === 401) setErr("초대 링크는 로그인 후 만들 수 있어요.");
-      else setErr(e?.message || "초대 링크를 만들지 못했어요.");
+      if (e?.status === 401) setErr(tr("compat.invite_login"));
+      else setErr(e?.message || tr("compat.invite_fail"));
     } finally { setInviteBusy(false); }
   }
 
@@ -378,7 +378,7 @@ export default function CompatibilityPage() {
       setInviteCopied(true);
       window.setTimeout(() => setInviteCopied(false), 1600);
     } catch {
-      window.prompt("아래 링크를 복사해 상대에게 보내 주세요", full);
+      window.prompt(tr("compat.invite_copy_prompt"), full);
     }
   }
 
@@ -397,7 +397,7 @@ export default function CompatibilityPage() {
     api.compatInvitePrefill(tk)
       .then((r) => {
         setA((prev) => ({ ...prev, ...profileToBirthValue(r.a), mode: "manual" }));
-        setB((prev) => ({ ...prev, ...profileToBirthValue(r.b), mode: "manual", label: prev.label || "상대" }));
+        setB((prev) => ({ ...prev, ...profileToBirthValue(r.b), mode: "manual", label: prev.label || tr("compat.other") }));
         setInviteFilled(true);
         window.history.replaceState(null, "", loc.pathname);   // 토큰 파라미터 정리
       })
@@ -523,7 +523,7 @@ export default function CompatibilityPage() {
         <PastResultsDrawer
           items={past.items} loading={past.loading}
           onOpen={past.refresh} onPick={(id) => restore(id)}
-          label="지난 궁합" emptyText="아직 저장된 궁합 결과가 없어요."
+          label={tr("compat.past_label")} emptyText={tr("compat.past_empty")}
         />
       )}
       <header className="compat-hero">
@@ -532,11 +532,11 @@ export default function CompatibilityPage() {
         <p><Trans i18nKey="compat.hero_desc" components={{ b: <b /> }} /></p>
       </header>
 
-      <ReviewStrip source="compat" title="이용자 후기" limit={8} />
+      <ReviewStrip source="compat" title={tr("landing.reviews_title")} limit={8} />
       <EntryFeeNotice menu="compat" />
       {inviteFilled && (
         <div className="cta-hint" role="status" style={{ textAlign: "center", marginBottom: 10 }}>
-          💌 초대 수락이 완료돼 <b>두 분의 생일이 자동으로 채워졌어요</b> — 바로 궁합을 볼 수 있어요.
+          <Trans i18nKey="compat.invite_filled" components={{ b: <b /> }} />
         </div>
       )}
       <div className="compat-input-grid">
@@ -548,14 +548,14 @@ export default function CompatibilityPage() {
       {/* B-10 상대 초대(바이럴) — 상대 생일을 모를 때 링크로 입력 부탁 */}
       {me && (
         <div className="cp-invite">
-          <span>💌 상대방 생일을 모르시나요? <b>초대 링크</b>를 보내면 상대가 직접 입력하고, 두 분 모두 궁합 등급을 받아요.</span>
+          <span><Trans i18nKey="compat.invite_hint" components={{ b: <b /> }} /></span>
           {inviteUrl ? (
             <>
               <span className="cp-invite-link">{window.location.origin}{inviteUrl}</span>
-              <button onClick={copyInvite}>{inviteCopied ? "✓ 복사됨" : "링크 복사"}</button>
+              <button onClick={copyInvite}>{inviteCopied ? tr("compat.copied") : tr("compat.copy_link")}</button>
             </>
           ) : (
-            <button disabled={inviteBusy} onClick={makeInvite}>{inviteBusy ? "만드는 중…" : "초대 링크 만들기"}</button>
+            <button disabled={inviteBusy} onClick={makeInvite}>{inviteBusy ? tr("compat.invite_making") : tr("compat.invite_make")}</button>
           )}
         </div>
       )}
@@ -655,18 +655,17 @@ function CompatExplainPanel({
         {explainText ? renderRich(explainText) : (
           explainFailed ? (
             <div className="explain-retry">
-              <span>해설 생성이 지연되고 있어요. 네트워크나 서버 사정일 수 있어요.</span>
-              <button type="button" className="explain-retry-btn" onClick={onRetryExplain}>🔄 다시 시도 (무과금)</button>
+              <span>{tr("compat.explain_delay")}</span>
+              <button type="button" className="explain-retry-btn" onClick={onRetryExplain}>{tr("compat.retry_free")}</button>
             </div>
           ) : (
-            <span className="gen-live" role="status" aria-live="polite">🔮 <b>설명을 생성하고 있어요</b> <TypingDots /></span>
+            <span className="gen-live" role="status" aria-live="polite"><Trans i18nKey="compat.gen_live" components={{ b: <b /> }} /> <TypingDots /></span>
           )
         )}
       </div>
       {isPreview && (
         <div className="explain-preview-note">
-          {me ? "미리보기입니다. 충전 후 전체 해설과 추가 질문을 이용할 수 있어요."
-              : "미리보기입니다. 로그인 후 전체 해설과 추가 질문을 이용할 수 있어요."}
+          {me ? tr("compat.preview_note_charge") : tr("compat.preview_note")}
         </div>
       )}
       {pdf && explainText && !explainStreaming && (
@@ -687,9 +686,9 @@ function CompatExplainPanel({
           <div key={i} className={`qa-turn qa-${t.role}`}>
             <div className="qa-bubble">
               {t.content ? renderRich(t.content) : (
-                <span className="gen-live" role="status" aria-live="polite"><b>답변을 생성하고 있어요</b> <TypingDots /></span>
+                <span className="gen-live" role="status" aria-live="polite"><Trans i18nKey="compat.answer_live" components={{ b: <b /> }} /> <TypingDots /></span>
               )}
-              {t.refined && <span className="qa-refined">✨ 보강됨</span>}
+              {t.refined && <span className="qa-refined">{tr("compat.qa_refined")}</span>}
               {t.role === "assistant" && typeof t.charged === "number" && t.charged > 0 && (
                 <span className="qa-charged">{tr("compat.qa_charged", { n: fmtNum(t.charged) })}</span>
               )}
@@ -698,8 +697,8 @@ function CompatExplainPanel({
             {t.role === "assistant" && t.content && !t.is_preview && pdf &&
               !(qStreaming && i === qaTurns.length - 1) && (
               <AnswerActions
-                text={`[질문] ${qaTurns[i - 1]?.role === "user" ? qaTurns[i - 1].content : ""}\n\n${stripMarkdown(t.content)}`}
-                pdf={{ ...pdf, item: ((qaTurns[i - 1]?.role === "user" ? qaTurns[i - 1].content : "") || pdf.item || "추가 질문").slice(0, 40) }}
+                text={`${tr("compat.qa_q_prefix")}${qaTurns[i - 1]?.role === "user" ? qaTurns[i - 1].content : ""}\n\n${stripMarkdown(t.content)}`}
+                pdf={{ ...pdf, item: ((qaTurns[i - 1]?.role === "user" ? qaTurns[i - 1].content : "") || pdf.item || tr("compat.qa_title")).slice(0, 40) }}
                 messageId={t.message_id}
                 source="compat"
                 compatId={compatId}
@@ -823,7 +822,7 @@ function Result({ res, avg }: { res: CompatResponse; avg: CompatAverage | null }
   return (
     <div id="compat-result" className="compat-result">
       {res.credits_charged > 0 && (
-        <div className="charge-receipt">✓ 입장료 {res.credits_charged.toLocaleString()} P 차감됨</div>
+        <div className="charge-receipt">{tr("compat.entry_charged", { n: res.credits_charged.toLocaleString() })}</div>
       )}
       <div className="cr-headline">
         <span className="cr-names">{res.person_a.label}</span>

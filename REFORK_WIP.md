@@ -1,20 +1,20 @@
 # 신규 화면 vi 게이팅 잔여 목록 (재분기 자체는 2026-08-05 main 머지·push 완료 — 85bb530)
-아래 '후속' 항목만 남음. 이 파일은 신규 화면 vi 완료 시 삭제.
 
-## PDF 전수감사 잔여(2026-08-05, 감사 w2xkmk9n7 — 심각·high 전부 수정완료, 아래는 med/low 후속)
-- AnswerActions 공유 신형 플로우 문구 다수 KO(한도 alert·카카오 카드·메일 폼 등 — :225·310·356·562-597) → answer.* 키화
-- email PDF 본문/제목 vi 문구(백엔드 분기 지점 마련됨 — 문구 자체 vi 작성)
-- Stable 고스트 폭 재적용 + KO 상수 정리(AnswerActions:22-40)
-- 신규화면 3종(부적·달력·오늘) PDF 메타 키 — 아래 vi 게이팅과 함께
-- [사용자 결정 회부] 공유 채널: 카카오를 vi에서 숨길지 Zalo로 대체할지
+## ★★ 프론트 전 화면 vi 로컬라이즈 완료(2026-08-05, 브랜치 claude/hungry-hawking-72d1cd)
+아래 '우선순위 1~15' + PDF 전수감사 med/low 프론트 항목 **전부 완료**. 병렬 서브에이전트 9종으로 화면별 분담 처리.
+- **신설 카탈로그 11종**: today·fcal·amulet·privacy·snack·reviews·invite·partner·payx·install·libx (i18n.ts 등록 완료, `<ns>Vi: typeof <ns>Ko` 타입으로 ko/vi 키쌍 완전성 보장).
+- **기존 카탈로그 확장**: chat·compat·settings·err·taekil·tarot·chart·birth·answer·misc·consult·explain.
+- **언어 전환 UX 신규**: ① LanguageSwitch를 App.tsx `.app-content` 좌상단 + LoginPage(auth 셸 밖 단독) 양쪽 배선(국기 SVG 포함, active=민트 #0d9488). ② i18n `languageChanged`→`<html lang>` 동기화(index.html 정적 lang 보정). ③ 브라우저 언어 자동감지는 기존 languagedetector(localStorage saju_lang→navigator→기본 vi) 활용. ④ 셸 사이드바 하드코딩 6곳(입점/설정/상담사/업로드/추세/관리자)→tr(nav.*).
+- **package.json**: i18next·i18next-browser-languagedetector·react-i18next 명시(누락 상태였음).
+- **게이트 그린**: npm run build(tsc -b + vite) exit 0 / 브라우저 양방향 검증(dev :5199, saju_lang 토글): vi 선택 시 전 사용자화면(랜딩·오늘·달력·궁합·택일·부적·타로·리뷰·결제·고객센터·설정·로그인·입점신청) 가시 한글 0(스위치 '한국어' 라벨 제외) / ko 선택 시 vi 0(스위치 라벨·VND 통화 đ·VN 지역명 제외=빌드 고정, 정상) / i18n missing-key 경고 0·콘솔 에러 0 / navigator=ko→한국어 자동선택 확인.
+- **데드코드 제거**: AnswerActions의 미사용 `Stable`/`*_LABELS` 상수(참조 0 grep 확인) 삭제.
 
-## 우선순위(사용자 가시순)
-1. PrivacyNotice(전 도구 페이지 상단 🔒 안내) 2. TodayPage(오늘의 운세) 3. AmuletPage(부적)
-4. PaymentsPage 내부(패스 카드·포인트 원장 표) 5. InstallPrompt 설치가이드 본문 6. ReviewsPage/ReviewStrip 라벨
-7. CalendarPage 8. SnackPage 9. TaekilPage rule_note/점수줄/PersonHd 10. TarotPage 세션리스트/스프레드힌트
-11. ConsultationOverlay 예약·사업자 카드 12. ChargeModal EntryConfirmModal(ENTRY_MENU_LABEL/DESC→entryLabel/i18n)
-13. ConsultantConsolePage 온보딩·수익탭 14. AnswerActions 영상/공유 신규 문구 15. 명령: 한국어 스캔 = 각 페이지에서
-treeWalker [가-힣] 가시노드 카운트(이 세션 방식). DB 데이터(리뷰 내용·사업자값)는 제외.
+## 남은 잔여(프론트 아님 / 운영자 판단)
+- **백엔드 i18n(별도 작업)**: `/api/snack` 테스트 카드 제목·부제가 ko 고정(Accept-Language:vi에도 ko 반환) → 백엔드 스낵 콘텐츠 로케일화 필요. 그 외 백엔드 산출값(명식 iljin/ten_god/ganzhi·amulet 라벨·grade 등)은 기존과 동일하게 백엔드 i18n 영역.
+- **관리자 백오피스 3화면 미처리(의도)**: AdminPage(KO 601)·TrendPage(78)·UploadsPage(90) — role=admin(운영자 본인) 전용, 일반/상담사 비노출이라 우선순위 최하. 필요 시 후속.
+- **TTS 보이스**: tts.ts는 speak(text, lang) 확장됨(vi→vi-VN). ConsultationProvider 입장멘트도 i18n.language 분기 적용됨.
+- **stash 사고 잔재**: 병렬 작업 중 한 에이전트의 `git stash` 오작동으로 stash@{0} 잔존(pop 금지 — 현 워킹트리와 충돌). 현 트리는 게이트 전부 그린이라 완전본. 백업: scratchpad\stash_recovery\. 불필요하면 운영자가 `git stash drop` 판단.
+- vi 원어민 검수(사주 전문용어 자연스러움)는 기존 카탈로그와 동일 전제.
 
 # (아카이브) refork 진행 기록
 

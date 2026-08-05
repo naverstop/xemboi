@@ -2,6 +2,8 @@
  * + 충·형·해 경고 + 손없는날 + 절기. 점수는 택일 엔진(일반 기준) 셀 재사용. */
 import { useRef, useState } from "react";
 import { Link } from "react-router-dom";
+import { useTranslation, Trans } from "react-i18next";
+import i18n from "../i18n";
 import { api, useMe, type Birth, type FortuneCalendar, type CalendarDay } from "../api";
 import { resolveBirthTime } from "../lib/birthTime";
 import BirthFields, { type BirthValue } from "../components/BirthFields";
@@ -11,26 +13,32 @@ import AnswerActions from "../components/AnswerActions";
 import ExplainChat from "../components/ExplainChat";
 import { displayName } from "../lib/displayName";
 
+// 등급 색상 — 키는 백엔드 grade 값(ko) 그대로(조회용 내부 식별자). 표시 라벨은 gradeLabel()로 번역.
 const GRADE_COLORS: Record<string, string> = {
   대길: "#0b72c4", 길: "#3aa4e8", 평: "#9a917f", 흉: "#d64545",
 };
+const GRADE_I18N: Record<string, string> = {
+  대길: "fcal.grade_daegil", 길: "fcal.grade_gil", 평: "fcal.grade_pyeong", 흉: "fcal.grade_hyung",
+};
+const gradeLabel = (g: string): string => (GRADE_I18N[g] ? i18n.t(GRADE_I18N[g]) : g);
 
 // 월 캘린더를 복사/공유/PDF용 plain text로 직렬화(공용 액션바 규약)
 function monthText(res: FortuneCalendar): string {
-  const lines = [`[운세 캘린더] ${res.year}년 ${res.month}월 — 일별 일진·길흉`];
+  const lines = [i18n.t("fcal.txt_title", { y: res.year, m: res.month })];
   res.days.forEach((d) => {
     const marks = [
-      d.sonless ? "손없는날" : "",
+      d.sonless ? i18n.t("fcal.sonless") : "",
       d.warnings.length ? `⚡${d.warnings.join("·")}` : "",
-      d.jieqi ? `절기 ${d.jieqi}` : "",
+      d.jieqi ? i18n.t("fcal.txt_jieqi", { j: d.jieqi }) : "",
     ].filter(Boolean).join(" · ");
-    lines.push(`${d.day}일 ${d.ganzhi} · ${d.grade} ${d.score}점${marks ? " · " + marks : ""}`);
+    lines.push(i18n.t("fcal.txt_day", { d: d.day, ganzhi: d.ganzhi, grade: gradeLabel(d.grade), score: d.score }) + (marks ? " · " + marks : ""));
   });
   if (res.note) lines.push(`\n${res.note}`);
   return lines.join("\n");
 }
 
 export default function CalendarPage() {
+  const { t: tr } = useTranslation();
   const me = useMe();
   const now = new Date();
   const [b, setB] = useState<BirthValue>({ birth_date: "", birth_time: "", unknown_time: false, gender: "male", calendar: "solar", is_leap_month: false, apply_true_solar_time: true, birth_longitude: 126.98 });
@@ -55,7 +63,7 @@ export default function CalendarPage() {
       // 첫 조회만 결과로 스크롤(표준 UX) — 월 이동(◀▶) 시엔 위치 유지
       if (scroll) setTimeout(() => document.getElementById("tool-result")?.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
     } catch (e: any) {
-      setErr(e?.message || "캘린더를 불러오지 못했어요.");
+      setErr(e?.message || tr("fcal.load_fail"));
     } finally { setLoading(false); }
   }
 
@@ -81,9 +89,9 @@ export default function CalendarPage() {
     <div className="compat-page">
       <PrivacyNotice variant="tool" />
       <header className="compat-hero">
-        <div className="compat-hero-badge">曆</div>
-        <h1>운세 캘린더</h1>
-        <p>한 달의 <b>일진(日辰)</b>과 내 사주 기준 <b>길흉</b>을 한눈에 봐요. 손없는날·절기·충형해 경고까지 표시해 드려요. <b>무료</b>입니다.</p>
+        <div className="compat-hero-badge">{tr("fcal.hero_badge")}</div>
+        <h1>{tr("fcal.hero_title")}</h1>
+        <p><Trans i18nKey="fcal.hero_desc" components={{ b: <b /> }} /></p>
       </header>
 
       <div className="tool-form">
@@ -93,28 +101,28 @@ export default function CalendarPage() {
 
       <div className="compat-actions">
         <button className="compat-cta" disabled={!b.birth_date || loading} onClick={() => run(b, ym.y, ym.m, true)}>
-          {loading ? "계산 중…" : "📅 이번 달 운세 보기 (무료)"}
+          {loading ? tr("fcal.loading") : tr("fcal.cta")}
         </button>
-        {!b.birth_date && <div className="cta-hint">생년월일을 입력해 주세요</div>}
+        {!b.birth_date && <div className="cta-hint">{tr("fcal.cta_hint")}</div>}
       </div>
       {err && <div className="compat-err">{err}</div>}
 
       {res && (
         <section id="tool-result" className="compat-result">
           <div className="fc-nav">
-            <button onClick={() => move(-1)} aria-label="이전 달">◀</button>
-            <b>{res.year}년 {res.month}월</b>
-            <button onClick={() => move(1)} aria-label="다음 달">▶</button>
+            <button onClick={() => move(-1)} aria-label={tr("fcal.prev_month")}>◀</button>
+            <b>{tr("fcal.ym", { y: res.year, m: res.month })}</b>
+            <button onClick={() => move(1)} aria-label={tr("fcal.next_month")}>▶</button>
           </div>
           <div className="fc-legend">
             {Object.entries(GRADE_COLORS).map(([g, c]) => (
-              <span key={g}><i style={{ background: c }} />{g}</span>
+              <span key={g}><i style={{ background: c }} />{gradeLabel(g)}</span>
             ))}
-            <span><i className="fc-son">손</i>손없는날</span>
-            <span>⚡ 충·형·해</span>
+            <span><i className="fc-son">{tr("fcal.son_marker")}</i>{tr("fcal.sonless")}</span>
+            <span>{tr("fcal.legend_warn")}</span>
           </div>
           <div className="fc-grid">
-            {["일", "월", "화", "수", "목", "금", "토"].map((w, i) => (
+            {tr("fcal.weekdays").split(",").map((w, i) => (
               <div key={w} className={`fc-w${i === 0 ? " sun" : i === 6 ? " sat" : ""}`}>{w}</div>
             ))}
             {Array.from({ length: firstPad }, (_, i) => <div key={`p${i}`} className="fc-cell empty" />)}
@@ -128,9 +136,9 @@ export default function CalendarPage() {
                 >
                   <span className={`fc-day${d.weekday === 6 ? " sun" : d.weekday === 5 ? " sat" : ""}`}>{d.day}</span>
                   <span className="fc-ganzhi">{d.ganzhi.slice(0, 2)}</span>
-                  <span className="fc-badge" style={{ background: GRADE_COLORS[d.grade] }}>{d.grade}</span>
+                  <span className="fc-badge" style={{ background: GRADE_COLORS[d.grade] }}>{gradeLabel(d.grade)}</span>
                   <span className="fc-marks">
-                    {d.sonless && <i className="fc-son">손</i>}
+                    {d.sonless && <i className="fc-son">{tr("fcal.son_marker")}</i>}
                     {d.warnings.length > 0 && <em title={d.warnings.join(" · ")}>⚡</em>}
                     {d.jieqi && <b className="fc-jieqi">{d.jieqi}</b>}
                   </span>
@@ -142,17 +150,17 @@ export default function CalendarPage() {
           {sel && (
             <div className="fc-detail">
               <div className="fc-detail-head">
-                <b>{res.month}월 {sel.day}일 · {sel.ganzhi}</b>
-                <span className="fc-badge lg" style={{ background: GRADE_COLORS[sel.grade] }}>{sel.grade} {sel.score}점</span>
+                <b>{tr("fcal.detail_date", { m: res.month, d: sel.day, ganzhi: sel.ganzhi })}</b>
+                <span className="fc-badge lg" style={{ background: GRADE_COLORS[sel.grade] }}>{tr("fcal.score_grade", { grade: gradeLabel(sel.grade), score: sel.score })}</span>
               </div>
               <ul>
-                {sel.jieqi && <li>🌱 절기 <b>{sel.jieqi}</b></li>}
-                {sel.sonless && <li>🏠 손없는날 — 이사·이동에 부담 없는 날로 봐요</li>}
+                {sel.jieqi && <li>{tr("fcal.jieqi_label")} <b>{sel.jieqi}</b></li>}
+                {sel.sonless && <li>{tr("fcal.sonless_note")}</li>}
                 {sel.warnings.length > 0
-                  ? <li>⚡ 내 사주와 {sel.warnings.join(" · ")} — 큰 결정은 신중히</li>
-                  : <li>😊 내 사주와 특별한 충돌이 없어요</li>}
+                  ? <li>{tr("fcal.warn_note", { list: sel.warnings.join(" · ") })}</li>
+                  : <li>{tr("fcal.no_conflict")}</li>}
               </ul>
-              <Link className="fc-detail-link" to="/taekil">🎯 결혼·이사 등 목적별 정밀 택일 보러 가기 →</Link>
+              <Link className="fc-detail-link" to="/taekil">{tr("fcal.taekil_link")}</Link>
             </div>
           )}
           <p className="td-note">{res.note}</p>
@@ -162,9 +170,9 @@ export default function CalendarPage() {
             text={monthText(res)}
             source="tool"
             pdf={{
-              docTitle: `${displayName(me)} 님의 ${res.year}년 ${res.month}월 운세 캘린더`,
-              personLine: `${displayName(me)} 님`,
-              item: "운세 캘린더(월별 일진)",
+              docTitle: tr("fcal.pdf_doc", { who: displayName(me), y: res.year, m: res.month }),
+              personLine: tr("fcal.pdf_person", { who: displayName(me) }),
+              item: tr("fcal.pdf_item"),
             }}
           />
 
@@ -175,9 +183,9 @@ export default function CalendarPage() {
               isPreview={!!res.is_preview}
               autoStart={false}
               pdf={{
-                docTitle: `${displayName(me)} 님의 ${res.year}년 ${res.month}월 운세 캘린더`,
-                personLine: `${displayName(me)} 님`,
-                item: "운세 캘린더(월별 일진)",
+                docTitle: tr("fcal.pdf_doc", { who: displayName(me), y: res.year, m: res.month }),
+                personLine: tr("fcal.pdf_person", { who: displayName(me) }),
+                item: tr("fcal.pdf_item"),
               }}
               pdfHeader={monthText(res)}
               feedbackSource="tool"

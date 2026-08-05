@@ -17,28 +17,36 @@ export function primeTTS(): void {
   } catch { /* 미지원 */ }
 }
 
-function pickKoFemaleVoice(): SpeechSynthesisVoice | null {
+function pickFemaleVoice(pref: "ko" | "vi"): SpeechSynthesisVoice | null {
   try {
     const vs = window.speechSynthesis.getVoices() || [];
-    const ko = vs.filter((v) => /^ko(-|_|$)/i.test(v.lang) || /korean|한국/i.test(v.name));
-    if (!ko.length) return null;
-    // 알려진 한국어 여성 보이스 우선(Microsoft SunHi/Heami, Google 한국의, Apple Yuna 등)
-    const female = ko.find((v) => /sunhi|heami|yuna|female|여성|여자|google 한국의/i.test(v.name));
-    return female || ko[0];
+    const pool = vs.filter((v) =>
+      pref === "vi"
+        ? /^vi(-|_|$)/i.test(v.lang) || /vietnam|việt/i.test(v.name)
+        : /^ko(-|_|$)/i.test(v.lang) || /korean|한국/i.test(v.name));
+    if (!pool.length) return null;
+    // 알려진 여성 보이스 우선(ko: Microsoft SunHi/Heami, Google 한국의, Apple Yuna / vi: Microsoft HoaiMy 등)
+    const female = pool.find((v) =>
+      pref === "vi"
+        ? /hoaimy|female|nữ/i.test(v.name)
+        : /sunhi|heami|yuna|female|여성|여자|google 한국의/i.test(v.name));
+    return female || pool[0];
   } catch {
     return null;
   }
 }
 
-export function speak(text: string): void {
+/** lang: i18n.language 등("vi"/"vi-VN"이면 베트남어 보이스, 그 외 ko 기본 — 기존 호출부 불변) */
+export function speak(text: string, lang?: string): void {
   if (!supported() || !text) return;
   try {
+    const pref: "ko" | "vi" = (lang || "ko").toLowerCase().startsWith("vi") ? "vi" : "ko";
     const u = new SpeechSynthesisUtterance(text);
-    u.lang = "ko-KR";
+    u.lang = pref === "vi" ? "vi-VN" : "ko-KR";
     u.rate = 1.0;
     u.pitch = 1.12;   // 살짝 높여 부드러운 여성 톤
     u.volume = 1;
-    const v = pickKoFemaleVoice();
+    const v = pickFemaleVoice(pref);
     if (v) u.voice = v;
     window.speechSynthesis.cancel();  // 이전 발화 중단(중첩 방지)
     window.speechSynthesis.speak(u);

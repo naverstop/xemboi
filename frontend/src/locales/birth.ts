@@ -15,6 +15,14 @@ export const birthKo = {
   minute_n: "{{mm}}분",
   // BirthFields 고유
   leap: "윤달",
+  // readableBirth — '기억된 내 정보' 한 줄 표기('시 모름'·'양력'·'음력'은 chat.* 재사용)
+  date_ymd: "{{y}}년 {{m}}월 {{d}}일",
+  gender_male: "남자",
+  gender_female: "여자",
+  lunar_leap: "음력(윤달)",
+  // '기억된 내 정보' 강조 카드
+  remembered_badge: "🔖 기억된 내 정보",
+  remembered_sub: "자동으로 불러왔어요 · 바꾸려면 아래에서 수정하세요",
 };
 
 export const birthVi: typeof birthKo = {
@@ -26,4 +34,10 @@ export const birthVi: typeof birthKo = {
   minute: "Phút",
   minute_n: "{{mm}} phút",
   leap: "Tháng nhuận",
+  date_ymd: "{{d}}/{{m}}/{{y}}",
+  gender_male: "Nam",
+  gender_female: "Nữ",
+  lunar_leap: "Âm lịch (tháng nhuận)",
+  remembered_badge: "🔖 Thông tin đã lưu của tôi",
+  remembered_sub: "Đã tự động điền · muốn thay đổi, hãy sửa bên dưới",
 };

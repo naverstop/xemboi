@@ -3,10 +3,12 @@
  *  수신자가 링크를 열면 인앱 탈출→크롬/사파리→설치 가이드로 이어진다(lib/appShare · InstallPrompt).
  */
 import { useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { shareApp } from "../lib/appShare";
 import { track } from "../lib/usage";
 
 export default function ShareFab() {
+  const { t: tr } = useTranslation();
   const [label, setLabel] = useState<string | null>(null);
   const busyRef = useRef(false);
 
@@ -18,7 +20,7 @@ export default function ShareFab() {
       const r = await shareApp();
       // r === "shared" → OS 공유 시트가 처리(라벨 변경 없음). 복사/실패만 잠깐 안내.
       if (r === "copied" || r === "failed") {
-        setLabel(r === "copied" ? "✓ 링크 복사됨" : "복사 실패");
+        setLabel(r === "copied" ? tr("misc.fab_copied") : tr("misc.fab_copy_fail"));
         window.setTimeout(() => setLabel(null), 2200);
       }
     } finally {
@@ -27,9 +29,9 @@ export default function ShareFab() {
   }
 
   return (
-    <button className="share-fab" aria-label="앱 공유하기 — 친구에게 링크로 전달" onClick={onClick}>
+    <button className="share-fab" aria-label={tr("misc.fab_aria")} onClick={onClick}>
       <span className="share-fab-ic" aria-hidden>📤</span>
-      <span className="share-fab-tx">{label ?? "공유"}</span>
+      <span className="share-fab-tx">{label ?? tr("misc.fab_share")}</span>
     </button>
   );
 }

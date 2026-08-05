@@ -2,12 +2,14 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api, useMe, type ConsultantPublic, type ConsultationConfig, type ConsultSource, type ConsultationSlot } from "../api";
 import { useCharge } from "./ChargeModal";
+import i18n from "../i18n";
 
-/** UTC ISO → "7/9(수) 14:30" 로컬 표기 */
+/** UTC ISO → 로케일 슬롯 표기(ko "7/9(수) 14:30" / vi "9/7 (T4) 14:30") */
 function fmtSlot(iso: string): string {
   const d = new Date(iso);
-  const day = "일월화수목금토"[d.getDay()];
-  return `${d.getMonth() + 1}/${d.getDate()}(${day}) ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+  const day = i18n.t("consult.weekdays").split(",")[d.getDay()];
+  const time = `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+  return i18n.t("consult.slot_fmt", { m: d.getMonth() + 1, d: d.getDate(), w: day, time });
 }
 import { useTranslation, Trans } from "react-i18next";
 import { fmtNum } from "../lib/money";
@@ -24,10 +26,10 @@ import { useConsultation } from "./ConsultationProvider";
 
 type Cat = "all" | "saju" | "tarot";
 
-const CATS: { key: Cat; label: string; ic: string }[] = [
-  { key: "all", label: "전체", ic: "✨" },
-  { key: "saju", label: "사주", ic: "🔮" },
-  { key: "tarot", label: "타로", ic: "🃏" },
+const CATS: { key: Cat; tk: string; ic: string }[] = [
+  { key: "all", tk: "consult.cat_all", ic: "✨" },
+  { key: "saju", tk: "consult.cat_saju", ic: "🔮" },
+  { key: "tarot", tk: "consult.cat_tarot", ic: "🃏" },
 ];
 
 // 접속 상태 → 배지 라벨 키(consult.*)·CSS 클래스. 라벨은 컴포넌트에서 tr 로 해석.
@@ -37,18 +39,24 @@ const PRESENCE: Record<string, { key: string; cls: string }> = {
   offline: { key: "presence_offline", cls: "off" },
 };
 
-const SPEC: Record<string, { txt: string; cls: string }> = {
-  saju: { txt: "사주", cls: "saju" },
-  tarot: { txt: "타로", cls: "tarot" },
-  both: { txt: "사주+타로", cls: "both" },
+const SPEC: Record<string, { tk: string; cls: string }> = {
+  saju: { tk: "consult.cat_saju", cls: "saju" },
+  tarot: { tk: "consult.cat_tarot", cls: "tarot" },
+  both: { tk: "consult.spec_both", cls: "both" },
 };
 
 function priceLabel(c: ConsultantPublic): { main: string; sub: string } {
   if (c.price_unit === "minute" && c.per_min_p)
-    return { main: `분당 ${c.per_min_p.toLocaleString()}P`, sub: `1회 ${c.price_p.toLocaleString()}P·${c.duration_min}분` };
+    return {
+      main: i18n.t("consult.price_per_min", { p: fmtNum(c.per_min_p) }),
+      sub: i18n.t("consult.price_once_dur", { p: fmtNum(c.price_p), min: fmtNum(c.duration_min) }),
+    };
   if (c.price_unit === "hour" && c.per_hour_p)
-    return { main: `시간당 ${c.per_hour_p.toLocaleString()}P`, sub: `1회 ${c.price_p.toLocaleString()}P·${c.duration_min}분` };
-  return { main: `${c.price_p.toLocaleString()}P`, sub: `${c.duration_min}분` };
+    return {
+      main: i18n.t("consult.price_per_hour", { p: fmtNum(c.per_hour_p) }),
+      sub: i18n.t("consult.price_once_dur", { p: fmtNum(c.price_p), min: fmtNum(c.duration_min) }),
+    };
+  return { main: i18n.t("consult.pts", { p: fmtNum(c.price_p) }), sub: i18n.t("consult.dur_min", { n: fmtNum(c.duration_min) }) };
 }
 
 // 오늘(KST) 영업시간 안내. 미설정=null(상시). 휴무=open:false.
@@ -58,25 +66,25 @@ function bizHoursToday(c: ConsultantPublic): { label: string; open: boolean } | 
   const kst = new Date(Date.now() + 9 * 3600000);   // UTC ms + 9h → KST 벽시계(UTC 필드로 읽음)
   const wd = (kst.getUTCDay() + 6) % 7;             // JS 0=일 → 파이썬 0=월 기준으로 변환
   const ent = h[String(wd)];
-  if (!ent || !ent.open || !ent.close) return { label: "오늘 휴무", open: false };
-  return { label: `오늘 ${ent.open}~${ent.close}`, open: true };
+  if (!ent || !ent.open || !ent.close) return { label: i18n.t("consult.biz_closed_today"), open: false };
+  return { label: i18n.t("consult.biz_today", { open: ent.open, close: ent.close }), open: true };
 }
 
 type StatusKey = "all" | "online" | "busy" | "offline";
 type SortKey = "recommended" | "available" | "rating" | "sessions" | "price";
 
-const STATUS_CHIPS: { key: StatusKey; label: string }[] = [
-  { key: "all", label: "전체" },
-  { key: "online", label: "상담가능" },
-  { key: "busy", label: "상담중" },
-  { key: "offline", label: "오프라인" },
+const STATUS_CHIPS: { key: StatusKey; tk: string }[] = [
+  { key: "all", tk: "consult.cat_all" },
+  { key: "online", tk: "consult.st_online" },
+  { key: "busy", tk: "consult.presence_busy" },
+  { key: "offline", tk: "consult.presence_offline" },
 ];
-const SORT_OPTIONS: { key: SortKey; label: string }[] = [
-  { key: "recommended", label: "추천순" },
-  { key: "available", label: "상담가능 먼저" },
-  { key: "rating", label: "만족도순" },
-  { key: "sessions", label: "상담많은순" },
-  { key: "price", label: "낮은가격순" },
+const SORT_OPTIONS: { key: SortKey; tk: string }[] = [
+  { key: "recommended", tk: "consult.sort_recommended" },
+  { key: "available", tk: "consult.sort_available" },
+  { key: "rating", tk: "consult.sort_rating" },
+  { key: "sessions", tk: "consult.sort_sessions" },
+  { key: "price", tk: "consult.sort_price" },
 ];
 const PRESENCE_RANK: Record<string, number> = { online: 0, busy: 1, offline: 2 };
 
@@ -150,7 +158,7 @@ export default function ConsultationOverlay({
       const r = await api.consultantOpenSlots(c.id);
       setSlots(r.items);
     } catch (e: any) {
-      setErr(e?.message || "예약 시간을 불러오지 못했어요.");
+      setErr(e?.message || tr("consult.err_slots"));
       setSlots([]);
     }
   }
@@ -164,7 +172,7 @@ export default function ConsultationOverlay({
       setPickedSlot(null);
       loadMyReservations();
     } catch (e: any) {
-      setErr(e?.message || "예약에 실패했어요.");
+      setErr(e?.message || tr("consult.err_reserve"));
     } finally {
       setReserving(false);
     }
@@ -174,14 +182,14 @@ export default function ConsultationOverlay({
     const full = cfg?.reserve_full_refund_hours ?? 24;
     const pct = cfg?.reserve_late_refund_pct ?? 50;
     const hoursLeft = (new Date(s.start_at).getTime() - Date.now()) / 3600000;
-    const note = hoursLeft >= full ? "지금 취소하면 100% 환불돼요." : `시작 ${full}시간 이내라 ${pct}%만 환불돼요.`;
-    if (!window.confirm(`${fmtSlot(s.start_at)} 예약을 취소할까요?\n${note}`)) return;
+    const note = hoursLeft >= full ? tr("consult.cancel_full_note") : tr("consult.cancel_late_note", { h: full, pct });
+    if (!window.confirm(tr("consult.cancel_confirm", { slot: fmtSlot(s.start_at), note }))) return;
     try {
       const r = await api.cancelReservation(s.id);
-      alert(`예약이 취소되었어요. (환불 ${r.refund_p.toLocaleString()}P)`);
+      alert(tr("consult.cancel_done", { p: fmtNum(r.refund_p) }));
       loadMyReservations();
     } catch (e: any) {
-      alert(e?.message || "취소에 실패했어요.");
+      alert(e?.message || tr("consult.err_cancel"));
     }
   }
 
@@ -256,8 +264,8 @@ export default function ConsultationOverlay({
     if (!me) {
       return (
         <div className="csl-bal-cta">
-          <p className="csl-bal-need">로그인 후 이용할 수 있어요.</p>
-          <button className="csl-bal-btn" onClick={() => { onClose(); navigate("/login"); }}>로그인하기</button>
+          <p className="csl-bal-need">{tr("consult.bal_login_need")}</p>
+          <button className="csl-bal-btn" onClick={() => { onClose(); navigate("/login"); }}>{tr("consult.bal_login_btn")}</button>
         </div>
       );
     }
@@ -265,10 +273,10 @@ export default function ConsultationOverlay({
     return (
       <div className="csl-bal-cta">
         <p className={`csl-bal-line ${short ? "short" : ""}`}>
-          보유 <b>{bal.toLocaleString()}P</b>
-          {short && <span className="csl-bal-short"> · {(price - bal).toLocaleString()}P 부족</span>}
+          <Trans i18nKey="consult.bal_have" values={{ bal: fmtNum(bal) }} components={{ b: <b /> }} />
+          {short && <span className="csl-bal-short">{tr("consult.bal_short", { n: fmtNum(price - bal) })}</span>}
         </p>
-        {short && <button className="csl-bal-btn" onClick={() => openCharge(reason)}>충전하기</button>}
+        {short && <button className="csl-bal-btn" onClick={() => openCharge(reason)}>{tr("consult.bal_charge_btn")}</button>}
       </div>
     );
   }
@@ -281,21 +289,27 @@ export default function ConsultationOverlay({
         <button className="csl-x" onClick={onClose} aria-label={tr("consult.close")}>×</button>
 
         <div className="csl-head2">
-          <h3 className="csl-title">1:1 상담</h3>
-          <p className="csl-sub">마음 편히 이야기 나눌 상담사를 골라보세요.</p>
+          <h3 className="csl-title">{tr("consult.dialog_aria")}</h3>
+          <p className="csl-sub">{tr("consult.overlay_sub")}</p>
         </div>
 
         {/* A-2 내 예약 — 다가오는 예약 표시 + 취소 */}
         {myRes && myRes.length > 0 && (
           <div className="csl-myres">
-            <div className="csl-myres-title">📅 내 예약</div>
+            <div className="csl-myres-title">{tr("consult.myres_title")}</div>
             {myRes.map((s) => (
               <div key={s.id} className={`csl-myres-item st-${s.status}`}>
                 <span className="t">{fmtSlot(s.start_at)}</span>
-                <span className="n"><b className="csl-myres-who">{s.consultant_name || "상담사"}</b> 상담사에게 예약</span>
-                <span className={`st st-${s.status}`}>{s.status === "booked" ? "✅ 접수됨" : "진행 중"}</span>
+                <span className="n">
+                  <Trans
+                    i18nKey="consult.myres_with"
+                    values={{ name: s.consultant_name || tr("consult.role_consultant") }}
+                    components={{ b: <b className="csl-myres-who" /> }}
+                  />
+                </span>
+                <span className={`st st-${s.status}`}>{s.status === "booked" ? tr("consult.myres_booked") : tr("consult.myres_ongoing")}</span>
                 {s.status === "booked" && (
-                  <button className="x" onClick={() => cancelMyReservation(s)}>취소</button>
+                  <button className="x" onClick={() => cancelMyReservation(s)}>{tr("consult.consent_cancel")}</button>
                 )}
               </div>
             ))}
@@ -307,10 +321,10 @@ export default function ConsultationOverlay({
              탭을 숨겨 다른 분야로 새지 않게 하고, 무엇이 전달되는지 배너로 안내한다(운영자 지시). */
           <div className="csl-locked-cat" role="note">
             {source.kind === "tarot"
-              ? <>🃏 방금 뽑은 <b>타로 카드가 상담사에게 그대로 전달</b>돼요 — <b>타로 상담사</b>만 보여드려요.</>
+              ? <Trans i18nKey="consult.locked_tarot" components={{ b: <b /> }} />
               : source.kind === "birth"
-                ? <>👶 <b>부모님 두 분의 사주 명식이 상담사에게 그대로 전달</b>돼요 — <b>사주 상담사</b>만 보여드려요.</>
-                : <>📜 내 <b>사주 명식이 상담사에게 그대로 전달</b>돼요 — <b>사주 상담사</b>만 보여드려요.</>}
+                ? <Trans i18nKey="consult.locked_birth" components={{ b: <b /> }} />
+                : <Trans i18nKey="consult.locked_saju" components={{ b: <b /> }} />}
           </div>
         ) : (
           <div className="csl-tabs" role="tablist">
@@ -322,7 +336,7 @@ export default function ConsultationOverlay({
                 className={`csl-tab ${cat === t.key ? "active" : ""}`}
                 onClick={() => setCat(t.key)}
               >
-                <span aria-hidden>{t.ic}</span> {t.label}
+                <span aria-hidden>{t.ic}</span> {tr(t.tk)}
               </button>
             ))}
           </div>
@@ -334,14 +348,14 @@ export default function ConsultationOverlay({
               <span className="csl-search-ic" aria-hidden>🔍</span>
               <input
                 type="search"
-                placeholder="상담사 이름·#키워드 검색"
+                placeholder={tr("consult.search_ph")}
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
-                aria-label="상담사 검색"
+                aria-label={tr("consult.search_aria")}
               />
             </div>
             <div className="csl-control-row">
-              <div className="csl-chips" role="group" aria-label="상태 필터">
+              <div className="csl-chips" role="group" aria-label={tr("consult.filter_aria")}>
                 {STATUS_CHIPS.map((s) => (
                   <button
                     key={s.key}
@@ -349,14 +363,14 @@ export default function ConsultationOverlay({
                     aria-pressed={statusFilter === s.key}
                     onClick={() => setStatusFilter(s.key)}
                   >
-                    {s.label}
+                    {tr(s.tk)}
                   </button>
                 ))}
               </div>
-              <select className="csl-sort" value={sortBy} aria-label="정렬"
+              <select className="csl-sort" value={sortBy} aria-label={tr("consult.sort_aria")}
                 onChange={(e) => setSortBy(e.target.value as SortKey)}>
                 {SORT_OPTIONS.map((o) => (
-                  <option key={o.key} value={o.key}>{o.label}</option>
+                  <option key={o.key} value={o.key}>{tr(o.tk)}</option>
                 ))}
               </select>
             </div>
@@ -364,15 +378,15 @@ export default function ConsultationOverlay({
         )}
 
         <div className="csl-list-wrap">
-          {loading && <p className="csl-empty">불러오는 중…</p>}
+          {loading && <p className="csl-empty">{tr("consult.loading")}</p>}
           {err && <p className="csl-empty csl-err">{err}</p>}
           {items && items.length === 0 && !loading && (
-            <p className="csl-empty">현재 이 분야의 상담사가 없어요.</p>
+            <p className="csl-empty">{tr("consult.empty_cat")}</p>
           )}
           {(() => {
             const visible = items ? filterAndSort(items, q, statusFilter, sortBy) : [];
             if (items && items.length > 0 && visible.length === 0 && !loading)
-              return <p className="csl-empty">조건에 맞는 상담사가 없어요.</p>;
+              return <p className="csl-empty">{tr("consult.empty_filtered")}</p>;
             return (
               <div className="csl-cards">
                 {visible.map((c) => (
@@ -400,7 +414,7 @@ export default function ConsultationOverlay({
                 min: fmtNum(pending.duration_min),
               })}
             </p>
-            {balanceGate(pending.price_p, `1:1 상담에는 ${pending.price_p.toLocaleString()}P가 필요해요. 충전하면 바로 신청할 수 있어요.`)}
+            {balanceGate(pending.price_p, tr("consult.charge_reason_start", { p: fmtNum(pending.price_p) }))}
             <p className="csl-consent-note">
               <Trans
                 i18nKey="consult.consent_note"
@@ -410,9 +424,15 @@ export default function ConsultationOverlay({
             </p>
             {source && (
               <p className="csl-consent-note csl-consent-source">
-                🔗 선택하신 <b>{source.kind === "saju" ? "사주 명식" : source.kind === "birth" ? "부모님 두 분의 사주 명식" : "타로 카드"}</b>
-                {source.label ? ` (${source.label})` : ""} 정보가 상담사에게 함께 전달됩니다
-                (같은 설명을 반복하지 않아도 돼요). 이 정보도 {cfg?.retention_days ?? 7}일 후 함께 파기됩니다.
+                <Trans
+                  i18nKey="consult.consent_source"
+                  values={{
+                    what: source.kind === "saju" ? tr("consult.src_saju") : source.kind === "birth" ? tr("consult.src_birth") : tr("consult.src_tarot"),
+                    label: source.label ? ` (${source.label})` : "",
+                    days: cfg?.retention_days ?? 7,
+                  }}
+                  components={{ b: <b /> }}
+                />
               </p>
             )}
             {err && <p className="csl-consent-err">{err}</p>}
@@ -430,48 +450,59 @@ export default function ConsultationOverlay({
       {reservePending && (
         <div className="csl-consent-ov" onClick={(e) => { e.stopPropagation(); if (!reserving) { setReservePending(null); setPickedSlot(null); setReserveDone(null); } }}>
           <div className="csl-consent" onClick={(e) => e.stopPropagation()}>
-            <h4>📅 {reservePending.business_name} 예약</h4>
+            <h4>{tr("consult.reserve_title", { name: reservePending.business_name })}</h4>
 
             {reserveDone ? (
               <>
                 <p className="csl-consent-note">
-                  <b>{fmtSlot(reserveDone.start_at)}</b> 예약이 완료되었어요! 🎉<br />
-                  시작 10분 전에 알림을 보내드리고, 시간이 되면 자동으로 상담이 접수돼요.
-                  상담사가 응답하지 않으면 <b>전액 환불</b>됩니다.
+                  <Trans
+                    i18nKey="consult.reserve_done"
+                    values={{ slot: fmtSlot(reserveDone.start_at) }}
+                    components={{ b: <b />, br: <br /> }}
+                  />
                 </p>
                 <div className="csl-consent-actions">
-                  <button className="csl-consent-ok" onClick={() => { setReservePending(null); setReserveDone(null); }}>확인</button>
+                  <button className="csl-consent-ok" onClick={() => { setReservePending(null); setReserveDone(null); }}>{tr("consult.ok")}</button>
                 </div>
               </>
             ) : pickedSlot ? (
               <>
                 <p className="csl-consent-price">
-                  {fmtSlot(pickedSlot.start_at)} · {reservePending.price_p.toLocaleString()}P · {reservePending.duration_min}분
+                  {tr("consult.reserve_price_line", {
+                    slot: fmtSlot(pickedSlot.start_at),
+                    p: fmtNum(reservePending.price_p),
+                    min: fmtNum(reservePending.duration_min),
+                  })}
                 </p>
                 <p className="csl-consent-note">
-                  예약 확정 시 <b>{reservePending.price_p.toLocaleString()}P가 바로 차감(홀드)</b>돼요.
-                  시작 <b>{cfg?.reserve_full_refund_hours ?? 24}시간 전</b>까지 취소하면 100% 환불,
-                  이후 취소는 <b>{cfg?.reserve_late_refund_pct ?? 50}%</b> 환불됩니다.
-                  상담사 사정으로 취소되거나 응답하지 않으면 <b>전액 환불</b>돼요.
+                  <Trans
+                    i18nKey="consult.reserve_terms"
+                    values={{
+                      p: fmtNum(reservePending.price_p),
+                      h: cfg?.reserve_full_refund_hours ?? 24,
+                      pct: cfg?.reserve_late_refund_pct ?? 50,
+                    }}
+                    components={{ b: <b /> }}
+                  />
                 </p>
                 <p className="csl-consent-note">
-                  대화 내용은 상담서 발급을 위해 저장되며 <b>{cfg?.retention_days ?? 7}일 후 자동·완전 파기</b>됩니다.
+                  <Trans i18nKey="consult.reserve_retention" values={{ days: cfg?.retention_days ?? 7 }} components={{ b: <b /> }} />
                 </p>
-                {balanceGate(reservePending.price_p, `예약(선결제)에는 ${reservePending.price_p.toLocaleString()}P가 필요해요. 충전하면 바로 예약할 수 있어요.`)}
+                {balanceGate(reservePending.price_p, tr("consult.charge_reason_reserve", { p: fmtNum(reservePending.price_p) }))}
                 {err && <p className="csl-consent-err">{err}</p>}
                 <div className="csl-consent-actions">
                   <button className="csl-consent-ok" onClick={confirmReserve} disabled={reserving || payBlocked(reservePending.price_p)}>
-                    {reserving ? "예약 중…" : payBlocked(reservePending.price_p) ? (me ? "포인트 부족" : "로그인 필요") : "동의하고 예약 확정"}
+                    {reserving ? tr("consult.reserving") : payBlocked(reservePending.price_p) ? (me ? tr("consult.need_points_btn") : tr("consult.need_login_btn")) : tr("consult.reserve_submit")}
                   </button>
-                  <button className="csl-consent-cancel" onClick={() => setPickedSlot(null)} disabled={reserving}>뒤로</button>
+                  <button className="csl-consent-cancel" onClick={() => setPickedSlot(null)} disabled={reserving}>{tr("consult.back_plain")}</button>
                 </div>
               </>
             ) : (
               <>
-                <p className="csl-consent-note">원하는 시간을 골라주세요. (내 시간대 기준)</p>
-                {slots == null && <p className="csl-consent-note">불러오는 중…</p>}
+                <p className="csl-consent-note">{tr("consult.pick_slot")}</p>
+                {slots == null && <p className="csl-consent-note">{tr("consult.loading")}</p>}
                 {slots != null && slots.length === 0 && (
-                  <p className="csl-consent-note">아직 열려 있는 예약 시간이 없어요. 상담사가 시간을 열면 여기에 표시돼요.</p>
+                  <p className="csl-consent-note">{tr("consult.no_slots")}</p>
                 )}
                 {slots != null && slots.length > 0 && (
                   <div className="csl-slots">
@@ -484,7 +515,7 @@ export default function ConsultationOverlay({
                 )}
                 {err && <p className="csl-consent-err">{err}</p>}
                 <div className="csl-consent-actions">
-                  <button className="csl-consent-cancel" onClick={() => setReservePending(null)}>닫기</button>
+                  <button className="csl-consent-cancel" onClick={() => setReservePending(null)}>{tr("consult.close")}</button>
                 </div>
               </>
             )}
@@ -522,12 +553,12 @@ function ConsultantCard({ c, onStart, onReserve }: { c: ConsultantPublic; onStar
         ) : (
           <span className="csl-sign-ph" aria-hidden>🪧</span>
         )}
-        <span className={`csl-spec-badge ${spec.cls}`}>{spec.txt}</span>
+        <span className={`csl-spec-badge ${spec.cls}`}>{tr(spec.tk)}</span>
         {!isComing && <span className={`csl-badge ${p.cls}`}>{tr(`consult.${p.key}`)}</span>}
         {isComing && (
-          <div className="csl-coming" aria-label="입점예정">
+          <div className="csl-coming" aria-label={tr("consult.coming_soon")}>
             <span className="csl-coming-ic" aria-hidden>⏳</span>
-            <span className="csl-coming-tx">입점예정</span>
+            <span className="csl-coming-tx">{tr("consult.coming_soon")}</span>
           </div>
         )}
       </div>
@@ -564,7 +595,7 @@ function ConsultantCard({ c, onStart, onReserve }: { c: ConsultantPublic; onStar
         )}
         <div className="csl-cta-row">
           {isComing ? (
-            <span className="csl-price csl-price-soon">오픈 준비 중</span>
+            <span className="csl-price csl-price-soon">{tr("consult.opening_soon")}</span>
           ) : (
             <span className="csl-price-wrap">
               <span className="csl-price">{price.main}</span>
@@ -572,11 +603,11 @@ function ConsultantCard({ c, onStart, onReserve }: { c: ConsultantPublic; onStar
             </span>
           )}
           <button className="csl-start" disabled={!canStart} onClick={onStart}>
-            {isComing ? "입점예정" : c.presence === "busy" ? "상담중" : c.presence === "offline" ? "부재중" : "상담 신청"}
+            {isComing ? tr("consult.coming_soon") : c.presence === "busy" ? tr("consult.card_busy") : c.presence === "offline" ? tr("consult.card_offline") : tr("consult.card_start")}
           </button>
           {/* A-2: 부재중·상담중이어도 예약은 가능 */}
           {!isComing && (
-            <button className="csl-reserve" onClick={onReserve}>📅 예약</button>
+            <button className="csl-reserve" onClick={onReserve}>{tr("consult.reserve_btn")}</button>
           )}
         </div>
       </div>

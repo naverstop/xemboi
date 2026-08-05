@@ -8,7 +8,7 @@
  *
  *  ⚠️ 플러스 패스 %할인은 반영(서버와 동일 반올림): cost = round(정가 × (100-할인)/100).
  */
-import { useTranslation } from "react-i18next";
+import { useTranslation, Trans } from "react-i18next";
 import { type MeResp } from "../api";
 import { fmtNum } from "../lib/money";
 
@@ -66,17 +66,21 @@ export default function FollowupBilling({
 
       {/* 차감 배지 — 매출 직결. 회색 작은 글씨가 아니라 눈에 분명히 보이는 색상 배지로. */}
       {!me ? (
-        <div className="fb-charge guest">🔒 로그인 후 추가 질문 (크레딧 차감)</div>
+        <div className="fb-charge guest">🔒 {tr("explain.fb_locked")}</div>
       ) : freeNote ? (
         <div className="fb-charge free">🆓 {freeNote}</div>
       ) : (
         <div className="fb-charge" aria-live="polite">
           <span className="fb-charge-ic" aria-hidden>💳</span>
           <span className="fb-charge-main">
-            {depth === "deep" ? "심화" : "기본"} 질문 <b>{cost.toLocaleString()}P 차감</b>
+            <Trans
+              i18nKey="explain.fb_charge"
+              values={{ level: depth === "deep" ? tr("chat.lvl_deep") : tr("chat.lvl_basic"), cost: fmtNum(cost) }}
+              components={{ b: <b /> }}
+            />
           </span>
-          {disc > 0 && <span className="fb-charge-tag">플러스 {disc}% 할인</span>}
-          <span className="fb-charge-bal">잔액 {me.balance.toLocaleString()}P</span>
+          {disc > 0 && <span className="fb-charge-tag">{tr("explain.fb_disc", { pct: disc })}</span>}
+          <span className="fb-charge-bal">{tr("pay.bal_only", { bal: fmtNum(me.balance) })}</span>
         </div>
       )}
     </div>

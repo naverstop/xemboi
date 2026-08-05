@@ -10,7 +10,7 @@
  *          ⚠️ 웹 플랫폼 제약상 PC 브라우저는 카톡/메일에 '파일 첨부'가 불가 → 링크(토큰 URL)로만 전달된다.
  *          백엔드가 만든 공개 토큰 PDF URL(GET /api/pdf/{token})을 전달하고 수신자가 서버에서 열람한다.
  */
-import { useRef, useState, type ReactNode } from "react";
+import { useRef, useState } from "react";
 import { api, setCachedMe, getCachedMe } from "../api";
 import { useCharge } from "./ChargeModal";
 import { kakaoAvailable, shareKakaoLink } from "../lib/kakaoShare";
@@ -19,26 +19,7 @@ import { inAppBrowser } from "../lib/inapp";
 import DownloadGuard from "../components/DownloadGuard";
 import ShareQuotaNote from "./ShareQuotaNote";
 
-/** 라벨 폭 고정 스택 — 버튼의 모든 상태 라벨을 투명 고스트로 겹쳐 그려 폭을 최대 라벨에 예약.
- *  클릭 시 라벨이 바뀌어도('⤓ PDF'→'⏳ 생성 중…') 버튼 가로 사이즈가 출렁이지 않는다(운영자 보고).
- *  inline-grid 겹침이라 폰트/메뉴별 크기 차이에도 정확한 실측 폭으로 동작한다. */
-function Stable({ widest, children }: { widest: ReactNode[]; children: ReactNode }) {
-  return (
-    <span className="aa-stable">
-      {widest.map((w, i) => (
-        <span key={i} className="aa-stable-ghost" aria-hidden>{w}</span>
-      ))}
-      <span className="aa-stable-cur">{children}</span>
-    </span>
-  );
-}
-
-// 슬롯별 상태 라벨 전집 — 고스트 예약 폭 산정용(여기 없는 라벨이 생기면 다시 출렁인다)
-const COPY_LABELS = ["⧉ 텍스트 복사", "✓ 복사됨"];
-const SHARE_LABELS = ["↗ 공유", "⏳ 준비 중…", "✓ 링크 복사됨"];
-const PDF_LABELS = ["⤓ PDF", "⏳ 생성 중…", "📄 PDF 열기", "⏳ 여는 중…", "✅ 다시 열기"];
-const VIDEO_LABELS = ["🎬 영상으로 보기", "⏳ 시작 중…"];
-import { useTranslation } from "react-i18next";
+import { useTranslation, Trans } from "react-i18next";
 import { fmtNum } from "../lib/money";
 
 export type PdfMeta = {
@@ -222,12 +203,12 @@ export default function AnswerActions({
     try {
       const q = await api.shareQuota();
       if (!q.unlimited && q.remaining <= 0) {
-        alert("무료 공유 횟수를 모두 사용했어요. 월 패스를 이용하면 더 많이 공유할 수 있어요.");
+        alert(tr("snack.share_quota"));
         return false;
       }
       return true;
     } catch (e: any) {
-      if (gateOf(e) === "login") { alert("공유하려면 먼저 로그인해 주세요."); return false; }
+      if (gateOf(e) === "login") { alert(tr("err.login_to_share")); return false; }
       return true;   // 그 외 장애(5xx·네트워크)는 공유를 막지 않는다 — 무료 기능이라 가용성 우선
     }
   }
@@ -322,7 +303,7 @@ export default function AnswerActions({
         //   ⚠️ 데스크톱 카카오 웹은 파일 첨부가 원천 불가 → 링크 카드가 상한(PDF 파일 자체는 휴대폰 공유).
         const sent = await shareKakaoLink({
           title: pdf.docTitle,
-          description: "상담 내용 전문이 담긴 PDF예요. 카드를 눌러 전체 내용을 확인하세요.",
+          description: tr("answer.kakao_card_desc"),
           url,
           imageUrl: url + "/thumb.png",
         });
@@ -330,10 +311,10 @@ export default function AnswerActions({
           await countShare("kakao");
         } else if (await copyText(url)) {
           await countShare("link");
-          alert("카카오 공유를 사용할 수 없어 링크를 복사했어요. 붙여넣어 전달해 주세요.");
+          alert(tr("answer.kakao_fallback_copied"));
         } else {
           // 공유도 복사도 실패 — 아무것도 나가지 않았으므로 차감하지 않는다.
-          alert("카카오 공유와 링크 복사에 모두 실패했어요. 주소창의 링크를 직접 전달해 주세요.");
+          alert(tr("answer.kakao_share_fail"));
         }
       } else if (channel === "email") {
         // (사용되지 않음 — 메일은 onEmailSend로 처리) 안전 폴백만 유지
@@ -347,7 +328,7 @@ export default function AnswerActions({
           window.setTimeout(() => setShared(false), 4000);
         } else {
           // 복사 실패인데 차감되던 자리 — 이제 차감하지 않고 사용자에게 알린다(예전엔 무증상).
-          alert("링크 복사에 실패했어요. 브라우저 주소를 길게 눌러 복사해 주세요.");
+          alert(tr("answer.link_copy_fail"));
         }
       }
       setMenuOpen(false);
@@ -359,7 +340,7 @@ export default function AnswerActions({
   // 메일 클라이언트로 폴백(서버 SMTP 미설정/실패 시): 링크를 본문에 담아 사용자 메일앱 실행.
   function mailtoFallback(url: string, to: string) {
     const subject = encodeURIComponent(pdf.docTitle);
-    const body = encodeURIComponent(`${pdf.docTitle}\n\n상담서 PDF 보기: ${url}\n\n— 인생상담 친구`);
+    const body = encodeURIComponent(tr("answer.mail_body", { title: pdf.docTitle, url }));
     window.location.href = `mailto:${to}?subject=${subject}&body=${body}`;
   }
 
@@ -368,12 +349,12 @@ export default function AnswerActions({
     if (emailBusy) return;
     const to = emailTo.trim();
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(to)) {
-      alert("받는 사람 이메일 주소를 정확히 입력해 주세요.");
+      alert(tr("answer.email_invalid"));
       return;
     }
     const url = pdfShareUrl || (pdfCache.current ? window.location.origin + pdfCache.current.url : "");
     const token = pdfCache.current?.token;
-    if (!token) { alert("공유용 PDF를 먼저 준비해 주세요."); return; }
+    if (!token) { alert(tr("answer.email_need_pdf")); return; }
     setEmailBusy(true);
     try {
       await api.emailPdf({ token, to, doc_title: pdf.docTitle });
@@ -395,11 +376,11 @@ export default function AnswerActions({
           setMenuOpen(false);
         }
       } else if (gateOf(e) === "quota") {
-        alert("무료 공유 횟수를 모두 사용했어요. 월 패스를 이용하면 더 많이 공유할 수 있어요.");
+        alert(tr("snack.share_quota"));
       } else if (status === 401 || status === 403) {
-        alert("메일 발송은 로그인 후 이용할 수 있어요.");
+        alert(tr("answer.email_login"));
       } else {
-        alert("메일 발송에 실패했어요. 잠시 후 다시 시도하거나 링크 복사로 전달해 주세요.");
+        alert(tr("answer.email_fail"));
       }
     } finally {
       setEmailBusy(false);
@@ -446,11 +427,11 @@ export default function AnswerActions({
     try {
       await api.submitReview({ source, content, rating: rvStars });
       setRvPopup(false);
-      setRvDone("후기가 접수됐어요! 확인 후 게시되며, 게시되면 포인트가 적립됩니다 🎁");
+      setRvDone(tr("answer.rv_done"));
       window.setTimeout(() => setRvDone(""), 4000);
     } catch (e: any) {
       setRvPopup(false);
-      setRvDone(e?.message || "후기 접수에 실패했어요. 잠시 후 다시 시도해 주세요.");
+      setRvDone(e?.message || tr("answer.rv_fail"));
       window.setTimeout(() => setRvDone(""), 4000);
     } finally {
       setRvBusy(false);
@@ -475,12 +456,7 @@ export default function AnswerActions({
     if (vidBusy || !messageId) return;
     // 차감 P는 관리자 설정값(me.video_gen_cost)을 따른다 — 하드코딩 금지(관리자 변경 즉시 반영).
     const costP = fmtNum(getCachedMe()?.video_gen_cost ?? 39000);
-    const ok = window.confirm(
-      "내 사주 이야기를 1분 영상으로 만들어 드릴까요?\n\n" +
-      `· ${costP}P가 차감됩니다(생성 실패 시 자동 환불)\n` +
-      "· 완성되면 하단에서 다운로드할 수 있어요\n" +
-      "· 영상은 48시간 동안만 보관됩니다",
-    );
+    const ok = window.confirm(tr("answer.video_confirm", { cost: costP }));
     if (!ok) return;
     setVidBusy(true);
     try {
@@ -575,16 +551,16 @@ export default function AnswerActions({
             </div>
           )}
           {rvPopup && (
-            <div className="fb-popup" role="dialog" aria-label="한 줄 후기">
-              <div className="fb-popup-title">도움이 되셨다니 기뻐요! 한 줄 후기를 남겨 주시겠어요?</div>
-              <div className="rv-star-input" aria-label="별점 선택">
+            <div className="fb-popup" role="dialog" aria-label={tr("answer.rv_aria")}>
+              <div className="fb-popup-title">{tr("answer.rv_title")}</div>
+              <div className="rv-star-input" aria-label={tr("answer.rv_star_aria")}>
                 {[1, 2, 3, 4, 5].map((n) => (
                   <button
                     key={n}
                     type="button"
                     className={n <= rvStars ? "on" : ""}
                     onClick={() => setRvStars(n)}
-                    aria-label={`${n}점`}
+                    aria-label={tr("answer.rv_star_n", { n })}
                   >
                     ★
                   </button>
@@ -592,20 +568,20 @@ export default function AnswerActions({
               </div>
               <textarea
                 className="fb-popup-text"
-                placeholder="예) 올해 이직 고민이 있었는데 방향을 잡는 데 도움이 됐어요 (5자 이상)"
+                placeholder={tr("answer.rv_ph")}
                 value={rvText}
                 onChange={(e) => setRvText(e.target.value)}
                 rows={2}
                 maxLength={200}
               />
               <div className="fb-popup-actions">
-                <button className="fb-popup-skip" onClick={() => setRvPopup(false)}>다음에요</button>
+                <button className="fb-popup-skip" onClick={() => setRvPopup(false)}>{tr("answer.rv_skip")}</button>
                 <button
                   className="fb-popup-submit"
                   onClick={submitReview}
                   disabled={rvText.trim().length < 5 || rvBusy}
                 >
-                  후기 남기기 🎁
+                  {tr("answer.rv_submit")}
                 </button>
               </div>
             </div>
@@ -625,16 +601,13 @@ export default function AnswerActions({
           {menuOpen && (
             <>
               <div className="share-menu-backdrop" onClick={() => setMenuOpen(false)} />
-              <div className="share-menu" role="menu" aria-label="상담서 PDF 공유">
-                <div className="share-menu-title">상담서 PDF 공유</div>
+              <div className="share-menu" role="menu" aria-label={tr("answer.share_menu_title")}>
+                <div className="share-menu-title">{tr("answer.share_menu_title")}</div>
                 <ShareQuotaNote />
 
                 {inApp.inApp && (
                   <div className="share-inapp-guide" role="note">
-                    <b>📄 상담서 파일 그대로 보내기</b>
-                    지금은 <b>{inApp.name}</b> 안이라 카톡엔 <b>링크 카드(이미지)</b>만 전달돼요.
-                    파일 그대로 보내려면 아래 <b>⤓ PDF 저장</b> 후, 카톡 채팅방 <b>[＋] → 파일</b>에서
-                    방금 저장한 PDF를 첨부해 보내세요.
+                    <Trans i18nKey="answer.share_inapp_guide" values={{ name: inApp.name }} components={{ b: <b /> }} />
                   </div>
                 )}
 
@@ -649,7 +622,7 @@ export default function AnswerActions({
                   </button>
                 )}
                 <button className="share-menu-item" role="menuitem" onClick={() => setEmailMode((v) => !v)}>
-                  <span className="smi-ic" aria-hidden>✉️</span> 메일로 보내기
+                  <span className="smi-ic" aria-hidden>✉️</span> {tr("answer.share_email_item")}
                   <span className="smi-caret" aria-hidden>{emailMode ? "▾" : "▸"}</span>
                 </button>
                 {emailMode && (
@@ -657,36 +630,35 @@ export default function AnswerActions({
                     <input
                       type="email"
                       className="share-email-input"
-                      placeholder="받는 사람 이메일"
+                      placeholder={tr("answer.email_to_ph")}
                       value={emailTo}
                       onChange={(e) => setEmailTo(e.target.value)}
                       onKeyDown={(e) => { if (e.key === "Enter") onEmailSend(); }}
                       autoFocus
                     />
                     <button className="share-email-send" onClick={onEmailSend} disabled={emailBusy}>
-                      {emailBusy ? "보내는 중…" : "PDF 첨부 발송"}
+                      {emailBusy ? tr("answer.email_sending") : tr("answer.email_send_btn")}
                     </button>
-                    <div className="share-email-note">서버가 PDF를 첨부해 보냅니다. 미설정 시 내 메일앱(링크)으로 열려요.</div>
+                    <div className="share-email-note">{tr("answer.email_note")}</div>
                   </div>
                 )}
                 <button className="share-menu-item" role="menuitem" onClick={() => shareVia("link")}>
-                  <span className="smi-ic" aria-hidden>🔗</span> 링크 복사
+                  <span className="smi-ic" aria-hidden>🔗</span> {tr("answer.share_link_item")}
                 </button>
                 {pdfCache.current && (
                   <DownloadGuard
                     className="share-menu-item"
                     href={window.location.origin + pdfCache.current.download_url}
                     filename={pdfCache.current.filename}
-                    doneLabel={<><span className="smi-ic" aria-hidden>✅</span> 저장 완료</>}
+                    doneLabel={<><span className="smi-ic" aria-hidden>✅</span> {tr("answer.pdf_save_done")}</>}
                     onFire={() => setMenuOpen(false)}
                   >
-                    <span className="smi-ic" aria-hidden>⤓</span> PDF 저장
+                    <span className="smi-ic" aria-hidden>⤓</span> {tr("answer.pdf_save_item")}
                   </DownloadGuard>
                 )}
                 {!inApp.inApp && (
                   <div className="share-menu-note">
-                    PC에선 카카오/메일에 파일을 직접 첨부할 수 없어 <b>링크</b>로 전달돼요.
-                    파일 그대로 보내려면 휴대폰에서 공유하세요.
+                    <Trans i18nKey="answer.share_pc_note" components={{ b: <b /> }} />
                   </div>
                 )}
               </div>

@@ -8,9 +8,9 @@ import { fmtNum, fmtMoney } from "../lib/money";
 import {
   createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode,
 } from "react";
-import { useTranslation } from "react-i18next";
+import { Trans, useTranslation } from "react-i18next";
 import { api, useMe, setCachedMe } from "../api";
-import { ENTRY_MENU_LABEL, ENTRY_MENU_DESC, entryLabel, entryCost, entryFree, type EntryMenu } from "../lib/entryFee";
+import { entryLabel, entryDesc, entryCost, entryFree, type EntryMenu } from "../lib/entryFee";
 
 declare global {
   interface Window { TossPayments?: any }
@@ -202,12 +202,13 @@ function EntryConfirmModal({ menu, onConfirm, onCancel }: {
   menu: EntryMenu; onConfirm: () => void; onCancel: () => void;
 }) {
   const me = useMe();
+  const { t: tr } = useTranslation();
   const cost = entryCost(me, menu);
   const basic = me?.credit_cost_basic ?? 1900;
   const deep = me?.credit_cost_deep ?? 3900;
   const bal = me?.balance ?? 0;
-  const label = ENTRY_MENU_LABEL[menu];
-  const desc = ENTRY_MENU_DESC[menu];
+  const label = entryLabel(menu);
+  const desc = entryDesc(menu);
   useEffect(() => {
     const h = (e: KeyboardEvent) => { if (e.key === "Escape") onCancel(); };
     window.addEventListener("keydown", h);
@@ -215,35 +216,36 @@ function EntryConfirmModal({ menu, onConfirm, onCancel }: {
   }, [onCancel]);
   return (
     <div className="entry-ov" onClick={onCancel}>
-      <div className="entry-modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label={`${label} 입장 안내`}>
+      <div className="entry-modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label={tr("payx.entry_aria", { label })}>
         <div className="entry-head">
-          <span className="entry-title">💎 {label} 입장 안내</span>
-          <button className="entry-x" onClick={onCancel} aria-label="닫기">✕</button>
+          <span className="entry-title">{tr("payx.entry_title", { label })}</span>
+          <button className="entry-x" onClick={onCancel} aria-label={tr("pay.close")}>✕</button>
         </div>
         <p className="entry-lead">
-          이 메뉴는 입장료 <b>{cost.toLocaleString()}P</b>로 입장할 수 있어요. 입장하면 <b>{desc}</b>를 전부 확인할 수 있고,
-          이어지는 <b>추가 질문은 건당 별도</b>로 차감돼요.
+          <Trans i18nKey="payx.entry_lead" values={{ cost: fmtNum(cost), desc }} components={{ b: <b /> }} />
         </p>
         <div className="entry-rows">
           <div className="entry-row entry-row-hi">
-            <span className="entry-row-k">입장료 <em>(지금 1회)</em></span>
-            <b className="entry-row-v">{cost.toLocaleString()} P</b>
+            <span className="entry-row-k"><Trans i18nKey="payx.entry_row_fee" components={{ em: <em /> }} /></span>
+            <b className="entry-row-v">{tr("payx.pt_amount", { n: fmtNum(cost) })}</b>
           </div>
           <div className="entry-row">
-            <span className="entry-row-k">추가 질문</span>
-            <span className="entry-row-v">기본 {basic.toLocaleString()} P · 심화 {deep.toLocaleString()} P</span>
+            <span className="entry-row-k">{tr("payx.entry_row_q")}</span>
+            <span className="entry-row-v">{tr("payx.entry_row_q_v", { basic: fmtNum(basic), deep: fmtNum(deep) })}</span>
           </div>
           <div className="entry-row">
-            <span className="entry-row-k">현재 잔액</span>
-            <span className="entry-row-v">{bal.toLocaleString()} P → 입장 후 <b>{Math.max(0, bal - cost).toLocaleString()} P</b></span>
+            <span className="entry-row-k">{tr("pay.cur_balance")}</span>
+            <span className="entry-row-v">
+              <Trans i18nKey="payx.entry_row_bal_v" values={{ bal: fmtNum(bal), after: fmtNum(Math.max(0, bal - cost)) }} components={{ b: <b /> }} />
+            </span>
           </div>
         </div>
         <p className="entry-note">
-          ※ 1P = 1원이에요. 입장료는 <b>지금 1회만</b> 차감되고, 같은 결과를 다시 봐도 재차감되지 않아요. 추가 질문을 할 때만 위 단가가 별도로 차감돼요.
+          <Trans i18nKey="payx.entry_note" components={{ b: <b /> }} />
         </p>
         <div className="entry-actions">
-          <button className="entry-cancel" onClick={onCancel}>취소</button>
-          <button className="entry-go" onClick={onConfirm}>{cost.toLocaleString()}P 입장하기</button>
+          <button className="entry-cancel" onClick={onCancel}>{tr("payx.entry_cancel")}</button>
+          <button className="entry-go" onClick={onConfirm}>{tr("payx.entry_go", { cost: fmtNum(cost) })}</button>
         </div>
       </div>
     </div>

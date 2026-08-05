@@ -87,6 +87,27 @@ export const miscKo = {
   oauth_no_token: "토큰을 찾을 수 없습니다.",
   oauth_profile_fail: "프로필 조회 실패",
   oauth_processing: "로그인 처리 중...",
+
+  // ── ShareFab(앱 공유 플로팅) ──
+  fab_aria: "앱 공유하기 — 친구에게 링크로 전달",
+  fab_share: "공유",
+  fab_copied: "✓ 링크 복사됨",
+  fab_copy_fail: "복사 실패",
+
+  // ── lib/appShare(설치유도 링크 공유) — 제목은 brand 키 재사용 ──
+  app_share_text: "사주·타로·꿈해몽·궁합까지 — 인생상담 친구예요. 이 링크를 열면 바로 앱으로 설치할 수 있어요.",
+
+  // ── lib/inapp(인앱 브라우저 표시명 — UA 정규식은 내부값이라 키화 대상 아님) ──
+  inapp_kakaotalk: "카카오톡",
+  inapp_kakaostory: "카카오스토리",
+  inapp_naver: "네이버앱",
+  inapp_instagram: "인스타그램",
+  inapp_threads: "스레드",
+  inapp_facebook: "페이스북",
+  inapp_line: "라인",
+  inapp_wechat: "위챗",
+  inapp_tiktok: "틱톡",
+  inapp_generic: "앱 내 브라우저",
 };
 
 export const miscVi: typeof miscKo = {
@@ -165,4 +186,22 @@ export const miscVi: typeof miscKo = {
   oauth_no_token: "Không tìm thấy token.",
   oauth_profile_fail: "Không lấy được hồ sơ.",
   oauth_processing: "Đang xử lý đăng nhập...",
+
+  fab_aria: "Chia sẻ ứng dụng — gửi liên kết cho bạn bè",
+  fab_share: "Chia sẻ",
+  fab_copied: "✓ Đã sao chép liên kết",
+  fab_copy_fail: "Sao chép thất bại",
+
+  app_share_text: "Tứ Trụ·Tarot·giải mộng·xem tuổi — tất cả trong Xem Bói. Mở liên kết này để cài đặt ứng dụng ngay.",
+
+  inapp_kakaotalk: "KakaoTalk",
+  inapp_kakaostory: "KakaoStory",
+  inapp_naver: "Ứng dụng Naver",
+  inapp_instagram: "Instagram",
+  inapp_threads: "Threads",
+  inapp_facebook: "Facebook",
+  inapp_line: "Line",
+  inapp_wechat: "WeChat",
+  inapp_tiktok: "TikTok",
+  inapp_generic: "trình duyệt trong ứng dụng",
 };

@@ -2,6 +2,7 @@
  * /snack = 허브(테스트 2종 카드), /snack/:testId = 개별 테스트(생일 입력→유형 결과→공유). */
 import { useEffect, useRef, useState } from "react";
 import { Link, useParams, useNavigate } from "react-router-dom";
+import { useTranslation, Trans } from "react-i18next";
 import { api, useMe, type Birth, type SnackTest, type SnackResult } from "../api";
 import { resolveBirthTime } from "../lib/birthTime";
 import BirthFields, { type BirthValue } from "../components/BirthFields";
@@ -11,14 +12,15 @@ import ShareQuotaNote from "../components/ShareQuotaNote";
 import PrivacyNotice from "../components/PrivacyNotice";
 
 function Hub() {
+  const { t: tr } = useTranslation();
   const [tests, setTests] = useState<SnackTest[]>([]);
   useEffect(() => { api.snackTests().then((r) => setTests(r.tests)).catch(() => {}); }, []);
   return (
     <div className="compat-page">
       <header className="compat-hero">
-        <div className="compat-hero-badge">테스트</div>
-        <h1>무료 사주 테스트</h1>
-        <p>생년월일만 넣으면 끝! 내 사주로 보는 <b>재미있는 유형 테스트</b>예요. 결과는 카드로 저장·공유할 수 있어요. <b>무료·회원가입 없이</b>.</p>
+        <div className="compat-hero-badge">{tr("snack.badge")}</div>
+        <h1>{tr("snack.hub_title")}</h1>
+        <p><Trans i18nKey="snack.hub_desc" components={{ b: <b /> }} /></p>
       </header>
       <div className="sn-hub">
         {tests.map((t) => (
@@ -38,7 +40,7 @@ function Hub() {
             <span className="sn-hub-emoji" aria-hidden style={t.icon ? { display: "none" } : undefined}>{t.emoji}</span>
             <b>{t.title}</b>
             <span className="sn-hub-desc">{t.desc}</span>
-            <span className="sn-hub-cta">테스트 시작 →</span>
+            <span className="sn-hub-cta">{tr("snack.hub_cta")}</span>
           </Link>
         ))}
       </div>
@@ -53,6 +55,7 @@ export default function SnackPage() {
 }
 
 function SnackTestView({ testId }: { testId: string }) {
+  const { t: tr } = useTranslation();
   const me = useMe();
   const navigate = useNavigate();
   const [meta, setMeta] = useState<SnackTest | null>(null);
@@ -88,7 +91,7 @@ function SnackTestView({ testId }: { testId: string }) {
       setRes(await api.runSnack(testId, birth, true));
       setTimeout(() => document.getElementById("sn-result")?.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
     } catch (e: any) {
-      setErr(e?.message || "테스트를 불러오지 못했어요.");
+      setErr(e?.message || tr("snack.err_load"));
     } finally { setBusy(false); }
   }
 
@@ -104,12 +107,12 @@ function SnackTestView({ testId }: { testId: string }) {
       try {
         const q = await api.shareQuota();
         if (!q.unlimited && q.remaining <= 0) {
-          alert("무료 공유 횟수를 모두 사용했어요. 월 패스를 이용하면 더 많이 공유할 수 있어요.");
+          alert(tr("snack.share_quota"));
           return;
         }
       } catch (e: any) {
         if (e?.status === 401 || String(e?.code || "") === "login required to share") {
-          alert("공유하려면 먼저 로그인해 주세요.");
+          alert(tr("snack.share_login"));
           return;
         }
         /* 그 외 장애는 공유를 막지 않는다(가용성 우선) */
@@ -122,14 +125,14 @@ function SnackTestView({ testId }: { testId: string }) {
       };
       try {
         const blob = await fetch(res.card.url).then((r) => r.blob());
-        const file = new File([blob], res.card.filename || "테스트결과.png", { type: "image/png" });
+        const file = new File([blob], res.card.filename || tr("snack.card_filename"), { type: "image/png" });
         const nav: any = navigator;
         if (nav.canShare?.({ files: [file] })) {
           try {
             await nav.share({ files: [file], title: res.title });
             await count("link");        // 성공 확정 후 집계(취소=AbortError 시 미집계)
           } catch (e: any) {
-            if (e?.name !== "AbortError") alert("공유에 실패했어요. 링크 복사로 전달해 주세요.");
+            if (e?.name !== "AbortError") alert(tr("snack.share_fail"));
           }
           return;
         }
@@ -137,8 +140,8 @@ function SnackTestView({ testId }: { testId: string }) {
       try {
         await navigator.clipboard.writeText(window.location.origin + `/snack/${testId}`);
         await count("link");            // 복사 성공이 확인된 뒤에만 집계
-        alert("테스트 링크를 복사했어요! 친구에게 공유해 보세요.");
-      } catch { alert("이미지를 길게 눌러 저장 후 공유해 주세요."); }
+        alert(tr("snack.link_copied"));
+      } catch { alert(tr("snack.share_hold_save")); }
     } finally {
       shareLock.current = false;
     }
@@ -148,9 +151,9 @@ function SnackTestView({ testId }: { testId: string }) {
     <div className="compat-page">
       <PrivacyNotice variant="nostore" />
       <header className="compat-hero">
-        <div className="compat-hero-badge">{meta?.badge || "테스트"}</div>
-        <h1>{meta?.title || "사주 테스트"}</h1>
-        <p>{meta?.desc} <b>무료</b>예요.</p>
+        <div className="compat-hero-badge">{meta?.badge || tr("snack.badge")}</div>
+        <h1>{meta?.title || tr("snack.title_fallback")}</h1>
+        <p>{meta?.desc} <Trans i18nKey="snack.free_suffix" components={{ b: <b /> }} /></p>
       </header>
 
       <div className="tool-form">
@@ -160,9 +163,9 @@ function SnackTestView({ testId }: { testId: string }) {
 
       <div className="compat-actions">
         <button className="compat-cta" disabled={!b.birth_date || busy} onClick={run}>
-          {busy ? "분석 중…" : `${meta?.emoji || "✨"} 결과 보기 (무료)`}
+          {busy ? tr("snack.analyzing") : tr("snack.cta_result", { emoji: meta?.emoji || "✨" })}
         </button>
-        {!b.birth_date && <div className="cta-hint">생년월일을 입력해 주세요</div>}
+        {!b.birth_date && <div className="cta-hint">{tr("snack.hint_birth")}</div>}
       </div>
       {err && <div className="compat-err">{err}</div>}
 
@@ -200,18 +203,18 @@ function SnackTestView({ testId }: { testId: string }) {
           )}
           {res.card && (
             <div className="sn-card-box">
-              <img src={res.card.url} alt="테스트 결과 카드" />
+              <img src={res.card.url} alt={tr("snack.card_alt")} />
               <div className="sn-card-actions">
-                <button onClick={share}>공유하기</button>
-                <DownloadGuard href={res.card.download_url} doneLabel="✅ 저장 완료">⤓ 저장</DownloadGuard>
+                <button onClick={share}>{tr("snack.share_btn")}</button>
+                <DownloadGuard href={res.card.download_url} doneLabel={tr("snack.saved_done")}>{tr("snack.save_btn")}</DownloadGuard>
               </div>
               <ShareQuotaNote className="share-quota-note inline" />
             </div>
           )}
           <p className="am-disc">{res.disclaimer}</p>
           <div className="sn-more">
-            <Link to="/snack">← 다른 테스트도 해보기</Link>
-            <Link to="/chat">내 사주 자세히 보기 →</Link>
+            <Link to="/snack">{tr("snack.more_tests")}</Link>
+            <Link to="/chat">{tr("snack.see_saju")}</Link>
           </div>
         </section>
       )}

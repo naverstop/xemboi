@@ -12,6 +12,7 @@ import {
 } from "../api";
 import SajuChart, { type Chart } from "./SajuChart";
 import { speak, primeTTS } from "../lib/tts";
+import { fmtNum } from "../lib/money";
 
 /**
  * 1:1 상담 실시간 채팅 — 전역 프로바이더.
@@ -59,27 +60,28 @@ function ConsultContextPanel({
   kind: "saju" | "tarot" | "birth";
   ctx: NonNullable<ConsultationSession["source_context"]>;
 }) {
+  const { t: tr } = useTranslation();
   const [open, setOpen] = useState(role === "consultant"); // 상담사=펼침, 사용자=접힘(전달 확인용)
-  const genderKo = ctx.gender === "female" ? "여" : ctx.gender === "male" ? "남" : "미상";
+  const genderKo = ctx.gender === "female" ? tr("consult.gender_f") : ctx.gender === "male" ? tr("consult.gender_m") : tr("consult.gender_u");
   // 출산 택일(birth): 부모 라벨 — 성별로 아빠/엄마 구분(동성·미상은 부모①/② 폴백)
   const p2 = kind === "birth" ? ctx.parent2 : null;
   const roleLabel = (g?: string | null, idx?: number) =>
-    g === "male" ? "아빠" : g === "female" ? "엄마" : `부모 ${idx === 2 ? "②" : "①"}`;
+    g === "male" ? tr("consult.parent_dad") : g === "female" ? tr("consult.parent_mom") : tr("consult.parent_n", { n: idx === 2 ? "②" : "①" });
   return (
     <div className={`csl-ctx ${open ? "open" : ""}`}>
       <button type="button" className="csl-ctx-toggle" onClick={() => setOpen((v) => !v)}>
         <span className="csl-ctx-title">
-          {kind === "tarot" ? "🃏 전달된 타로 카드"
-            : kind === "birth" ? "👶 전달된 부모님 사주 명식 (출산 택일)"
-            : "📜 전달된 사주 명식"}
+          {kind === "tarot" ? tr("consult.ctx_tarot")
+            : kind === "birth" ? tr("consult.ctx_birth")
+            : tr("consult.ctx_saju")}
         </span>
-        {role === "user" && <span className="csl-ctx-hint">상담사에게 전달됨</span>}
+        {role === "user" && <span className="csl-ctx-hint">{tr("consult.ctx_sent")}</span>}
         <span className="csl-ctx-arrow" aria-hidden>{open ? "▾" : "▸"}</span>
       </button>
       {open && kind === "saju" && !!ctx.chart && (
         <div className="csl-ctx-body">
           <div className="csl-ctx-meta">
-            {ctx.birth_date} {ctx.birth_time || "시 모름"} · {ctx.calendar === "lunar" ? "음력" : "양력"} · {genderKo}
+            {ctx.birth_date} {ctx.birth_time || tr("consult.time_unknown")} · {ctx.calendar === "lunar" ? tr("consult.cal_lunar") : tr("consult.cal_solar")} · {genderKo}
           </div>
           <SajuChart chart={ctx.chart as Chart} />
         </div>
@@ -87,15 +89,15 @@ function ConsultContextPanel({
       {open && kind === "birth" && !!ctx.chart && (
         <div className="csl-ctx-body">
           <div className="csl-ctx-meta">
-            <b>{roleLabel(ctx.gender, 1)}</b> · {ctx.birth_date} {ctx.birth_time || "시 모름"} ·{" "}
-            {ctx.calendar === "lunar" ? "음력" : "양력"} · {genderKo}
+            <b>{roleLabel(ctx.gender, 1)}</b> · {ctx.birth_date} {ctx.birth_time || tr("consult.time_unknown")} ·{" "}
+            {ctx.calendar === "lunar" ? tr("consult.cal_lunar") : tr("consult.cal_solar")} · {genderKo}
           </div>
           <SajuChart chart={ctx.chart as Chart} />
           {!!p2?.chart && (
             <>
               <div className="csl-ctx-meta" style={{ marginTop: 10 }}>
-                <b>{roleLabel(p2.gender, 2)}</b> · {p2.birth_date} {p2.birth_time || "시 모름"} ·{" "}
-                {p2.calendar === "lunar" ? "음력" : "양력"} · {p2.gender === "female" ? "여" : p2.gender === "male" ? "남" : "미상"}
+                <b>{roleLabel(p2.gender, 2)}</b> · {p2.birth_date} {p2.birth_time || tr("consult.time_unknown")} ·{" "}
+                {p2.calendar === "lunar" ? tr("consult.cal_lunar") : tr("consult.cal_solar")} · {p2.gender === "female" ? tr("consult.gender_f") : p2.gender === "male" ? tr("consult.gender_m") : tr("consult.gender_u")}
               </div>
               <SajuChart chart={p2.chart as Chart} />
             </>
@@ -104,12 +106,12 @@ function ConsultContextPanel({
       )}
       {open && kind === "tarot" && !!ctx.cards?.length && (
         <div className="csl-ctx-body">
-          {ctx.question && <div className="csl-ctx-meta">질문: {ctx.question}</div>}
+          {ctx.question && <div className="csl-ctx-meta">{tr("consult.ctx_question", { q: ctx.question })}</div>}
           <div className="csl-ctx-cards">
             {ctx.cards.map((c) => (
               <div key={c.position_index} className={`csl-ctx-card ${c.orientation === "reversed" ? "rev" : ""}`}>
                 <span className="pos">{c.position_name}</span>
-                <span className="nm">{c.name_kr}{c.orientation === "reversed" ? " · 역방향" : ""}</span>
+                <span className="nm">{c.name_kr}{c.orientation === "reversed" ? tr("consult.rev_suffix") : ""}</span>
               </div>
             ))}
           </div>
@@ -120,7 +122,7 @@ function ConsultContextPanel({
 }
 
 export function ConsultationProvider({ children }: { children: ReactNode }) {
-  const { t: tr } = useTranslation();
+  const { t: tr, i18n } = useTranslation();
   const [active, setActive] = useState<{ sessionId: string; role: Role } | null>(null);
   const [session, setSession] = useState<ConsultationSession | null>(null);
   const [messages, setMessages] = useState<ConsultationChatMessage[]>([]);
@@ -146,9 +148,9 @@ export function ConsultationProvider({ children }: { children: ReactNode }) {
     if (status !== "active" || !active || announcedActiveRef.current) return;
     announcedActiveRef.current = true;
     const line = active.role === "consultant"
-      ? "상담이 연결되었습니다. 상담을 시작할게요."
-      : "상담사가 입장하였습니다. 상담을 시작할게요.";
-    speak(line);
+      ? tr("consult.announce_consultant")
+      : tr("consult.announce_user");
+    speak(line, i18n.language);
     setMessages((cur) =>
       cur.some((x) => x.sender === "system" && x.content === line)
         ? cur
@@ -327,12 +329,12 @@ export function ConsultationProvider({ children }: { children: ReactNode }) {
     const price = session.price_p;
     const bal = me?.balance;
     if (bal != null && bal < price) {
-      alert(`연장하려면 ${price.toLocaleString()}P가 필요해요. (보유 ${bal.toLocaleString()}P)\n포인트를 충전한 뒤 다시 시도해 주세요.`);
+      alert(tr("consult.extend_need", { p: fmtNum(price), bal: fmtNum(bal) }));
       return;
     }
     const ok = window.confirm(
-      `상담을 ${session.duration_min}분 연장할까요?\n\n${price.toLocaleString()}P가 추가로 차감돼요.` +
-      (bal != null ? `\n(연장 후 예상 잔액 ${(bal - price).toLocaleString()}P)` : "")
+      tr("consult.extend_confirm", { min: session.duration_min, p: fmtNum(price) }) +
+      (bal != null ? tr("consult.extend_confirm_bal", { bal: fmtNum(bal - price) }) : "")
     );
     if (!ok) return;
     try { await api.extendConsultation(active.sessionId); setWarned(false); }
@@ -428,30 +430,30 @@ export function ConsultationProvider({ children }: { children: ReactNode }) {
               {/* 노쇼(미응답) — 즉시상담: 무청구 + 사용자 수동 재요청(최대 3회) / 예약: 전액환불 */}
               {ended?.noShow && (
                 <div className="csl-chat-wait">
-                  <p>상담사가 응답하지 않았어요.</p>
+                  <p>{tr("consult.noshow_title")}</p>
                   <p className="csl-wait-sub">
                     {ended.reserved
-                      ? "선결제하신 포인트는 전액 환불되었어요."
-                      : "요금은 청구되지 않았어요. (상담사 수락 시에만 차감돼요)"}
+                      ? tr("consult.noshow_reserved")
+                      : tr("consult.noshow_free")}
                   </p>
                   {ended.canRetry ? (
                     <>
-                      <p className="csl-wait-sub">다시 요청해 볼까요? (지금까지 {ended.attempt}/{MAX_REQUEST_ATTEMPTS}회 시도)</p>
+                      <p className="csl-wait-sub">{tr("consult.retry_q", { a: ended.attempt, max: MAX_REQUEST_ATTEMPTS })}</p>
                       <div className="csl-consent-actions">
                         <button className="csl-consent-ok" onClick={retryRequest} disabled={retrying}>
-                          {retrying ? "다시 요청 중…" : "다시 요청"}
+                          {retrying ? tr("consult.retrying") : tr("consult.retry_btn")}
                         </button>
-                        <button className="csl-wait-cancel" onClick={closeOverlay}>닫기</button>
+                        <button className="csl-wait-cancel" onClick={closeOverlay}>{tr("consult.close")}</button>
                       </div>
                     </>
                   ) : (
                     <>
                       {ended.exhausted && (
                         <p className="csl-wait-sub">
-                          {MAX_REQUEST_ATTEMPTS}번 시도했지만 지금은 연결이 어려워요. 예약을 하거나 다른 상담사를 선택해 주세요.
+                          {tr("consult.retry_exhausted", { max: MAX_REQUEST_ATTEMPTS })}
                         </p>
                       )}
-                      <button className="csl-wait-cancel" onClick={closeOverlay}>닫기</button>
+                      <button className="csl-wait-cancel" onClick={closeOverlay}>{tr("consult.close")}</button>
                     </>
                   )}
                 </div>

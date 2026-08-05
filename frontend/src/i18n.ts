@@ -20,6 +20,17 @@ import { answerKo, answerVi } from "./locales/answer";
 import { shellKo, shellVi } from "./locales/shell";
 import { explainKo, explainVi } from "./locales/explain";
 import { miscKo, miscVi } from "./locales/misc";
+import { todayKo, todayVi } from "./locales/today";
+import { fcalKo, fcalVi } from "./locales/fcal";
+import { amuletKo, amuletVi } from "./locales/amulet";
+import { privacyKo, privacyVi } from "./locales/privacy";
+import { snackKo, snackVi } from "./locales/snack";
+import { reviewsKo, reviewsVi } from "./locales/reviews";
+import { inviteKo, inviteVi } from "./locales/invite";
+import { partnerKo, partnerVi } from "./locales/partner";
+import { payxKo, payxVi } from "./locales/payx";
+import { installKo, installVi } from "./locales/install";
+import { libxKo, libxVi } from "./locales/libx";
 
 export const SUPPORTED = ["ko", "vi"] as const;
 export type Locale = (typeof SUPPORTED)[number];
@@ -36,7 +47,9 @@ export const IS_VN_BUILD = DEFAULT_LOCALE === "vi";
 const resources = {
   ko: {
     common: {
-      brand: "인생상담 친구",
+      // 브랜드는 고유명사 — VN 빌드(xemboi)는 언어를 ko로 바꿔도 "Xem Bói" 유지.
+      //   "인생상담 친구"는 한국 사주1(saju.songstock.art) 전용 브랜드이므로 ko 빌드에서만.
+      brand: IS_VN_BUILD ? "Xem Bói" : "인생상담 친구",
       nav: {
         new_consult: "새 상담", consult: "상담", compat: "궁합", taekil: "택일",
         jakmyeong: "작명", gaemyeong: "개명", aho: "아호", tarot: "타로", charge: "충전",
@@ -175,6 +188,17 @@ const resources = {
       shell: shellKo,
       explain: explainKo,
       misc: miscKo,
+      today: todayKo,
+      fcal: fcalKo,
+      amulet: amuletKo,
+      privacy: privacyKo,
+      snack: snackKo,
+      reviews: reviewsKo,
+      invite: inviteKo,
+      partner: partnerKo,
+      payx: payxKo,
+      install: installKo,
+      libx: libxKo,
     },
   },
   vi: {
@@ -318,6 +342,17 @@ const resources = {
       shell: shellVi,
       explain: explainVi,
       misc: miscVi,
+      today: todayVi,
+      fcal: fcalVi,
+      amulet: amuletVi,
+      privacy: privacyVi,
+      snack: snackVi,
+      reviews: reviewsVi,
+      invite: inviteVi,
+      partner: partnerVi,
+      payx: payxVi,
+      install: installVi,
+      libx: libxVi,
     },
   },
 };
@@ -344,6 +379,13 @@ i18n
       caches: ["localStorage"],
     },
   });
+
+// 부트 시 감지 언어(localStorage→navigator→기본)를 <html lang>에 반영 — index.html은 정적
+// lang="vi" 라 ko 감지 시 불일치. 이후 전환(changeLanguage)도 같은 이벤트로 함께 갱신된다.
+i18n.on("languageChanged", (lng) => {
+  document.documentElement.lang = (lng || DEFAULT_LOCALE).slice(0, 2);
+});
+document.documentElement.lang = (i18n.language || DEFAULT_LOCALE).slice(0, 2);
 
 /** 로케일 전환 + localStorage 영속 + <html lang> 갱신. 언어 스위처에서 호출. */
 export function setLocale(loc: Locale): void {

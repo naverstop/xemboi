@@ -1,7 +1,7 @@
 /** 사주명식 시각화 (원광만세력 v4.0.0 스타일 단순화). 라벨·독음은 로케일(ko/vi). */
 import { useMemo } from "react";
-import { traits, domains, seunLabel, currentDaewoonIndex, type Trait } from "../lib/sajuMetrics";
-import { useTranslation } from "react-i18next";
+import { traits, domains, currentDaewoonIndex, type Trait } from "../lib/sajuMetrics";
+import { useTranslation, Trans } from "react-i18next";
 
 type Pillar = { stem: string; branch: string };
 type Wuxing = { wood: number; fire: number; earth: number; metal: number; water: number };
@@ -128,13 +128,14 @@ function PillarCell({ label, pillar, stemGod, branchGod, hidden, lifeStage, sins
 
 /** 기질 6축 레이더(십성 분포 기반, 결정적). SVG 인라인 — 외부 의존 0, 테마색은 CSS 변수. */
 function TraitRadar({ data }: { data: Trait[] }) {
+  const { t: tr } = useTranslation();
   const cx = 100, cy = 92, R = 60, n = data.length;
   const ang = (i: number) => ((-90 + (360 / n) * i) * Math.PI) / 180;
   const pt = (i: number, r: number): [number, number] => [cx + Math.cos(ang(i)) * r, cy + Math.sin(ang(i)) * r];
   const poly = (r: number) => data.map((_, i) => pt(i, r).join(",")).join(" ");
   const valPoly = data.map((d, i) => pt(i, (R * d.value) / 100).join(",")).join(" ");
   return (
-    <svg className="tr-radar" viewBox="0 0 200 190" role="img" aria-label="기질 레이더">
+    <svg className="tr-radar" viewBox="0 0 200 190" role="img" aria-label={tr("chart.trait_aria")}>
       {[0.25, 0.5, 0.75, 1].map((f) => <polygon key={f} className="tr-ring" points={poly(R * f)} />)}
       {data.map((_, i) => { const [x, y] = pt(i, R); return <line key={i} className="tr-axis" x1={cx} y1={cy} x2={x} y2={y} />; })}
       <polygon className="tr-val" points={valPoly} />
@@ -142,7 +143,8 @@ function TraitRadar({ data }: { data: Trait[] }) {
         const [lx, ly] = pt(i, R + 15);
         return (
           <text key={d.key} className="tr-label" x={lx} y={ly - 3} textAnchor="middle">
-            {d.label}<tspan className="tr-num" x={lx} dy="12">{d.value}</tspan>
+            {/* label(ko 내부값) 대신 key 기반 로케일 라벨 — chart.trait_{key} */}
+            {tr(`chart.trait_${d.key}`)}<tspan className="tr-num" x={lx} dy="12">{d.value}</tspan>
           </text>
         );
       })}
@@ -159,12 +161,22 @@ export default function SajuChart({ chart }: { chart: Chart }) {
   const tengodR = tr("chart.tengod", { returnObjects: true }) as StrMap;
   const napeumR = tr("chart.napeum", { returnObjects: true }) as StrMap;
   const strengthR = tr("chart.strength", { returnObjects: true }) as StrMap;
+  const domainR = tr("chart.domain", { returnObjects: true }) as StrMap;   // 영역 라벨(직업운…) → 로케일
   // 십성 한자 → 로케일 독음
   const tg = (v: string | null | undefined) => (v ? tengodR[v] || v : "");
 
   const traitData = useMemo(() => traits(chart), [chart]);
   const domainData = useMemo(() => domains(chart), [chart]);
   const curDw = useMemo(() => currentDaewoonIndex(chart), [chart]);
+  // 세운 소제목 — ko " (2026 세운 병오)" / vi " (2026 Tuế vận Bính Ngọ)". 언어 전환 즉시 반영되게 렌더 시 계산.
+  const seunTxt = chart.seun
+    ? tr("chart.seun_label", {
+        year: chart.seun.year,
+        ganji: vi
+          ? `${stemR[chart.seun.stem] || chart.seun.stem_ko} ${branchR[chart.seun.branch] || chart.seun.branch_ko}`
+          : `${chart.seun.stem_ko}${chart.seun.branch_ko}`,
+      })
+    : "";
   // 오행 개수는 사용자가 눈으로 읽는 '팔자 8글자'(천간4+지지4) 기준으로 센다.
   // [2026-07-22 운영자 지적] 종전엔 chart.wuxing(지장간까지 합산한 full, 합 14)을 그려 명식표와
   //   어긋났다 — pillars 에서 직접 세므로 옛 세션(저장 chart_json)도 바로 맞는 값이 나온다.
@@ -269,12 +281,12 @@ export default function SajuChart({ chart }: { chart: Chart }) {
           </div>
           <div className="daewoon-row">
             {chart.daewoon.entries.slice(0, 9).map((d, i) => {
-              const sWx = STEM_WX[d.pillar.stem] || "토";
-              const bWx = BRANCH_WX[d.pillar.branch] || "토";
+              const sWx = STEM_WX[d.pillar.stem] || "土";
+              const bWx = BRANCH_WX[d.pillar.branch] || "土";
               const now = i === curDw;   // 현재 대운 강조('지금' 마커)
               return (
                 <div key={d.start_age} className={`dw-cell${now ? " now" : ""}`}>
-                  {now && <div className="dw-now">지금</div>}
+                  {now && <div className="dw-now">{tr("chart.dw_now")}</div>}
                   <div className="dw-age">{d.start_age}</div>
                   <div className="dw-stem" style={{ background: WX_COLOR[sWx], color: WX_TEXT[sWx], border: WX_BORDER[sWx] }}>{vi ? (stemR[d.pillar.stem] || d.pillar.stem) : d.pillar.stem}</div>
                   <div className="dw-branch" style={{ background: WX_COLOR[bWx], color: WX_TEXT[bWx], border: WX_BORDER[bWx] }}>{vi ? (branchR[d.pillar.branch] || d.pillar.branch) : d.pillar.branch}</div>
@@ -289,15 +301,16 @@ export default function SajuChart({ chart }: { chart: Chart }) {
       {chart.ten_gods && (
         <div className="chart-metrics">
           <div className="cm-block">
-            <div className="cm-title">기질 6축 <span className="cm-sub">십성 분포</span></div>
+            <div className="cm-title">{tr("chart.metrics_traits_title")} <span className="cm-sub">{tr("chart.metrics_traits_sub")}</span></div>
             <TraitRadar data={traitData} />
           </div>
           <div className="cm-block">
-            <div className="cm-title">영역별 운세 비중{seunLabel(chart)} <span className="cm-sub">올해 세운 반영</span></div>
+            <div className="cm-title">{tr("chart.metrics_domains_title")}{seunTxt} <span className="cm-sub">{tr("chart.metrics_domains_sub")}</span></div>
             <div className="dom-bars">
               {domainData.map((d, i) => (
                 <div key={d.label} className={`dom-bar${i === 0 ? " top" : ""}`}>
-                  <span className="dom-label">{d.label}</span>
+                  {/* label은 백엔드/폴백의 한국어 키 — 표시만 로케일 매핑(미매핑 값은 원값) */}
+                  <span className="dom-label">{domainR[d.label] || d.label}</span>
                   <div className="dom-fill-wrap"><div className="dom-fill" style={{ width: `${d.value}%` }} /></div>
                   <span className="dom-num">{d.value}</span>
                 </div>
@@ -309,8 +322,8 @@ export default function SajuChart({ chart }: { chart: Chart }) {
 
       {/* 신뢰 배지(Phase4) — 우리의 실제 차별점: 결정적 계산·환각 차단 */}
       <div className="chart-trust">
-        <span className="ct-badge">🔒 결정적 계산</span>
-        <span className="ct-tx">명식·대운·조후용신을 <b>규칙으로 산출</b> — 지어내지 않아요</span>
+        <span className="ct-badge">{tr("chart.trust_badge")}</span>
+        <span className="ct-tx"><Trans i18nKey="chart.trust_tx" components={{ b: <b /> }} /></span>
       </div>
     </div>
   );

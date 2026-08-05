@@ -9,6 +9,8 @@
  *   2) 플랫폼 > Web 사이트 도메인에 https://saju.songstock.art 등록 + 카카오링크/메시지 사용 설정.
  *   키가 없으면 kakaoAvailable()=false → 공유 메뉴에서 카카오 버튼은 자동 숨김(링크복사로 대체).
  */
+import i18n from "../i18n";
+
 const KAKAO_JS_KEY = (import.meta.env.VITE_KAKAO_JS_KEY as string | undefined)?.trim();
 // SDK CDN 후보(앞에서부터 시도). 둘 다 Kakao.Share.sendDefault 제공.
 //  · t1.kakao.com = 공식 권장(버전 고정 v2). 일부 폐쇄망/샌드박스에선 차단될 수 있음.
@@ -81,12 +83,12 @@ export async function shareKakaoLink(opts: {
       objectType: "feed",
       content: {
         title: opts.title,
-        description: opts.description || "상담서 PDF를 확인해 보세요.",
+        description: opts.description || i18n.t("answer.kakao_fallback_desc"),
         imageUrl: opts.imageUrl,
         link: { mobileWebUrl: opts.url, webUrl: opts.url },
       },
       buttons: [
-        { title: "상담서 열기", link: { mobileWebUrl: opts.url, webUrl: opts.url } },
+        { title: i18n.t("answer.kakao_card_btn"), link: { mobileWebUrl: opts.url, webUrl: opts.url } },
       ],
     });
     return true;
