@@ -47,7 +47,9 @@ export const IS_VN_BUILD = DEFAULT_LOCALE === "vi";
 const resources = {
   ko: {
     common: {
-      brand: "인생상담 친구",
+      // 브랜드는 고유명사 — VN 빌드(xemboi)는 언어를 ko로 바꿔도 "Xem Bói" 유지.
+      //   "인생상담 친구"는 한국 사주1(saju.songstock.art) 전용 브랜드이므로 ko 빌드에서만.
+      brand: IS_VN_BUILD ? "Xem Bói" : "인생상담 친구",
       nav: {
         new_consult: "새 상담", consult: "상담", compat: "궁합", taekil: "택일",
         jakmyeong: "작명", gaemyeong: "개명", aho: "아호", tarot: "타로", charge: "충전",
