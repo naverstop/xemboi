@@ -3,7 +3,7 @@
  * - API(/api/*)·SSE 스트림은 캐시 제외(실시간성/인증 보호).
  * - Web Push 수신/클릭 핸들러(계획 2.7.6).
  */
-const CACHE = "xemboi-shell-v71";
+const CACHE = "xemboi-shell-v72";
 const SHELL = ["/", "/manifest.webmanifest"];  // 오프라인 폴백용
 
 self.addEventListener("install", (event) => {

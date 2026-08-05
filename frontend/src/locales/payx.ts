@@ -5,6 +5,10 @@
  * 통화·숫자는 lib/money(fmtMoney/fmtNum)로 포맷해 {{값}} 으로 주입 — 카탈로그엔 단위만 둔다.
  */
 export const payxKo = {
+  anon_title: "🔒 로그인하면 전체를 볼 수 있어요",
+  anon_aria: "{{label}} 미리보기 안내",
+  anon_lead: "지금은 <b>로그인하지 않은 상태</b>라 <b>{{label}} 미리보기(일부만)</b>로 제공돼요. 로그인하면 입장료로 <b>전체 해설과 추가 질문</b>을 이용할 수 있고, 결과도 계정에 저장돼 다시 볼 수 있어요.",
+  anon_continue: "미리보기로 계속", anon_login: "로그인하고 전체 보기", close: "닫기",
   // ── 공용 ──
   hero_badge: "充電",
   pt_amount: "{{n}} P",
@@ -115,6 +119,10 @@ export const payxKo = {
 };
 
 export const payxVi: typeof payxKo = {
+  anon_title: "🔒 Đăng nhập để xem đầy đủ",
+  anon_aria: "Hướng dẫn xem trước {{label}}",
+  anon_lead: "Bạn đang <b>chưa đăng nhập</b> nên {{label}} chỉ hiển thị <b>bản xem trước (một phần)</b>. Đăng nhập để dùng phí vào cửa xem <b>toàn bộ luận giải và hỏi thêm</b>, kết quả cũng được lưu vào tài khoản.",
+  anon_continue: "Tiếp tục xem trước", anon_login: "Đăng nhập xem đầy đủ", close: "Đóng",
   hero_badge: "⚡",
   pt_amount: "{{n}} điểm",
 

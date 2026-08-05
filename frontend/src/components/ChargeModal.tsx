@@ -22,9 +22,12 @@ type Ctx = {
   openCharge: (reason?: string) => void;
   /** 입장 확인 커스텀 모달 — resolve(true)=입장, false=취소. 잔액충분 전제(부족 체크는 useEnsureEntry). */
   confirmEntry: (menu: EntryMenu) => Promise<boolean>;
+  /** 비로그인 미리보기 안내 — resolve(true)=미리보기로 계속, false=중단(로그인 유도). 로그아웃 인지 못한 채
+   *  익명 미리보기 세션을 만들어 로그인 후 '또 미리보기'로 꼬이던 사고 방지(운영자 실측). */
+  confirmAnonPreview: (menu: EntryMenu) => Promise<boolean>;
 };
 
-const ChargeCtx = createContext<Ctx>({ openCharge: () => {}, confirmEntry: async () => false });
+const ChargeCtx = createContext<Ctx>({ openCharge: () => {}, confirmEntry: async () => false, confirmAnonPreview: async () => true });
 export const useCharge = () => useContext(ChargeCtx);
 
 /** 입장료 게이트(모델 C) — 제출 직전 호출(await). 잔액 부족 시 충전 모달(상태보존) 띄우고 false.
@@ -32,9 +35,9 @@ export const useCharge = () => useContext(ChargeCtx);
 export function useEnsureEntry() {
   const me = useMe();
   const { t } = useTranslation();
-  const { openCharge, confirmEntry } = useCharge();
+  const { openCharge, confirmEntry, confirmAnonPreview } = useCharge();
   return useCallback(async (menu: EntryMenu): Promise<boolean> => {
-    if (!me) return true;            // 비로그인 → 백엔드 미리보기
+    if (!me) return confirmAnonPreview(menu);   // 비로그인 → '미리보기 안내'(로그인 유도) 후에만 진행
     if (entryFree(me)) return true;  // 관리자/멤버십
     const cost = entryCost(me, menu);
     if (cost <= 0) return true;
@@ -45,7 +48,38 @@ export function useEnsureEntry() {
       return false;
     }
     return confirmEntry(menu);       // ← 윈도우 기본 confirm 대체(커스텀 모달)
-  }, [me, openCharge, confirmEntry, t]);
+  }, [me, openCharge, confirmEntry, confirmAnonPreview, t]);
+}
+
+/** 비로그인 미리보기 안내 모달 — '로그인하면 전체', '미리보기로 계속' 선택.
+ *  로그아웃 상태를 모른 채 익명 미리보기 세션을 만들어 로그인 후 꼬이던 사고(운영자 실측)를 입구에서 차단. */
+function AnonPreviewModal({ menu, onContinue, onLogin }: {
+  menu: EntryMenu; onContinue: () => void; onLogin: () => void;
+}) {
+  const { t: tr } = useTranslation();
+  const label = entryLabel(menu);
+  useEffect(() => {
+    const h = (e: KeyboardEvent) => { if (e.key === "Escape") onContinue(); };
+    window.addEventListener("keydown", h);
+    return () => window.removeEventListener("keydown", h);
+  }, [onContinue]);
+  return (
+    <div className="entry-ov" onClick={onContinue}>
+      <div className="entry-modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label={tr("payx.anon_aria", { label })}>
+        <div className="entry-head">
+          <span className="entry-title">{tr("payx.anon_title")}</span>
+          <button className="entry-x" onClick={onContinue} aria-label={tr("payx.close")}>✕</button>
+        </div>
+        <p className="entry-lead">
+          <Trans i18nKey="payx.anon_lead" values={{ label }} components={{ b: <b /> }} />
+        </p>
+        <div className="entry-actions">
+          <button className="entry-cancel" onClick={onContinue}>{tr("payx.anon_continue")}</button>
+          <button className="entry-go" onClick={onLogin}>{tr("payx.anon_login")}</button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 /** 입장 안내 배너 — 프리미엄 메뉴 상단. 입장료를 입장 시점에 인지시키고, 잔액 부족이면 '입력 전' 충전 유도. */
@@ -92,12 +126,33 @@ export function ChargeProvider({ children }: { children: ReactNode }) {
   // 언마운트 시 대기 중이면 취소로 정리(약속 누수 방지)
   useEffect(() => () => { entryResolve.current?.(false); entryResolve.current = null; }, []);
 
+  // 비로그인 미리보기 안내 — Promise 기반. resolve(true)=미리보기 계속, false=중단(로그인 이동).
+  const [anonMenu, setAnonMenu] = useState<EntryMenu | null>(null);
+  const anonResolve = useRef<((v: boolean) => void) | null>(null);
+  const confirmAnonPreview = useCallback((menu: EntryMenu) => new Promise<boolean>((resolve) => {
+    anonResolve.current = resolve;
+    setAnonMenu(menu);
+  }), []);
+  const settleAnon = useCallback((v: boolean) => {
+    anonResolve.current?.(v);
+    anonResolve.current = null;
+    setAnonMenu(null);
+  }, []);
+  useEffect(() => () => { anonResolve.current?.(false); anonResolve.current = null; }, []);
+
   return (
-    <ChargeCtx.Provider value={{ openCharge, confirmEntry }}>
+    <ChargeCtx.Provider value={{ openCharge, confirmEntry, confirmAnonPreview }}>
       {children}
       {open && <ChargeModal reason={reason} onClose={() => setOpen(false)} />}
       {entryMenu && (
         <EntryConfirmModal menu={entryMenu} onConfirm={() => settleEntry(true)} onCancel={() => settleEntry(false)} />
+      )}
+      {anonMenu && (
+        <AnonPreviewModal
+          menu={anonMenu}
+          onContinue={() => settleAnon(true)}
+          onLogin={() => { settleAnon(false); window.location.href = "/login"; }}
+        />
       )}
     </ChargeCtx.Provider>
   );

@@ -10,17 +10,27 @@ export function usePremiumRestore<T>(opts: {
   storageKey: string;
   getOne: (id: string) => Promise<T>;
   apply: (res: T) => void;   // 복원된 결과를 페이지 상태에 반영(setRes + restored 플래그 등)
+  /** 복원 대상 필터 — false면 폐기(키 제거·미반영). 예: 미리보기(익명) 세션은 재열람 대상이 아니다.
+   *  [운영자 실측·확정 2026-08-05] 로그아웃 상태에서 만든 익명 미리보기 세션(is_preview=True·user_id=None)이
+   *  sessionStorage에 남아, 로그인 후 재진입 시 그대로 복원됐다. 그 세션은 preview 플래그가 DB에 영구
+   *  고정이라 해설을 다시 눌러도 계속 컷+보강 스킵 → '로그인했는데 또 미리보기로 멈춤'. accept로 원천 차단. */
+  accept?: (res: T) => boolean;
 }) {
-  const { storageKey, getOne, apply } = opts;
+  const { storageKey, getOne, apply, accept } = opts;
   const applyRef = useRef(apply);
   applyRef.current = apply;
   const getRef = useRef(getOne);
   getRef.current = getOne;
+  const acceptRef = useRef(accept);
+  acceptRef.current = accept;
   const once = useRef(false);
 
   const restore = useCallback((id: string): Promise<void> => {
     return getRef.current(id)
-      .then((r) => { applyRef.current(r); sessionStorage.setItem(storageKey, id); })
+      .then((r) => {
+        if (acceptRef.current && !acceptRef.current(r)) { sessionStorage.removeItem(storageKey); return; }
+        applyRef.current(r); sessionStorage.setItem(storageKey, id);
+      })
       .catch(() => { sessionStorage.removeItem(storageKey); });   // 만료·삭제·비소유 → 조용히 무시
   }, [storageKey]);
 

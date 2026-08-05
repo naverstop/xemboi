@@ -340,9 +340,14 @@ export default function CompatibilityPage() {
     storageKey: "compat_last_id",
     getOne: api.getCompatibility,
     apply: (r) => {
-      setRes(r); setExplainText(""); setExplainStarted(false); setQaTurns([]);
+      setRes(r); setQaTurns([]);
+      // 저장된 해설이 있으면 즉시 표시(재스트림·재차감 없음). 종전엔 ""로 비워 버튼만 띄웠고, 클릭 시
+      //   빈 메시지가 '추가질문' 경로로 빠져 "질문을 입력해 주세요" 에러 → "해설 생성 지연" 오표시(신년운세 F1과 동일).
+      const saved = (r.explain || "").trim();
+      setExplainText(saved); setExplainStarted(!!saved);
       setTimeout(() => document.getElementById("compat-result")?.scrollIntoView({ behavior: "smooth" }), 80);
     },
+    accept: (r) => !r.is_preview,   // 미리보기(익명) 세션은 복원 대상 아님 — 로그인 후 '또 미리보기' 차단
   });
   const past = usePastList<PastItem>(() =>
     api.listCompat().then((r) => r.items.map((it) => ({
@@ -498,7 +503,7 @@ export default function CompatibilityPage() {
     try {
       const out = await api.createCompatibility(toReq(a), toReq(b), depth);
       setRes(out);
-      if (out.compat_id) rememberResult(out.compat_id);   // 재열람 복원용 id 기억(재차감 없이 다시 보기)
+      if (out.compat_id && !out.is_preview) rememberResult(out.compat_id);   // 미리보기(익명)는 기억 안 함(로그인 후 복원 차단)
       refreshMe();   // 입장료 차감 후 사이드바·FAB 잔액 즉시 반영(패턴 B)
       // 입장료 결제(비프리뷰)면 해설을 자동 1회 생성(신년운세와 동일 UX — 운영자 지적 #12 '입장료 냈으니
       //   설명이 자동으로'). 프리뷰/비로그인은 버튼 유지.

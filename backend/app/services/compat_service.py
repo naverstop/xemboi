@@ -513,6 +513,26 @@ def _stream_message_inner(
         save_user: str | None = None
     else:
         if not message:
+            # [운영자 승인 2026-08-05] 해설이 이미 저장된 세션에 빈 메시지(복원 화면 '설명' 클릭·구프론트)가
+            #   오면 에러 대신 저장 해설 '재전송'(멱등·무과금). 종전엔 "질문을 입력해 주세요" → 청크 0개 →
+            #   프론트가 "해설 생성이 지연"으로 오표시(신년운세 F1과 동일 결함). 궁합도 동일하게 봉합.
+            _prev = next((m for m in reversed(row.messages) if m.role == "assistant"), None)
+            if _prev and (_prev.content or "").strip():
+                _locked = _prev.is_preview and not _prev.preview_revealed
+                _content = chat_service._make_preview(_prev.content) if _locked else _prev.content
+                _content = chat_service.fix_term_hanja(_content)
+                yield ("meta", {"billing_mode": "compat_explain_replay", "is_preview": _locked,
+                                "mode": "explain", "will_refine": False})
+                for _seg in _content.split("\n\n"):
+                    if _seg.strip():
+                        yield ("chunk", {"text": _seg + "\n\n"})
+                yield ("done", {"assistant_message_id": _prev.id, "content": _content,
+                                "is_preview": _locked, "preview_revealed": not _locked,
+                                "full_length": len(_content), "preview_length": len(_content),
+                                "credits_charged": 0,
+                                "balance_after": (auth_service.get_balance(db, user.id) if user else None),
+                                "billing_mode": "compat_explain_replay", "refined": False, "flash": False})
+                return
             yield ("error", {"detail": "질문을 입력해 주세요."})
             return
         # 프리미엄 메뉴 추가질문: 무료한도 미적용(항상 1,000/3,000P 차감)

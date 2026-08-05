@@ -75,6 +75,7 @@ export default function TaekilPage() {
     storageKey: "taekil_last_id",
     getOne: api.getTool,
     apply: (r) => { setRes(r); setTimeout(() => document.getElementById("tool-result")?.scrollIntoView({ behavior: "smooth" }), 80); },
+    accept: (r) => !r.is_preview,   // 미리보기(익명) 세션은 복원 대상 아님 — 로그인 후 '또 미리보기' 차단
   });
   const past = usePastList<PastItem>(() =>
     api.listTools(["taekil"]).then((r) => r.items.map((it) => ({
@@ -116,7 +117,7 @@ export default function TaekilPage() {
         days,
       });
       setRes(out);
-      if (out.tool_id) rememberResult(out.tool_id);   // 재열람 복원용 id 기억(재차감 없이 다시 보기)
+      if (out.tool_id && !out.is_preview) rememberResult(out.tool_id);   // 미리보기(익명)는 기억 안 함(로그인 후 복원 차단)
       refreshMe();   // 입장료 차감 후 사이드바·FAB 잔액 즉시 반영(패턴 B)
       setTimeout(() => document.getElementById("tool-result")?.scrollIntoView({ behavior: "smooth" }), 80);
     } catch (e: any) {
