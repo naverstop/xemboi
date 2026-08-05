@@ -2090,12 +2090,9 @@ def _stream_message_inner(
             _mm_seq = [int(mt.group(1)) for mt in _MONTH_MARK.finditer(_raw_all)
                        if 1 <= int(mt.group(1)) <= 12]
             _bad_order = _mm_seq != sorted(_mm_seq)
-            # [운영자 실측 2026-08-05] 마무리가 '마지막 달보다 앞'에 오면(예: 1·2·마무리·3~12)도 순서
-            #   뒤섞임 — canon 으로 정순 재배열해 마무리가 달 사이에 끼거나 뒤 달이 마무리에 딸려가는 것을 없앤다.
-            _cm_pos = (_CLOSING_MARK.search(_raw_all) or None)
-            _last_mon_pos = max((mt.start() for mt in _MONTH_MARK.finditer(_raw_all)), default=-1)
-            if _cm_pos is not None and _last_mon_pos > _cm_pos.start():
-                _bad_order = True
+            # [DO-NOT-MODIFY 준수 — 되돌림 2026-08-05] '마무리 위치' 트리거는 스왑게이트 완화라 제거.
+            #   정상 런은 교체 0회 원칙 유지 — 마무리가 달 사이에 끼는 드문 케이스는 파서(위치기반)가
+            #   누출 없이 처리하므로 canon 전문교체를 새로 유발하지 않는다(품질 역전 방지).
             _had_gap = bool(_missing_m or _missing_d)
             # 표적 보강 '재시도 루프'(최대 3회) — [운영자 실측 2026-08-05] 약모델이 단일패스에서 달을 심하게
             #   빠뜨린다(3~6달만 쓰고 조기종료가 잦음). ★마커는 코드가 붙이는 '항목별 병렬 백필'(_sinnyeon_backfill)
