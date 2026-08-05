@@ -196,3 +196,55 @@ def test_fix_sinnyeon_seun_ganji_corrects_and_preserves():
     assert fix("9월 정유(丁酉)월은 결실", 2026) == "9월 정유(丁酉)월은 결실"
     assert fix("세운 천간 병(丙)은 편관", 2026) == "세운 천간 병(丙)은 편관"
     assert fix("세운은 갑자기 변동이", 2026) == "세운은 갑자기 변동이"
+
+
+# ── 월별 '교차 중복' 표적 재생성(2026-08-06) — 결정적 감지·splice·추출 회귀 방지 ──
+#   印 고착 명식에서 약모델이 여러 달에 같은 서술을 복붙 → '앞달과 겹쳐 붕괴하는 달'만 골라 재생성.
+#   재생성 자체는 LLM(비결정)이라, 여기선 '어떤 달을 고르는가(감지)'·'서술만 교체(splice)'만 검증.
+def _fake_month(n: int, label: str, sib: str, narr: str) -> str:
+    return (f"#### {n}월 ({label})\n"
+            f"· 십성 — {sib}\n"
+            f"· 관계 — 특별한 관계 없음(무난)\n"
+            f"{narr}\n")
+
+
+def test_sinnyeon_dup_months_flags_only_collapsing():
+    """앞달 문장을 빼면 '붕괴(고유 ≤1문장)'하는 달만 표적으로 잡고, 고유 문장이 2개+ 남는 달은 건드리지 않는다."""
+    s1 = "새해 첫 달에는 재물 관리에 각별히 신경 쓰면서 무리한 확장을 피하는 것이 좋겠습니다."
+    s2 = "가까운 사람들과의 관계에서 작은 오해가 생기지 않도록 소통에 정성을 들이시길 바랍니다."
+    u2a = "이 시기에는 새로운 학습이나 자격 준비를 시작하기에 매우 적절한 흐름이 이어집니다."
+    u2b = "직장에서 맡은 역할이 커지며 책임감을 요구받는 장면이 자연스럽게 늘어날 수 있습니다."
+    ans = ("### ③ 월별 흐름\n\n"
+           + _fake_month(1, "기축월", "월간 겁재(劫財)",
+                         f"{s1} {s2} 건강을 위해 규칙적인 생활 습관을 꾸준히 지키시길 권합니다.") + "\n"
+           + _fake_month(2, "경인월", "월간 식신(食神)", f"{s1} {u2a} {u2b}") + "\n"   # 공유1+고유2 → 유지
+           + _fake_month(3, "신묘월", "월간 상관(傷官)", f"{s1} {s2}"))               # 전부 앞달 복붙 → 붕괴
+    assert T._sinnyeon_dup_months(ans) == [3]
+    # 반복이 전혀 없으면 빈 리스트(추가 LLM 0회 — 깨끗한 런 불변 보장)
+    clean = ("### ③ 월별 흐름\n\n"
+             + _fake_month(1, "기축월", "월간 겁재", f"{s1}") + "\n"
+             + _fake_month(2, "경인월", "월간 식신", f"{s2}"))
+    assert T._sinnyeon_dup_months(clean) == []
+
+
+def test_sinnyeon_splice_replaces_narrative_only():
+    """splice 는 '· 관계 —' 이후 서술만 교체하고 헤더·팩트라인·다른 달은 불변으로 둔다."""
+    ans = ("### ③ 월별 흐름\n\n"
+           + _fake_month(1, "기축월", "월간 겁재(劫財)", "일월의 원래 내용입니다.") + "\n"
+           + _fake_month(3, "신묘월", "월간 상관(傷官)", "옛날 서술입니다. 앞달과 겹친 반복 문장."))
+    new = T._sinnyeon_splice_month(ans, 3, "완전히 새로운 삼월 서술입니다. 두 번째 문장도 새롭습니다.")
+    assert "완전히 새로운 삼월 서술" in new                 # 새 서술 반영
+    assert "옛날 서술입니다" not in new                     # 옛 서술 제거
+    assert "#### 3월 (신묘월)" in new                       # 월 헤더 보존
+    assert "· 십성 — 월간 상관(傷官)" in new                # 팩트라인 보존
+    assert "· 관계 — 특별한 관계 없음(무난)" in new          # 관계 라인 보존
+    assert "일월의 원래 내용입니다." in new                 # 비대상 1월 불변
+    # 없는 달을 splice 하면 원본 그대로(안전)
+    assert T._sinnyeon_splice_month(ans, 9, "x") == ans
+
+
+def test_sinnyeon_month_narr_map_extracts_after_relations():
+    """월별 서술 추출은 '· 관계 —' 팩트라인 이후 본문만(코드 헤더 배제)."""
+    ans = _fake_month(5, "임오월", "월간 정재(正財)", "오월의 서술 본문입니다.")
+    m = T._sinnyeon_month_narr_map(ans)
+    assert m[5] == "오월의 서술 본문입니다."
