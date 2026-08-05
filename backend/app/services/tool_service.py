@@ -1529,8 +1529,11 @@ def _fix_sinnyeon_vocab(text: str) -> str:
     text = _ENG_CLAUSE.sub(" ", text)          # 영어 코드스위칭 절 제거
     for pat, rep in _SINNYEON_VOCAB_FIXES:
         text = pat.sub(rep, text)
-    text = _re.sub(r"[ \t]{2,}", " ", text)     # 잔여 이중 공백
-    text = _re.sub(r"\s+([,.·])", r"\1", text)  # 공백 뒤 구두점 정리
+    # 한글에 '붙어 있는' 인라인 한자(순간抓住·동僚 등 코드스위칭) 제거 — 괄호 병기(正財·丑)는 '(' 뒤라 안 걸림.
+    text = _re.sub(r"(?<=[가-힣])[一-鿿]+", "", text)
+    text = _re.sub(r"[ \t]{2,}", " ", text)          # 잔여 이중 공백(줄바꿈은 보존)
+    text = _re.sub(r"[ \t]+([,.])", r"\1", text)     # ★공백 뒤 쉼표·마침표만(줄바꿈·중점 '·'은 절대 안 건드림 —
+    #   종전 \s+([,.·]) 가 '#### 1월\n· 십성'의 줄바꿈을 먹어 헤더를 한 줄로 뭉갠 버그 수정)
     return text
 
 
@@ -1952,9 +1955,14 @@ def _stream_message_inner(
 
     _claude_avail = (settings_service.get_bool(db, "external_llm_enabled", True)
                      and external_llm.is_enabled())
-    do_qwen = (not is_preview) and s.deep_local_refine_enabled          # 1차 내부 보강(기본·심화)
+    # ★[운영자 실측 2026-08-06] 단일패스는 qwen/claude '보정(전문 재작성)'을 건너뛴다. 설계 원칙은
+    #   "단일패스 정상 런 = 교체 0회, 결정적 원포인트 교정만"(e517fc80)인데, dedup·분량 게이트는 not
+    #   _sinnyeon_single 로 막혀 있었으나 이 보정 게이트만 가드가 빠져 1차를 통째로 다시 그렸다 —
+    #   그 2차 재작성이 양식(월 헤더)을 뭉개고 문장을 반복시켜 "2차가 1차보다 못한" 열화를 냈다.
+    do_qwen = (not is_preview) and s.deep_local_refine_enabled and not _sinnyeon_single   # 1차 내부 보강(기본·심화)
     # 심화 외부(미국) 보강은 국외이전 별도 동의(H4, 제28조의8) 회원만.
-    do_claude = depth == "deep" and (not is_preview) and _claude_avail and getattr(user, "overseas_transfer_opt_in", False)
+    do_claude = (depth == "deep" and (not is_preview) and _claude_avail
+                 and getattr(user, "overseas_transfer_opt_in", False) and not _sinnyeon_single)
     will_refine = do_qwen or do_claude
     yield ("meta", {"billing_mode": billing_mode, "is_preview": is_preview,
                     "mode": "explain" if is_explain else "followup", "will_refine": will_refine})
