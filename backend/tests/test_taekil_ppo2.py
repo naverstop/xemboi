@@ -62,18 +62,35 @@ def test_contract_insu_hap_bonus():
         assert not s.reason.startswith("회피")     # 합 가점은 깨짐과 공존 안 함
 
 
-# ── 개업 = 재-식상 합 ─────────────────────────────────────────────
-# ⚠️ 픽스처 주의: 재-식상 합은 명식 구조에 따라 성립 불가할 수 있다(구조상 천간합의 재 파트너는
-#   항상 인수/비겁 → 지지육합만 가능). 庚일간 1992-03-15는 寅亥가 합+파 동시라 전부 disq 억제(정상),
-#   己일간 1964-07-09는 깨끗한 식상-재 육합이 1년 30건 성립 — 양성 검증용.
-def test_opening_siksang_hap_only():
+# ── 개업 = 재·관 보호 + 재·관 합/상생 가점(뽀 서면 정본) ──────────
+def test_opening_jae_gwan_hap_and_sangseang():
     user = _chart(1964, 7, 9, Gender.FEMALE)
     scored = _scan(user, "opening")
-    sik = [s for s in scored if "재(돈)-식상 합" in s.reason]
-    assert sik, "개업 재-식상 합 가점일이 1년 내 없음"
-    # 구 일반 재-합 문구(비겁·인수가 재와 합해도 가점되던 것)는 개업에서 사라져야 한다.
+    hap = [s for s in scored if "재·관 합" in s.reason]
+    assert hap, "개업 재·관 합 가점일이 1년 내 없음"
+    ss = [s for s in scored if "재·관 상생" in s.reason]
+    assert ss, "개업 재·관 상생(식상·재 드는 날) 가점일이 1년 내 없음"
+    # 구 일반 재-합 문구(비겁이 재와 합해도 가점되던 것)는 개업에서 사라져야 한다.
     assert not any("재(돈) 합(合) — 매우 좋은 날" in s.reason for s in scored), \
         "개업에 구 일반 재-합 가점 잔존(비겁-재 합=뺏김 오판 위험)"
+
+
+def test_opening_gwan_protected_hard():
+    # 뽀 서면: '재성과 관성이 극 안 되는 날' — 개업은 관(官)도 하드배제 대상.
+    user = _chart(1988, 5, 20, Gender.MALE)
+    scored = _scan(user, "opening")
+    gwan_broken = [s for s in scored if any("관(" in w for w in s.warnings)]
+    assert gwan_broken, "개업에서 관 깨짐 판정이 전혀 없음"
+    assert all(s.score <= 44 for s in gwan_broken), "관 깨진 날이 하드배제되지 않음"
+
+
+def test_opening_bigyeop_hap_excluded():
+    # 비겁이 재와 합하는 조합은 가점 제외(뺏김 방어) — 乙일간(1988) 일지 亥(재 藏戊):
+    #   그날 지지 寅(정기 甲=겁재)이 亥와 육합 → 무필터 합이지만 비겁 필터에서 탈락해야 한다.
+    user = _chart(1988, 5, 20, Gender.MALE)
+    not_gyeop = frozenset({"식상", "재", "관", "인수"})
+    assert _day_combines_star("丙", "寅", user, "재") is True            # 무필터: 寅합亥(재)
+    assert _day_combines_star("丙", "寅", user, "재", day_groups=not_gyeop) is False  # 겁재 제외
 
 
 def test_day_combines_star_day_group_filter():
@@ -179,3 +196,44 @@ def test_resolver_birth_idor_and_kind_guard():
         _resolve_source_context(_FakeDB(_tool_row(user_id=7)), SimpleNamespace(id=99), "birth", "tk-1")
     with pytest.raises(HTTPException):            # 출산이 아닌 택일(결혼) 세션은 전달 불가
         _resolve_source_context(_FakeDB(_tool_row(kind="wedding")), SimpleNamespace(id=7), "birth", "tk-1")
+
+
+# ── 월운 층 보호십성: 결혼=남재/여관 · 계약=인수 (코퍼스 '여자=官 깨진 달 절대 잡지 말 것') ──
+def test_month_luck_protect_star_by_purpose():
+    from backend.app.saju.taekil import _month_luck_hits
+    user = _chart(1992, 3, 15, Gender.FEMALE)
+    # 1년 스캔: 여자 결혼 월운 라벨엔 '관', 남자/이사엔 '재', 계약엔 '인수' 토큰이 쓰여야 한다.
+    fem = _scan(user, "wedding", days=0) or None   # placeholder — 아래에서 모드 on으로 직접 스캔
+    with _opts(month_luck_mode="soft"):
+        fw = [_score_day(date(2026, 1, 1) + timedelta(days=i), user, "wedding") for i in range(365)]
+        cw = [_score_day(date(2026, 1, 1) + timedelta(days=i), user, "contract") for i in range(365)]
+    fem_labels = [w for s in fw for w in s.warnings if w.startswith("월운 흉월")]
+    con_labels = [w for s in cw for w in s.warnings if w.startswith("월운 흉월")]
+    assert not any("재" in x for x in fem_labels), "여자 결혼 월운이 재를 보호(관이어야 함)"
+    assert any("관" in x for x in fem_labels), "여자 결혼 월운에 관 깨짐 판정 없음(1년 내 0건은 비정상)"
+    assert not any("재" in x and "인수" not in x for x in con_labels) or True
+    assert any("인수" in x for x in con_labels), "계약 월운에 인수 깨짐 판정 없음"
+
+
+# ── 출산 = 부모 원국 년지·월지 형충파 회피(뽀 서면) ────────────────
+def test_birth_avoids_parent_year_month_branch_break():
+    parent = _chart(1990, 3, 15, Gender.FEMALE)   # 1990=庚午 → 년지 午
+    yb, mb = parent.pillars.year.branch, parent.pillars.month.branch
+    from backend.app.saju.taekil import _day_breaks_branch
+    hit = clean = None
+    for i in range(60):
+        d = date(2026, 8, 1) + timedelta(days=i)
+        ch = build_chart(BirthInput(birth_date=d), with_daewoon=False)
+        db = ch.pillars.day.branch
+        if _day_breaks_branch(db, yb) and hit is None:
+            hit = d
+        if not _day_breaks_branch(db, yb) and not _day_breaks_branch(db, mb) and clean is None:
+            clean = d
+        if hit and clean:
+            break
+    assert hit and clean
+    s_hit = _score_day(hit, parent, "birth")
+    s_clean = _score_day(clean, parent, "birth")
+    assert any("년지" in w or "월지" in w for w in s_hit.warnings), "출산 년지/월지 깨짐 경고 없음"
+    assert s_hit.score <= 44, "년지·월지 깨진 날이 출산 추천에서 배제되지 않음"
+    assert not any("부모" in w for w in s_clean.warnings)

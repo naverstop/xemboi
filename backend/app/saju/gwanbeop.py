@@ -19,6 +19,7 @@ from pathlib import Path
 from backend.app.saju.constants import (
     BRANCH_BREAK,
     BRANCH_CONFLICTS,
+    BRANCH_TO_WUXING,
     BRANCH_PUNISH,
     BRANCH_SELF_PUNISH,
     BRANCH_SIX_COMBINATIONS,
@@ -81,6 +82,7 @@ class GwanbeopFacts:
         self.in_hap: set[str] = set()           # 세운과 합에 참여한 그룹
         self.hap_pairs: set[frozenset[str]] = set()      # 합을 이룬 그룹 쌍
         self.geuk_pairs: set[tuple[str, str]] = set()    # (극하는 그룹, 극받는 그룹)
+        self.elem_hap: set[tuple[str, str]] = set()      # (세운/월운 글자의 오행, 합한 원국 십성) — 토지계약 등 오행 조건
 
 
 def _star(day_stem: str, char: str, kind: str) -> str | None:
@@ -165,6 +167,11 @@ def build_facts(chart_json: dict | None, seun_stem: str, seun_branch: str) -> Gw
                     f.in_hap.add(n_star)
                 if s_star and n_star:
                     f.hap_pairs.add(frozenset({s_star, n_star}))
+                # 오행 조건(뽀: 토지계약='土가 인수·재와 합') — 세운/월운 글자의 오행 × 합한 원국 십성
+                if n_star:
+                    _elem = STEM_TO_WUXING.get(s_ch) if s_kind == "stem" else BRANCH_TO_WUXING.get(s_ch)
+                    if _elem:
+                        f.elem_hap.add((_elem, n_star))
             if rels & {"충", "형", "파"}:   # 충·형·파는 양쪽 모두 깨짐
                 for g in (s_star, n_star):
                     if g:
@@ -180,6 +187,8 @@ def build_facts(chart_json: dict | None, seun_stem: str, seun_branch: str) -> Gw
 
 
 def _atom_ok(atom: dict, f: GwanbeopFacts) -> bool:
+    if "elem" in atom:   # 오행 조건: 세운/월운의 {elem} 글자가 원국 {hap_with 중 하나}와 합
+        return any((atom["elem"], t) in f.elem_hap for t in (atom.get("hap_with") or []))
     if "pair" in atom:
         a, b = atom["pair"]
         if atom.get("rel") == "합":

@@ -326,8 +326,8 @@ _RULE_NOTE = {
     "wedding": "결혼 택일은 남자는 재(財=배우자)·일지가, 여자는 관(官=배우자)·일지가 깨지지 않는 날을 봅니다. "
                "비겁(연적·경쟁)이 드는 날은 피합니다. 상대(배우자) 명식을 함께 입력하면 신랑·신부 양측을 "
                "동시에 보아, 두 사람 모두 비겁이 드는 날만 배제하고 두 사람의 재·관이 함께 합(合)되는 날에 가점합니다.",
-    "opening": "개업 택일은 재물(財)·일지가 충·형·파·해로 깨지지 않는 날을 보고, "
-               "돈(財)이 식상(활동·표현)과 합(合)되는 날을 돈을 끌어오는 좋은 날로 봅니다.",
+    "opening": "개업 택일은 재물(財)과 관(官)이 충·형·파·해·극으로 깨지지 않는 날을 보고, "
+               "그날의 기운이 재·관과 합(合)되거나 상생(식상·재가 드는 날)되는 날을 좋은 날로 봅니다.",
     "contract": "계약 택일은 문서(인수)가 충·형·파·해로 깨지지 않는 날을 보고, "
                 "그날의 기운이 문서(인수)와 합(合)되는 날을 계약에 좋은 날로 봅니다.",
     "birth": "출산 택일은 그날 태어날 아이의 사주와 부모님의 궁합을 참고용으로 계산합니다. "
@@ -512,9 +512,10 @@ def _day_combines_star(ds: str, db: str, user_chart: SajuChart, group: str,
     return False
 
 
-def _month_luck_hits(ch: SajuChart, user_chart: SajuChart) -> set[str]:
-    """④ 다층운 '월운 층' — 후보일의 절기월 간지가 원국(월간·월지·일지·재)을 형충파해(申亥)극하는가.
-    반환=깨진 대상 토큰 집합({월지,일지,재,월간}, 빈=무해). 월 단위 상수라 같은 절기월 내 랭킹 불변."""
+def _month_luck_hits(ch: SajuChart, user_chart: SajuChart, protect_star: str = "재") -> set[str]:
+    """④ 다층운 '월운 층' — 후보일의 절기월 간지가 원국(월간·월지·일지·보호십성)을 형충파해(申亥)극하는가.
+    protect_star: 용도별 보호 십성 — 이사/개업=재, 결혼=남재/여관(코퍼스 '여자=官 깨진 달 절대 잡지
+    말 것' 911011:50-59), 계약=인수(문서). 반환=깨진 대상 토큰 집합. 월 단위 상수라 같은 절기월 내 랭킹 불변."""
     mstem, mbr = ch.pillars.month.stem, ch.pillars.month.branch
     um = user_chart.pillars.month.branch
     ub = user_chart.pillars.day.branch
@@ -523,10 +524,10 @@ def _month_luck_hits(ch: SajuChart, user_chart: SajuChart) -> set[str]:
     for tgt, ko in ((um, "월지"), (ub, "일지")):
         if _day_breaks_branch(mbr, tgt):
             hits.add(ko)
-    for _ko, kind, chstem, br in _user_star_positions(user_chart, "재"):
+    for _ko, kind, chstem, br in _user_star_positions(user_chart, protect_star):
         if (kind == "branch" and br and _day_breaks_branch(mbr, br)) or \
                 (kind == "stem" and _stem_geuk(mstem, chstem)):
-            hits.add("재"); break
+            hits.add(protect_star); break
     if ums and _stem_geuk(mstem, ums):
         hits.add("월간")
     return hits
@@ -591,9 +592,11 @@ def _ppo_saju(purpose: str, ch: SajuChart, next_ch: SajuChart | None,
     if purpose in ("wedding", "moving", "opening", "contract"):
         # 보호 대상: 결혼=성별(남 재/여 관)·이사/개업=재(돈)·계약=인수(문서 — 뽀 2026-08-03: 계약은
         # 문서(印) 중심, 코퍼스 '인성운에 매매계약' 정합). (그룹, 하드배제, 감점폭).
+        # 개업(뽀 서면 2026-08-03): '재성과 관성이 극 안 되는 날' — 재+관 모두 보호(하드).
         checks: list[tuple[str, bool, int]] = (
             [("재" if is_male else "관", True, 40)] if purpose == "wedding"
             else [("인수", True, 40)] if purpose == "contract"
+            else [("재", True, 40), ("관", True, 40)] if purpose == "opening"
             else [("재", True, 40)])
         if purpose == "wedding" and is_male:
             checks.append(("관", False, 40))       # 남자도 官 깨진 날 공통 흉(하드배제는 아님)
@@ -678,9 +681,22 @@ def _ppo_saju(purpose: str, ch: SajuChart, next_ch: SajuChart | None,
                     f += 12
                     good.append(f"{_STAR_KO['재']} 합(合) — 매우 좋은 날")
             elif purpose == "opening":
-                if _day_combines_star(ds, db, user_chart, "재", day_groups=frozenset({"식상"})):
+                # 뽀 서면(정본): '일진의 천간·지지에서 원국의 재성과 관성이 합되는 날, 상생되는 날'.
+                #   합=재 또는 관을 끌어오는 날(단 비겁이 재와 합하면 뺏김이라 제외 — 어제 채팅 정합).
+                #   상생=그날 일진에 식상(재를 生)·재(관을 生)가 드는 날(문헌 911010:212) — 소가점.
+                _not_gyeop = frozenset({"식상", "재", "관", "인수"})
+                if (_day_combines_star(ds, db, user_chart, "재", day_groups=_not_gyeop)
+                        or _day_combines_star(ds, db, user_chart, "관", day_groups=_not_gyeop)):
                     f += 12
-                    good.append("재(돈)-식상 합(合) — 돈을 끌어오는 개업 길일")
+                    good.append("재·관 합(合) — 돈·거래처를 끌어오는 개업 길일")
+                else:
+                    uds2 = user_chart.pillars.day.stem
+                    _gs = STAR_GROUP.get(compute_ten_god(uds2, ds))
+                    _hid = HIDDEN_STEMS.get(db) or (ds,)
+                    _gb = STAR_GROUP.get(compute_ten_god(uds2, _hid[-1]))
+                    if {"식상", "재"} & {_gs, _gb}:
+                        f += 6
+                        good.append("재·관 상생 — 돈을 살리는 날(식상·재가 드는 날)")
             else:  # contract — 인수(문서) 합
                 if _day_combines_star(ds, db, user_chart, "인수"):
                     f += 12
@@ -717,6 +733,18 @@ def _score_day(d: date, parent_chart: SajuChart, purpose: str, bonmyeong: str = 
             warns = list(dict.fromkeys(w1 + w2))[:3]
         else:
             f_saju, warns = s1, w1
+        # 뽀 서면(2026-08-03): '년지와 월지가 형충파되지 않는 상태에서 출산일 택일' — 부모 원국 기준.
+        #   후보일 일진이 부모(양 부모 모두)의 년지·월지를 깨면(엔진 공통 정의: 충·형·파+해(申亥)) 회피.
+        for _idx, _pc in enumerate([parent_chart] + ([parent2_chart] if parent2_chart else [])):
+            _who = "부모②" if _idx else "부모"
+            for _tgt, _ko in ((_pc.pillars.year.branch, "년지"), (_pc.pillars.month.branch, "월지")):
+                _r = _day_breaks_branch(db, _tgt)
+                if _r:
+                    _disq = True
+                    _lbl = f"{_who} {_ko}{'·'.join(sorted(_r))}"
+                    if _lbl not in warns:
+                        warns.append(_lbl)
+                        _bad.append(f"{_who} {_ko}(뿌리·환경) {'·'.join(sorted(_r))}")
     else:
         # ② 본인 사주 회피 — 뽀 관법(문헌 교차확증): 재/관/일지/월지·비겁을 형충파해(申亥)극으로 회피.
         #    원진은 택일 흉에 문헌 근거 없어 제외(감사 wf_5f52bbc9). 이사 월지는 '이사 다음날' 기준.
@@ -730,13 +758,16 @@ def _score_day(d: date, parent_chart: SajuChart, purpose: str, bonmyeong: str = 
         f_saju, _pw, _bad, _disq, _good = _ppo_saju(
             purpose, ch, _next_ch, parent_chart, _is_male, _partner, _p_male)
         warns.extend(_pw)
-        # ④ 다층운 '월운 층' — 후보일 절기월 간지가 원국(월간·월지·일지·재)을 깨면 흉월.
+        # ④ 다층운 '월운 층' — 후보일 절기월 간지가 원국(월간·월지·일지·보호십성)을 깨면 흉월.
+        #   보호십성: 이사/개업=재, 결혼=남재/여관(코퍼스 '여자=官 깨진 달'), 계약=인수(문서).
         #   soft(기본)=월 단위 감점(같은 달 내 랭킹 불변, 흉월 전체 하향) / strict=월지 깨진 달 하드배제.
         if purpose in ("moving", "wedding", "opening", "contract") and \
                 TAEKIL_OPTIONS.get("month_luck_mode") != "off":
-            _ml = _month_luck_hits(ch, parent_chart)
+            _pstar = ("관" if (purpose == "wedding" and not _is_male)
+                      else "인수" if purpose == "contract" else "재")
+            _ml = _month_luck_hits(ch, parent_chart, protect_star=_pstar)
             if _ml:
-                _ml_txt = "·".join(t for t in ("월지", "일지", "재", "월간") if t in _ml)
+                _ml_txt = "·".join(t for t in ("월지", "일지", _pstar, "월간") if t in _ml)
                 warns.append(f"월운 흉월({_ml_txt} 깨짐)")
                 if TAEKIL_OPTIONS.get("month_luck_mode") == "strict" and "월지" in _ml:
                     _disq = True
