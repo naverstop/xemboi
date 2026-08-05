@@ -1,4 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
+import { useTranslation, Trans } from "react-i18next";
 import { Link } from "react-router-dom";
 import {
   api,
@@ -37,14 +38,15 @@ import { fmtKSTDate, fmtKSTDateTime, fmtKSTShort } from "../lib/datetime";
 type Tab = "stats" | "live" | "users" | "banners" | "billing" | "pricing" | "templates" | "support" | "reviews" | "site" | "tarot" | "consultants" | "settlements";
 
 export default function AdminPage() {
+  const { t: tr } = useTranslation();
   const me = useMe();
   const [tab, setTab] = useState<Tab>("stats");
 
   if (!me || me.role !== "admin") {
     return (
       <div style={{ padding: 20 }}>
-        <h3>관리자 전용</h3>
-        <p>관리자 계정으로 로그인해야 합니다. <Link to="/login">로그인</Link></p>
+        <h3>{tr("admin.gate.title")}</h3>
+        <p>{tr("admin.gate.need")} <Link to="/login">{tr("admin.gate.login")}</Link></p>
       </div>
     );
   }
@@ -52,19 +54,19 @@ export default function AdminPage() {
   return (
     <div>
       <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
-        <TabBtn tab="stats" cur={tab} setTab={setTab} label="통계" />
-        <TabBtn tab="live" cur={tab} setTab={setTab} label="현재 통계" />
-        <TabBtn tab="users" cur={tab} setTab={setTab} label="회원" />
-        <TabBtn tab="banners" cur={tab} setTab={setTab} label="배너" />
-        <TabBtn tab="billing" cur={tab} setTab={setTab} label="과금/한도" />
-        <TabBtn tab="pricing" cur={tab} setTab={setTab} label="AI가격" />
-        <TabBtn tab="templates" cur={tab} setTab={setTab} label="답변양식" />
-        <TabBtn tab="support" cur={tab} setTab={setTab} label="고객센터" />
-        <TabBtn tab="reviews" cur={tab} setTab={setTab} label="후기" />
-        <TabBtn tab="site" cur={tab} setTab={setTab} label="운영설정" />
-        <TabBtn tab="tarot" cur={tab} setTab={setTab} label="타로 해석" />
-        <TabBtn tab="consultants" cur={tab} setTab={setTab} label="입점업체" />
-        <TabBtn tab="settlements" cur={tab} setTab={setTab} label="정산" />
+        <TabBtn tab="stats" cur={tab} setTab={setTab} label={tr("admin.tabs.stats")} />
+        <TabBtn tab="live" cur={tab} setTab={setTab} label={tr("admin.tabs.live")} />
+        <TabBtn tab="users" cur={tab} setTab={setTab} label={tr("admin.tabs.users")} />
+        <TabBtn tab="banners" cur={tab} setTab={setTab} label={tr("admin.tabs.banners")} />
+        <TabBtn tab="billing" cur={tab} setTab={setTab} label={tr("admin.tabs.billing")} />
+        <TabBtn tab="pricing" cur={tab} setTab={setTab} label={tr("admin.tabs.pricing")} />
+        <TabBtn tab="templates" cur={tab} setTab={setTab} label={tr("admin.tabs.templates")} />
+        <TabBtn tab="support" cur={tab} setTab={setTab} label={tr("admin.tabs.support")} />
+        <TabBtn tab="reviews" cur={tab} setTab={setTab} label={tr("admin.tabs.reviews")} />
+        <TabBtn tab="site" cur={tab} setTab={setTab} label={tr("admin.tabs.site")} />
+        <TabBtn tab="tarot" cur={tab} setTab={setTab} label={tr("admin.tabs.tarot")} />
+        <TabBtn tab="consultants" cur={tab} setTab={setTab} label={tr("admin.tabs.consultants")} />
+        <TabBtn tab="settlements" cur={tab} setTab={setTab} label={tr("admin.tabs.settlements")} />
       </div>
       {tab === "stats" && <StatsTab />}
       {tab === "live" && <LiveStatsTab />}
@@ -108,6 +110,7 @@ const ADMIN_PAY_PAGE = 20;  // 관리자 결제 리스트 페이지당
 
 /** 현재 통계(운영자 지시 2026-07-11) — 접속·방문·PWA 설치·메뉴 사용도·버튼 클릭. 30초 자동 갱신. */
 function LiveStatsTab() {
+  const { t: tr, i18n } = useTranslation();
   const [s, setS] = useState<AdminUsageSummary | null>(null);
   const [err, setErr] = useState<string | null>(null);
   useEffect(() => {
@@ -120,33 +123,29 @@ function LiveStatsTab() {
     return () => { alive = false; window.clearInterval(iv); };
   }, []);
   if (err) return <div style={{ color: "crimson" }}>{err}</div>;
-  if (!s) return <div>불러오는 중…</div>;
+  if (!s) return <div>{tr("admin.loading")}</div>;
 
   // 사이드 메뉴 전체 고정 목록(사이드바 순서) — 방문 0이어도 표시(운영자 지시: 전체 다 반영)
-  const MENU_ORDER: [string, string][] = [
-    ["landing", "대문"], ["chat", "상담"], ["compatibility", "궁합"], ["today", "오늘의 운세"],
-    ["calendar", "운세 캘린더"], ["sinnyeon", "신년운세"], ["taekil", "택일"],
-    ["naming-jakmyeong", "작명"], ["naming-gaemyeong", "개명"], ["naming-aho", "아호"],
-    ["tarot", "타로"], ["amulet", "부적"], ["dream", "꿈해몽"], ["snack", "무료 테스트"],
-    ["payments", "충전"], ["settings", "설정"], ["consultation", "상담사"], ["uploads", "업로드"],
-    ["trend", "평가 추세"], ["admin", "관리자"], ["reviews", "이용 후기"], ["support", "고객센터"],
-    ["login", "로그인"],
+  const MENU_KEYS = [
+    "landing", "chat", "compatibility", "today", "calendar", "sinnyeon", "taekil",
+    "naming-jakmyeong", "naming-gaemyeong", "naming-aho", "tarot", "amulet", "dream", "snack",
+    "payments", "settings", "consultation", "uploads", "trend", "admin", "reviews", "support", "login",
   ];
-  const MENU_KO: Record<string, string> = Object.fromEntries(MENU_ORDER);
+  const MENU_KO: Record<string, string> = Object.fromEntries(MENU_KEYS.map((k) => [k, tr(`admin.live.menu.${k}`)]));
   const CLICK_KO: Record<string, string> = {
-    cta: "실행(상담 시작·운세 보기 등)", explain: "해설 보기", question: "추가 질문(과금)",
-    reveal: "미리보기 전체 열람", "answer-action": "답변 액션(복사·공유·PDF)",
-    "quick-input": "빠른입력 적용", "share-card": "공유카드 만들기", download: "다운로드/열기",
-    video: "영상으로 보기", report: "종합 감정서", "install-guide": "앱 설치(사이드바)",
-    "install-fab": "앱 설치(플로팅)", "inapp-escape": "인앱→브라우저 열기 동의",
-    "consult-fab": "1:1 상담 열기", charge: "충전 열기",
-    "pwa:install-accept": "PWA 설치 수락", "pwa:installed": "PWA 설치 완료(확정)",
+    cta: tr("admin.live.click.cta"), explain: tr("admin.live.click.explain"), question: tr("admin.live.click.question"),
+    reveal: tr("admin.live.click.reveal"), "answer-action": tr("admin.live.click.answer_action"),
+    "quick-input": tr("admin.live.click.quick_input"), "share-card": tr("admin.live.click.share_card"), download: tr("admin.live.click.download"),
+    video: tr("admin.live.click.video"), report: tr("admin.live.click.report"), "install-guide": tr("admin.live.click.install_guide"),
+    "install-fab": tr("admin.live.click.install_fab"), "inapp-escape": tr("admin.live.click.inapp_escape"),
+    "consult-fab": tr("admin.live.click.consult_fab"), charge: tr("admin.live.click.charge"),
+    "pwa:install-accept": tr("admin.live.click.pwa_install_accept"), "pwa:installed": tr("admin.live.click.pwa_installed"),
   };
   const menuName = (k: string) => MENU_KO[k] || k;
   // 서버 집계 + 전체 메뉴 병합(없으면 0) — 사이드바 순서 유지, 목록 밖 키는 뒤에
   const menuMap = new Map(s.menus.map((m) => [m.key, m]));
   const allMenus = [
-    ...MENU_ORDER.map(([k]) => menuMap.get(k) || { key: k, today: 0, week: 0 }),
+    ...MENU_KEYS.map((k) => menuMap.get(k) || { key: k, today: 0, week: 0 }),
     ...s.menus.filter((m) => !(m.key in MENU_KO)),
   ];
   const maxWeek = Math.max(1, ...allMenus.map((m) => m.week));
@@ -154,7 +153,7 @@ function LiveStatsTab() {
   const clickGroups = new Map<string, { fn: string; today: number; week: number }[]>();
   for (const c of s.clicks) {
     const i = c.key.lastIndexOf(":");
-    const menu = c.key.startsWith("pwa:") ? "PWA 설치" : i > 0 ? menuName(c.key.slice(0, i)) : "기타";
+    const menu = c.key.startsWith("pwa:") ? tr("admin.live.grp_pwa") : i > 0 ? menuName(c.key.slice(0, i)) : tr("admin.live.grp_etc");
     const fnKey = c.key.startsWith("pwa:") ? c.key : i > 0 ? c.key.slice(i + 1) : c.key;
     const fn = CLICK_KO[fnKey] || fnKey;
     if (!clickGroups.has(menu)) clickGroups.set(menu, []);
@@ -162,10 +161,10 @@ function LiveStatsTab() {
   }
 
   // 상단 타일 — 접속/방문(파랑 강조), PWA 설치(플랫폼별)
-  const hot: [string, number][] = [["🟢 현재 접속 (5분)", s.online_now], ["👥 오늘 방문자", s.today_visitors]];
+  const hot: [string, number][] = [[tr("admin.live.tile_online"), s.online_now], [tr("admin.live.tile_visitors"), s.today_visitors]];
   const pwa: [string, number][] = [
-    ["📲 PWA 설치 합계", s.pwa.total], [" iPhone", s.pwa.ios || 0],
-    ["🤖 Android", s.pwa.android || 0], ["💻 데스크톱", s.pwa.desktop || 0],
+    [tr("admin.live.tile_pwa_total"), s.pwa.total], [tr("admin.live.tile_ios"), s.pwa.ios || 0],
+    [tr("admin.live.tile_android"), s.pwa.android || 0], [tr("admin.live.tile_desktop"), s.pwa.desktop || 0],
   ];
 
   return (
@@ -185,18 +184,17 @@ function LiveStatsTab() {
         ))}
       </div>
       <p style={{ fontSize: 12, color: "var(--ink-400)", margin: "0 0 6px" }}>
-        기준 {new Date(s.as_of).toLocaleTimeString("ko-KR")} · 30초 자동 갱신 · 기기(브라우저) 단위 익명 집계 —
-        PWA 설치는 홈 화면 앱으로 실행된 기기 수
+        {tr("admin.live.as_of", { time: new Date(s.as_of).toLocaleTimeString(i18n.language === "vi" ? "vi-VN" : "ko-KR") })}
       </p>
 
-      <h3 style={{ margin: "18px 0 8px" }}>📊 메뉴별 사용도 (페이지 조회) <span style={{ fontSize: 12, color: "var(--ink-400)", fontWeight: 400 }}>— 사이드 메뉴 전체</span></h3>
+      <h3 style={{ margin: "18px 0 8px" }}>{tr("admin.live.h_menu_usage")} <span style={{ fontSize: 12, color: "var(--ink-400)", fontWeight: 400 }}>{tr("admin.live.h_menu_usage_sub")}</span></h3>
       <table style={{ width: "100%", fontSize: 13, borderCollapse: "collapse" }}>
         <thead>
           <tr style={{ background: "var(--bg)" }}>
-            <th style={aTh}>메뉴</th>
-            <th style={{ ...aTh, textAlign: "right", width: 70 }}>오늘</th>
-            <th style={{ ...aTh, textAlign: "right", width: 90 }}>최근 7일</th>
-            <th style={{ ...aTh, width: "36%" }}>7일 비중</th>
+            <th style={aTh}>{tr("admin.live.th_menu")}</th>
+            <th style={{ ...aTh, textAlign: "right", width: 70 }}>{tr("admin.live.th_today")}</th>
+            <th style={{ ...aTh, textAlign: "right", width: 90 }}>{tr("admin.live.th_week")}</th>
+            <th style={{ ...aTh, width: "36%" }}>{tr("admin.live.th_week_share")}</th>
           </tr>
         </thead>
         <tbody>
@@ -216,15 +214,15 @@ function LiveStatsTab() {
         </tbody>
       </table>
 
-      <h3 style={{ margin: "18px 0 8px" }}>🎯 메뉴별 세부 기능 실사용 <span style={{ fontSize: 12, color: "var(--ink-400)", fontWeight: 400 }}>— DB 실측(실제 실행 완료 수 · 누적은 서비스 전체 기간)</span></h3>
+      <h3 style={{ margin: "18px 0 8px" }}>{tr("admin.live.h_feature")} <span style={{ fontSize: 12, color: "var(--ink-400)", fontWeight: 400 }}>{tr("admin.live.h_feature_sub")}</span></h3>
       <table style={{ width: "100%", maxWidth: 760, fontSize: 13, borderCollapse: "collapse" }}>
         <thead>
           <tr style={{ background: "var(--bg)" }}>
-            <th style={{ ...aTh, width: 110 }}>메뉴</th>
-            <th style={aTh}>기능</th>
-            <th style={{ ...aTh, textAlign: "right", width: 64 }}>오늘</th>
-            <th style={{ ...aTh, textAlign: "right", width: 80 }}>최근 7일</th>
-            <th style={{ ...aTh, textAlign: "right", width: 80 }}>누적</th>
+            <th style={{ ...aTh, width: 110 }}>{tr("admin.live.th_menu")}</th>
+            <th style={aTh}>{tr("admin.live.th_feature")}</th>
+            <th style={{ ...aTh, textAlign: "right", width: 64 }}>{tr("admin.live.th_today")}</th>
+            <th style={{ ...aTh, textAlign: "right", width: 80 }}>{tr("admin.live.th_week")}</th>
+            <th style={{ ...aTh, textAlign: "right", width: 80 }}>{tr("admin.live.th_total")}</th>
           </tr>
         </thead>
         <tbody>
@@ -251,17 +249,17 @@ function LiveStatsTab() {
         </tbody>
       </table>
 
-      <h3 style={{ margin: "18px 0 8px" }}>🖱️ 버튼 클릭(관심 지표) <span style={{ fontSize: 12, color: "var(--ink-400)", fontWeight: 400 }}>— 클릭 시도 수(위 실사용과 비교해 전환율 파악)</span></h3>
+      <h3 style={{ margin: "18px 0 8px" }}>{tr("admin.live.h_click")} <span style={{ fontSize: 12, color: "var(--ink-400)", fontWeight: 400 }}>{tr("admin.live.h_click_sub")}</span></h3>
       {s.clicks.length === 0 ? (
-        <p style={{ color: "var(--ink-400)", fontSize: 13 }}>아직 수집된 데이터가 없어요. 사용자가 버튼을 누르면 채워집니다.</p>
+        <p style={{ color: "var(--ink-400)", fontSize: 13 }}>{tr("admin.live.click_empty")}</p>
       ) : (
         <table style={{ width: "100%", maxWidth: 640, fontSize: 13, borderCollapse: "collapse" }}>
           <thead>
             <tr style={{ background: "var(--bg)" }}>
-              <th style={{ ...aTh, width: 130 }}>메뉴</th>
-              <th style={aTh}>기능(버튼)</th>
-              <th style={{ ...aTh, textAlign: "right", width: 70 }}>오늘</th>
-              <th style={{ ...aTh, textAlign: "right", width: 90 }}>최근 7일</th>
+              <th style={{ ...aTh, width: 130 }}>{tr("admin.live.th_menu")}</th>
+              <th style={aTh}>{tr("admin.live.th_feature_btn")}</th>
+              <th style={{ ...aTh, textAlign: "right", width: 70 }}>{tr("admin.live.th_today")}</th>
+              <th style={{ ...aTh, textAlign: "right", width: 90 }}>{tr("admin.live.th_week")}</th>
             </tr>
           </thead>
           <tbody>
@@ -285,6 +283,7 @@ function LiveStatsTab() {
 }
 
 function StatsTab() {
+  const { t: tr } = useTranslation();
   const [s, setS] = useState<AdminStats | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [pays, setPays] = useState<AdminPaymentRow[]>([]);
@@ -299,21 +298,21 @@ function StatsTab() {
       .catch(() => {});
   }, [payPage]);
   if (err) return <div style={{ color: "crimson" }}>{err}</div>;
-  if (!s) return <div>불러오는 중…</div>;
+  if (!s) return <div>{tr("admin.loading")}</div>;
   const cards: [string, string | number][] = [
-    ["전체 회원", s.total_users],
-    ["오늘 가입", `${s.today_signups} (어제 ${s.yesterday_signups})`],
-    ["오늘 질문", s.today_questions],
-    ["오늘 차감 P", s.today_credits_spent.toLocaleString()],
-    ["누적 결제(원)", s.total_revenue_krw.toLocaleString()],
-    ["미사용 잔액 P", s.total_outstanding_credits.toLocaleString()],
+    [tr("admin.stats.c_total_users"), s.total_users],
+    [tr("admin.stats.c_today_signups"), tr("admin.stats.signups_val", { today: s.today_signups, yesterday: s.yesterday_signups })],
+    [tr("admin.stats.c_today_questions"), s.today_questions],
+    [tr("admin.stats.c_today_spent"), s.today_credits_spent.toLocaleString()],
+    [tr("admin.stats.c_total_revenue"), s.total_revenue_krw.toLocaleString()],
+    [tr("admin.stats.c_outstanding"), s.total_outstanding_credits.toLocaleString()],
   ];
   // 기간별 매출(실제 번 돈) — 강조 카드
   const rev: [string, number][] = [
-    ["오늘 결제(원)", s.revenue_today_krw],
-    ["이번주 결제(원)", s.revenue_week_krw],
-    ["이번달 결제(원)", s.revenue_month_krw],
-    ["올해 결제(원)", s.revenue_year_krw],
+    [tr("admin.stats.r_today"), s.revenue_today_krw],
+    [tr("admin.stats.r_week"), s.revenue_week_krw],
+    [tr("admin.stats.r_month"), s.revenue_month_krw],
+    [tr("admin.stats.r_year"), s.revenue_year_krw],
   ];
   const payPages = Math.max(1, Math.ceil(payTotal / ADMIN_PAY_PAGE));
 
@@ -339,15 +338,15 @@ function StatsTab() {
       </div>
 
       {/* 전 회원 결제 히스토리 — 20개씩 페이지 */}
-      <h3 style={{ marginTop: 22, marginBottom: 8 }}>회원 결제 내역 <span style={{ fontSize: 13, color: "var(--ink-400)", fontWeight: 400 }}>(총 {payTotal.toLocaleString()}건)</span></h3>
+      <h3 style={{ marginTop: 22, marginBottom: 8 }}>{tr("admin.stats.pay_history")} <span style={{ fontSize: 13, color: "var(--ink-400)", fontWeight: 400 }}>{tr("admin.stats.pay_total", { count: payTotal.toLocaleString() })}</span></h3>
       <table style={{ width: "100%", fontSize: 13, borderCollapse: "collapse" }}>
         <thead>
           <tr style={{ background: "var(--bg)" }}>
-            <th style={aTh}>회원</th>
-            <th style={{ ...aTh, textAlign: "right" }}>금액(원)</th>
-            <th style={{ ...aTh, textAlign: "right" }}>크레딧</th>
-            <th style={aTh}>상태</th>
-            <th style={aTh}>시각</th>
+            <th style={aTh}>{tr("admin.stats.th_member")}</th>
+            <th style={{ ...aTh, textAlign: "right" }}>{tr("admin.stats.th_amount")}</th>
+            <th style={{ ...aTh, textAlign: "right" }}>{tr("admin.stats.th_credit")}</th>
+            <th style={aTh}>{tr("admin.stats.th_status")}</th>
+            <th style={aTh}>{tr("admin.stats.th_time")}</th>
           </tr>
         </thead>
         <tbody>
@@ -360,13 +359,13 @@ function StatsTab() {
                 <span style={{
                   padding: "2px 7px", borderRadius: 999, fontSize: 11, fontWeight: 700, color: "#fff",
                   background: p.status === "approved" ? "var(--brand-500)" : p.status === "refunded" ? "#ef4444" : "#9ca3af",
-                }}>{PAY_STATUS[p.status] || p.status}</span>
+                }}>{tr(`admin.payStatus.${p.status}`, p.status)}</span>
               </td>
               <td style={aTd}>{fmtKSTDateTime(p.approved_at || p.created_at)}</td>
             </tr>
           ))}
           {pays.length === 0 && (
-            <tr><td style={{ ...aTd, textAlign: "center", color: "var(--ink-400)" }} colSpan={5}>결제 내역이 없어요.</td></tr>
+            <tr><td style={{ ...aTd, textAlign: "center", color: "var(--ink-400)" }} colSpan={5}>{tr("admin.stats.pay_empty")}</td></tr>
           )}
         </tbody>
       </table>
@@ -393,13 +392,10 @@ function aPageBtn(disabled: boolean): React.CSSProperties {
 
 // -------- 회원 --------
 
-const PAY_STATUS: Record<string, string> = {
-  pending: "대기", approved: "결제완료", failed: "실패", cancelled: "취소", refunded: "환불됨",
-};
-
 const USERS_PAGE_SIZE = 20;  // 회원 목록 페이지당 노출 수
 
 function UsersTab() {
+  const { t: tr } = useTranslation();
   const [q, setQ] = useState("");
   const [items, setItems] = useState<AdminUser[]>([]);
   const [total, setTotal] = useState(0);
@@ -424,11 +420,11 @@ function UsersTab() {
     return consultants.find((c) => c.login_email.toLowerCase() === e) || null;
   }
   async function designate(u: AdminUser, specialty: ConsultantSpecialty) {
-    try { await api.adminDesignateConsultant(u.id, specialty); await loadConsultants(); alert(`${u.email} 을(를) ${CONSULT_SPECIALTY_LABEL[specialty]} 상담사로 지정했어요. 세부 설정은 '입점업체' 탭에서 편집하세요.`); }
+    try { await api.adminDesignateConsultant(u.id, specialty); await loadConsultants(); alert(tr("admin.users.designate_ok", { email: u.email, label: tr(`admin.spec.${specialty}`, specialty) })); }
     catch (e: any) { alert(e?.message || String(e)); }
   }
   async function revoke(c: ConsultantAdmin) {
-    if (!window.confirm(`상담사 지정을 해제할까요? (${c.business_name})\n관련 상담 세션/정산도 함께 삭제됩니다.`)) return;
+    if (!window.confirm(tr("admin.users.revoke_confirm", { name: c.business_name }))) return;
     try { await api.adminDeleteConsultant(c.id); await loadConsultants(); }
     catch (e: any) { alert(e?.message || String(e)); }
   }
@@ -467,15 +463,20 @@ function UsersTab() {
   async function refund(p: AdminPayment) {
     if (!sel) return;
     const won = p.amount.toLocaleString();
-    if (!window.confirm(`주문 ${p.order_id} (결제 ${won}원) 환불\n\n미사용 결제분만 환불됩니다 — 기본제공 포인트·사용분은 환불 대상이 아닙니다.\n토스 결제취소 + 크레딧 회수. (실키 미설정 시 mock)\n계속할까요?`)) return;
+    if (!window.confirm(tr("admin.users.refund_confirm1", { order: p.order_id, won }))) return;
     setBusyRefund(p.order_id);
     try {
       const r = await api.adminRefundPayment(p.order_id);
-      alert(`환불 완료${r.mock ? " (mock)" : ""}${r.partial ? " · 부분환불" : ""} — ${r.refunded_krw.toLocaleString()}원 환불 / ${r.recovered_credits.toLocaleString()}P 회수`);
+      alert(tr("admin.users.refund_done", {
+        mock: r.mock ? tr("admin.users.refund_mock") : "",
+        partial: r.partial ? tr("admin.users.refund_partial") : "",
+        refunded: r.refunded_krw.toLocaleString(),
+        recovered: r.recovered_credits.toLocaleString(),
+      }));
       await selectUser(sel);  // 결제·거래내역 갱신
       await load();           // 목록 집계(결제/환불 컬럼) 갱신
     } catch (e: any) {
-      alert(`환불 실패: ${e?.message || String(e)}`);
+      alert(tr("admin.users.refund_fail", { err: e?.message || String(e) }));
     } finally {
       setBusyRefund(null);
     }
@@ -499,9 +500,9 @@ function UsersTab() {
         for (const p of pr.items) if (p.refundable) plan.push({ email: u?.email, order: p.order_id, amount: p.amount });
       } catch { /* skip */ }
     }
-    if (!plan.length) { alert("선택한 회원 중 환불 가능한(승인된) 결제가 없습니다."); return; }
+    if (!plan.length) { alert(tr("admin.users.bulk_none")); return; }
     const maxTotal = plan.reduce((s, x) => s + x.amount, 0);
-    if (!window.confirm(`환불 실행 — 대상 ${ids.length}명 · 결제 ${plan.length}건 (최대 ${maxTotal.toLocaleString()}원)\n\n실제로는 '미사용 결제분'만 환불됩니다 — 기본제공 포인트·사용분은 환불 대상이 아닙니다.\n토스 결제취소 + 크레딧 회수. (실키 미설정 시 mock)\n계속할까요?`)) return;
+    if (!window.confirm(tr("admin.users.bulk_confirm", { n: ids.length, m: plan.length, max: maxTotal.toLocaleString() }))) return;
     setBusyRefund("bulk");
     let ok = 0, fail = 0, refunded = 0;
     for (const x of plan) {
@@ -509,7 +510,7 @@ function UsersTab() {
       catch { fail++; }
     }
     setBusyRefund(null);
-    alert(`환불 완료: ${ok}건 · ${refunded.toLocaleString()}원 환불${fail ? ` · 환불 불가/실패 ${fail}건(결제분 모두 사용 등)` : ""}`);
+    alert(tr("admin.users.bulk_done", { ok, refunded: refunded.toLocaleString(), fail: fail ? tr("admin.users.bulk_fail_suffix", { fail }) : "" }));
     setChecked(new Set());
     await load();
     if (sel) await selectUser(sel);
@@ -519,9 +520,9 @@ function UsersTab() {
     if (!sel) return;
     try {
       const d = parseInt(delta, 10);
-      if (!Number.isFinite(d) || d === 0) return alert("0이 아닌 정수 입력");
+      if (!Number.isFinite(d) || d === 0) return alert(tr("admin.users.grant_bad"));
       const r = await api.adminGrantCredit(sel.id, d, reason);
-      alert(`잔액: ${r.balance.toLocaleString()} P`);
+      alert(tr("admin.users.grant_balance", { bal: r.balance.toLocaleString() }));
       await load();
       await selectUser({ ...sel, balance: r.balance });
     } catch (e: any) {
@@ -543,16 +544,16 @@ function UsersTab() {
     <div>
       <div style={{ marginBottom: 16 }}>
         <div style={{ display: "flex", gap: 6, marginBottom: 8, alignItems: "center" }}>
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="이메일/닉네임 검색" />
-          <button onClick={() => go(0)}>검색</button>
-          <span style={{ color: "#666" }}>총 {total}명</span>
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={tr("admin.users.search_ph")} />
+          <button onClick={() => go(0)}>{tr("admin.users.search_btn")}</button>
+          <span style={{ color: "#666" }}>{tr("admin.users.total", { count: total })}</span>
           <button
             onClick={refundSelected}
             disabled={checked.size === 0 || busyRefund !== null}
-            title="체크한 회원의 승인 결제를 토스 결제취소 + 크레딧 회수로 환불"
+            title={tr("admin.users.bulk_title")}
             style={{ marginLeft: "auto", background: checked.size ? "#c0392b" : "#ddd", color: "#fff", border: "none", borderRadius: 6, padding: "6px 12px", cursor: checked.size ? "pointer" : "default", fontWeight: 700 }}
           >
-            {busyRefund === "bulk" ? "환불 처리중…" : `💸 선택 환불 (${checked.size})`}
+            {busyRefund === "bulk" ? tr("admin.users.bulk_busy") : tr("admin.users.bulk_btn", { count: checked.size })}
           </button>
         </div>
         {err && <div style={{ color: "crimson" }}>{err}</div>}
@@ -566,18 +567,18 @@ function UsersTab() {
                   checked={items.length > 0 && checked.size === items.length}
                   ref={(el) => { if (el) el.indeterminate = checked.size > 0 && checked.size < items.length; }}
                   onChange={(e) => toggleAll(e.target.checked)}
-                  title="환불 대상(결제 회원) 전체선택"
+                  title={tr("admin.users.all_title")}
                 />
               </th>
-              <th style={th}>ID</th>
-              <th style={th}>이메일</th>
-              <th style={th}>역할</th>
-              <th style={{ ...th, textAlign: "right" }}>기본제공(P)</th>
-              <th style={{ ...th, textAlign: "right" }}>결제(원)</th>
-              <th style={{ ...th, textAlign: "right" }}>사용(P)</th>
-              <th style={{ ...th, textAlign: "right" }}>잔액(P)</th>
-              <th style={th}>광고숨김</th>
-              <th style={th}>가입</th>
+              <th style={th}>{tr("admin.users.th_id")}</th>
+              <th style={th}>{tr("admin.users.th_email")}</th>
+              <th style={th}>{tr("admin.users.th_role")}</th>
+              <th style={{ ...th, textAlign: "right" }}>{tr("admin.users.th_granted")}</th>
+              <th style={{ ...th, textAlign: "right" }}>{tr("admin.users.th_paid")}</th>
+              <th style={{ ...th, textAlign: "right" }}>{tr("admin.users.th_spent")}</th>
+              <th style={{ ...th, textAlign: "right" }}>{tr("admin.users.th_balance")}</th>
+              <th style={th}>{tr("admin.users.th_ads")}</th>
+              <th style={th}>{tr("admin.users.th_join")}</th>
             </tr>
           </thead>
           <tbody>
@@ -595,7 +596,7 @@ function UsersTab() {
                     type="checkbox"
                     checked={checked.has(u.id)}
                     onChange={(e) => toggleCheck(u.id, e.target.checked)}
-                    title="환불 대상 선택"
+                    title={tr("admin.users.row_check_title")}
                   />
                 </td>
                 <td style={td}>{u.id}</td>
@@ -605,13 +606,13 @@ function UsersTab() {
                 </td>
                 <td style={td}>
                   {u.role}
-                  {consultantOf(u.email) && <span style={{ marginLeft: 4, fontSize: 10, color: "#fff", background: "#6a5cff", borderRadius: 6, padding: "1px 5px" }}>상담사</span>}
+                  {consultantOf(u.email) && <span style={{ marginLeft: 4, fontSize: 10, color: "#fff", background: "#6a5cff", borderRadius: 6, padding: "1px 5px" }}>{tr("admin.users.badge_consultant")}</span>}
                 </td>
                 <td style={{ ...td, textAlign: "right" }}>{u.granted_free.toLocaleString()}</td>
                 <td style={{ ...td, textAlign: "right" }}>
                   {u.paid_krw.toLocaleString()}
                   {u.refunded_krw > 0 && (
-                    <span style={{ display: "block", color: "#c0392b", fontSize: 10 }} title="환불 누계">↩{u.refunded_krw.toLocaleString()}</span>
+                    <span style={{ display: "block", color: "#c0392b", fontSize: 10 }} title={tr("admin.users.refunded_title")}>↩{u.refunded_krw.toLocaleString()}</span>
                   )}
                 </td>
                 <td style={{ ...td, textAlign: "right" }}>{u.spent.toLocaleString()}</td>
@@ -624,7 +625,7 @@ function UsersTab() {
                       onChange={(e) => toggleAds(u, e.target.checked)}
                     />
                     <span style={{ fontSize: 11, color: u.ads_hidden ? "#0a7" : "#999" }}>
-                      {u.ads_hidden ? "숨김" : "노출"}
+                      {u.ads_hidden ? tr("admin.users.ads_hidden") : tr("admin.users.ads_shown")}
                     </span>
                   </label>
                 </td>
@@ -636,11 +637,11 @@ function UsersTab() {
         </div>
         {totalPages > 1 && (
           <div style={{ display: "flex", gap: 6, alignItems: "center", justifyContent: "center", marginTop: 10 }}>
-            <button onClick={() => go(0)} disabled={page <= 0}>« 처음</button>
-            <button onClick={() => go(page - 1)} disabled={page <= 0}>‹ 이전</button>
-            <span style={{ fontSize: 13, color: "#444", minWidth: 96, textAlign: "center" }}>{page + 1} / {totalPages} 페이지</span>
-            <button onClick={() => go(page + 1)} disabled={page >= totalPages - 1}>다음 ›</button>
-            <button onClick={() => go(totalPages - 1)} disabled={page >= totalPages - 1}>끝 »</button>
+            <button onClick={() => go(0)} disabled={page <= 0}>{tr("admin.users.pg_first")}</button>
+            <button onClick={() => go(page - 1)} disabled={page <= 0}>{tr("admin.users.pg_prev")}</button>
+            <span style={{ fontSize: 13, color: "#444", minWidth: 96, textAlign: "center" }}>{tr("admin.users.pg_page", { page: page + 1, total: totalPages })}</span>
+            <button onClick={() => go(page + 1)} disabled={page >= totalPages - 1}>{tr("admin.users.pg_next")}</button>
+            <button onClick={() => go(totalPages - 1)} disabled={page >= totalPages - 1}>{tr("admin.users.pg_last")}</button>
           </div>
         )}
       </div>
@@ -648,17 +649,17 @@ function UsersTab() {
           <div>
             <h4 style={{ marginTop: 0 }}>{sel.email}</h4>
             <div style={{ color: "#666", fontSize: 13 }}>
-              잔액: <strong>{sel.balance.toLocaleString()} P</strong> / 역할: {sel.role} /
-              {" "}오늘무료: {sel.daily_free_used_at ? "사용" : "가능"}
+              {tr("admin.users.d_balance")} <strong>{sel.balance.toLocaleString()} P</strong> / {tr("admin.users.d_role")} {sel.role} /
+              {" "}{tr("admin.users.d_todayfree")} {sel.daily_free_used_at ? tr("admin.users.used") : tr("admin.users.available")}
             </div>
 
             <div style={{ marginTop: 12, padding: 10, border: "1px solid #ddd", borderRadius: 6 }}>
-              <div style={{ fontWeight: 600, marginBottom: 6 }}>크레딧 조정</div>
+              <div style={{ fontWeight: 600, marginBottom: 6 }}>{tr("admin.users.credit_adj")}</div>
               <div style={{ display: "flex", gap: 6 }}>
                 <input
                   value={delta}
                   onChange={(e) => setDelta(e.target.value)}
-                  placeholder="+충전 / -차감"
+                  placeholder={tr("admin.users.delta_ph")}
                   style={{ width: 100 }}
                 />
                 <select value={reason} onChange={(e) => setReason(e.target.value)}>
@@ -666,12 +667,12 @@ function UsersTab() {
                   <option value="refund">refund</option>
                   <option value="admin_seed">admin_seed</option>
                 </select>
-                <button onClick={grant}>실행</button>
+                <button onClick={grant}>{tr("admin.users.run")}</button>
               </div>
             </div>
 
             <div style={{ marginTop: 12, padding: 10, border: "1px solid #ddd", borderRadius: 6 }}>
-              <div style={{ fontWeight: 600, marginBottom: 6 }}>상담사(입점업체) 지정</div>
+              <div style={{ fontWeight: 600, marginBottom: 6 }}>{tr("admin.users.desig_title")}</div>
               {(() => {
                 const c = consultantOf(sel.email);
                 return c ? (
@@ -679,58 +680,58 @@ function UsersTab() {
                     {/* 간판 이미지 — 회원관리에서 직접 관리 */}
                     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
                       {c.signboard_image_url
-                        ? <img src={c.signboard_image_url} alt="간판" style={{ width: 48, height: 60, borderRadius: 8, objectFit: "cover", border: "1px solid #eee" }} />
+                        ? <img src={c.signboard_image_url} alt={tr("admin.users.signboard_alt")} style={{ width: 48, height: 60, borderRadius: 8, objectFit: "cover", border: "1px solid #eee" }} />
                         : <span style={{ width: 48, height: 60, borderRadius: 8, background: "#f0eef8", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 20 }}>🪧</span>}
                       <label style={{ fontSize: 10, color: "var(--brand-600)", cursor: "pointer", fontWeight: 700 }}>
-                        간판 변경
+                        {tr("admin.users.signboard_change")}
                         <input type="file" accept="image/*" style={{ display: "none" }}
                           onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadSignboard(c, f); e.currentTarget.value = ""; }} />
                       </label>
                     </div>
                     <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-                      <span style={{ color: "#6a5cff", fontWeight: 700 }}>상담사 지정됨 · {c.business_name}</span>
-                      <span style={{ fontSize: 12, color: "#888" }}>{CONSULT_SPECIALTY_LABEL[c.specialty] || c.specialty} · {c.eff_price_p.toLocaleString()}P/{c.eff_duration_min}분 · 상담 {c.session_count}건{c.rating_avg != null ? ` · ★${c.rating_avg}` : ""}{c.status === "coming_soon" ? " · 입점예정" : c.status === "hidden" ? " · 숨김" : ""}</span>
+                      <span style={{ color: "#6a5cff", fontWeight: 700 }}>{tr("admin.users.designated", { name: c.business_name })}</span>
+                      <span style={{ fontSize: 12, color: "#888" }}>{tr(`admin.spec.${c.specialty}`, c.specialty)} · {c.eff_price_p.toLocaleString()}P/{c.eff_duration_min}{tr("admin.min")} · {tr("admin.users.meta_sessions", { n: c.session_count })}{c.rating_avg != null ? ` · ★${c.rating_avg}` : ""}{c.status === "coming_soon" ? tr("admin.users.meta_coming") : c.status === "hidden" ? tr("admin.users.meta_hidden") : ""}</span>
                     </div>
                     <label style={{ fontSize: 12, color: "#666", display: "inline-flex", alignItems: "center", gap: 4 }}>
-                      분야
+                      {tr("admin.users.field_spec")}
                       <select value={c.specialty} onChange={(e) => designate(sel, e.target.value as ConsultantSpecialty)}>
-                        <option value="saju">사주</option>
-                        <option value="tarot">타로</option>
-                        <option value="both">사주+타로</option>
+                        <option value="saju">{tr("admin.spec.saju")}</option>
+                        <option value="tarot">{tr("admin.spec.tarot")}</option>
+                        <option value="both">{tr("admin.spec.both")}</option>
                       </select>
                     </label>
-                    <button onClick={() => revoke(c)} style={{ color: "crimson", marginLeft: "auto" }}>지정 해제</button>
+                    <button onClick={() => revoke(c)} style={{ color: "crimson", marginLeft: "auto" }}>{tr("admin.users.unassign")}</button>
                   </div>
                 ) : (
                   <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-                    <span style={{ fontSize: 13, color: "#666" }}>이 회원을 상담사로 지정하면 1:1 상담을 진행할 수 있어요.</span>
+                    <span style={{ fontSize: 13, color: "#666" }}>{tr("admin.users.not_designated")}</span>
                     <label style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 13, color: "#444" }}>
-                      분야
+                      {tr("admin.users.field_spec")}
                       <select value={desigSpec} onChange={(e) => setDesigSpec(e.target.value as ConsultantSpecialty)}>
-                        <option value="saju">사주</option>
-                        <option value="tarot">타로</option>
-                        <option value="both">사주+타로</option>
+                        <option value="saju">{tr("admin.spec.saju")}</option>
+                        <option value="tarot">{tr("admin.spec.tarot")}</option>
+                        <option value="both">{tr("admin.spec.both")}</option>
                       </select>
                     </label>
-                    <button onClick={() => designate(sel, desigSpec)} style={{ marginLeft: "auto", background: "#6a5cff", color: "#fff", border: "none", borderRadius: 6, padding: "6px 14px", fontWeight: 700, cursor: "pointer" }}>상담사로 지정</button>
+                    <button onClick={() => designate(sel, desigSpec)} style={{ marginLeft: "auto", background: "#6a5cff", color: "#fff", border: "none", borderRadius: 6, padding: "6px 14px", fontWeight: 700, cursor: "pointer" }}>{tr("admin.users.designate_btn")}</button>
                   </div>
                 );
               })()}
             </div>
 
             <div style={{ marginTop: 16 }}>
-              <div style={{ fontWeight: 600, marginBottom: 6 }}>결제·환불 내역 ({pays.length})</div>
+              <div style={{ fontWeight: 600, marginBottom: 6 }}>{tr("admin.users.pay_history", { count: pays.length })}</div>
               {pays.length === 0 ? (
-                <div style={{ fontSize: 12, color: "#888" }}>결제 내역이 없습니다.</div>
+                <div style={{ fontSize: 12, color: "#888" }}>{tr("admin.users.pay_empty")}</div>
               ) : (
                 <table style={{ width: "100%", fontSize: 12, borderCollapse: "collapse" }}>
                   <thead>
                     <tr style={{ background: "#f7f7f7" }}>
-                      <th style={th}>주문</th>
-                      <th style={{ ...th, textAlign: "right" }}>금액</th>
-                      <th style={th}>상태</th>
-                      <th style={th}>일시</th>
-                      <th style={{ ...th, textAlign: "center" }}>환불</th>
+                      <th style={th}>{tr("admin.users.pth_order")}</th>
+                      <th style={{ ...th, textAlign: "right" }}>{tr("admin.users.pth_amount")}</th>
+                      <th style={th}>{tr("admin.users.pth_status")}</th>
+                      <th style={th}>{tr("admin.users.pth_time")}</th>
+                      <th style={{ ...th, textAlign: "center" }}>{tr("admin.users.pth_refund")}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -738,7 +739,7 @@ function UsersTab() {
                       <tr key={p.id}>
                         <td style={{ ...td, fontFamily: "monospace", fontSize: 11 }}>{p.order_id}</td>
                         <td style={{ ...td, textAlign: "right" }}>{p.amount.toLocaleString()}</td>
-                        <td style={td}>{PAY_STATUS[p.status] || p.status}</td>
+                        <td style={td}>{tr(`admin.payStatus.${p.status}`, p.status)}</td>
                         <td style={td}>{(p.approved_at || p.created_at || "").replace("T", " ").slice(0, 16)}</td>
                         <td style={{ ...td, textAlign: "center" }}>
                           {p.refundable ? (
@@ -747,11 +748,11 @@ function UsersTab() {
                               disabled={busyRefund === p.order_id}
                               style={{ padding: "2px 10px", fontSize: 11, color: "#fff", background: "#c0392b", border: "none", borderRadius: 4, cursor: "pointer" }}
                             >
-                              {busyRefund === p.order_id ? "처리중…" : "환불"}
+                              {busyRefund === p.order_id ? tr("admin.users.r_processing") : tr("admin.users.r_refund")}
                             </button>
                           ) : p.status === "refunded" ? (
                             <span style={{ fontSize: 11, color: "#c0392b" }}>
-                              환불됨{p.refunded_recovered != null ? ` (${p.refunded_recovered.toLocaleString()}P)` : ""}
+                              {tr("admin.users.r_refunded")}{p.refunded_recovered != null ? ` (${p.refunded_recovered.toLocaleString()}P)` : ""}
                             </span>
                           ) : (
                             <span style={{ fontSize: 11, color: "#bbb" }}>-</span>
@@ -764,15 +765,15 @@ function UsersTab() {
               )}
             </div>
 
-            <h5 style={{ marginTop: 16 }}>거래 내역 (최근 30)</h5>
+            <h5 style={{ marginTop: 16 }}>{tr("admin.users.tx_title")}</h5>
             <table style={{ width: "100%", fontSize: 12, borderCollapse: "collapse" }}>
               <thead>
                 <tr style={{ background: "#f7f7f7" }}>
-                  <th style={th}>ID</th>
-                  <th style={th}>사유</th>
-                  <th style={{ ...th, textAlign: "right" }}>Δ</th>
-                  <th style={{ ...th, textAlign: "right" }}>잔액</th>
-                  <th style={th}>시각</th>
+                  <th style={th}>{tr("admin.users.txth_id")}</th>
+                  <th style={th}>{tr("admin.users.txth_reason")}</th>
+                  <th style={{ ...th, textAlign: "right" }}>{tr("admin.users.txth_delta")}</th>
+                  <th style={{ ...th, textAlign: "right" }}>{tr("admin.users.txth_balance")}</th>
+                  <th style={th}>{tr("admin.users.txth_time")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -791,7 +792,7 @@ function UsersTab() {
             </table>
           </div>
         ) : (
-          <div style={{ color: "#888", fontSize: 13 }}>표에서 회원을 클릭하면 상세·환불 내역이 아래에 표시됩니다.</div>
+          <div style={{ color: "#888", fontSize: 13 }}>{tr("admin.users.detail_hint")}</div>
         )}
     </div>
   );
@@ -800,6 +801,7 @@ function UsersTab() {
 // -------- 배너 --------
 
 function BannersTab() {
+  const { t: tr } = useTranslation();
   const [items, setItems] = useState<Banner[]>([]);
   const [err, setErr] = useState<string | null>(null);
   const [form, setForm] = useState<Partial<Banner>>({
@@ -818,7 +820,7 @@ function BannersTab() {
   useEffect(() => { load(); }, []);
 
   async function create() {
-    if (!form.image_url) return alert("image_url 필수");
+    if (!form.image_url) return alert(tr("admin.banners.img_required"));
     try {
       await api.adminCreateBanner(form as any);
       setForm({ slot: "top", image_url: "", link_url: "", title: "", weight: 10, active: true });
@@ -830,7 +832,7 @@ function BannersTab() {
     await load();
   }
   async function del(b: Banner) {
-    if (!confirm(`배너 ${b.id} 삭제?`)) return;
+    if (!confirm(tr("admin.banners.del_confirm", { id: b.id }))) return;
     await api.adminDeleteBanner(b.id);
     await load();
   }
@@ -839,7 +841,7 @@ function BannersTab() {
     <div>
       {err && <div style={{ color: "crimson" }}>{err}</div>}
       <div style={{ border: "1px solid #ddd", borderRadius: 6, padding: 12, marginBottom: 16 }}>
-        <div style={{ fontWeight: 600, marginBottom: 8 }}>새 배너</div>
+        <div style={{ fontWeight: 600, marginBottom: 8 }}>{tr("admin.banners.new_title")}</div>
         <div style={{ display: "grid", gridTemplateColumns: "120px 1fr 1fr", gap: 6 }}>
           <select value={form.slot} onChange={(e) => setForm({ ...form, slot: e.target.value })}>
             {BANNER_SLOTS.map((s) => <option key={s} value={s}>{s}</option>)}
@@ -850,12 +852,12 @@ function BannersTab() {
             onChange={(e) => setForm({ ...form, image_url: e.target.value })}
           />
           <input
-            placeholder="link_url (선택)"
+            placeholder={tr("admin.banners.ph_link")}
             value={form.link_url || ""}
             onChange={(e) => setForm({ ...form, link_url: e.target.value })}
           />
           <input
-            placeholder="title (선택)"
+            placeholder={tr("admin.banners.ph_title")}
             value={form.title || ""}
             onChange={(e) => setForm({ ...form, title: e.target.value })}
           />
@@ -865,19 +867,19 @@ function BannersTab() {
             value={form.weight ?? 10}
             onChange={(e) => setForm({ ...form, weight: parseInt(e.target.value, 10) || 0 })}
           />
-          <button onClick={create}>추가</button>
+          <button onClick={create}>{tr("admin.banners.add")}</button>
         </div>
       </div>
 
       <table style={{ width: "100%", fontSize: 13, borderCollapse: "collapse" }}>
         <thead>
           <tr style={{ background: "#f7f7f7" }}>
-            <th style={th}>ID</th>
-            <th style={th}>슬롯</th>
-            <th style={th}>제목/이미지</th>
-            <th style={th}>가중치</th>
-            <th style={th}>활성</th>
-            <th style={th}>작업</th>
+            <th style={th}>{tr("admin.banners.th_id")}</th>
+            <th style={th}>{tr("admin.banners.th_slot")}</th>
+            <th style={th}>{tr("admin.banners.th_title_img")}</th>
+            <th style={th}>{tr("admin.banners.th_weight")}</th>
+            <th style={th}>{tr("admin.banners.th_active")}</th>
+            <th style={th}>{tr("admin.banners.th_action")}</th>
           </tr>
         </thead>
         <tbody>
@@ -886,7 +888,7 @@ function BannersTab() {
               <td style={td}>{b.id}</td>
               <td style={td}>{b.slot}</td>
               <td style={td}>
-                <div>{b.title || "(제목 없음)"}</div>
+                <div>{b.title || tr("admin.banners.no_title")}</div>
                 <div style={{ color: "#888", fontSize: 11 }}>{b.image_url}</div>
               </td>
               <td style={td}>{b.weight}</td>
@@ -894,7 +896,7 @@ function BannersTab() {
                 <button onClick={() => toggleActive(b)}>{b.active ? "ON" : "OFF"}</button>
               </td>
               <td style={td}>
-                <button onClick={() => del(b)} style={{ color: "crimson" }}>삭제</button>
+                <button onClick={() => del(b)} style={{ color: "crimson" }}>{tr("admin.banners.del")}</button>
               </td>
             </tr>
           ))}
@@ -909,10 +911,8 @@ const td: React.CSSProperties = { padding: "5px 6px", borderBottom: "1px solid #
 
 // -------- 입점업체(1:1 상담사) --------
 
-const CONSULT_SPECIALTY_LABEL: Record<string, string> = { saju: "사주", tarot: "타로", both: "사주+타로" };
-const CONSULT_PRESENCE_LABEL: Record<string, string> = { online: "대기중", busy: "상담중", offline: "오프라인" };
-
 function ConsultantsTab() {
+  const { t: tr } = useTranslation();
   const [items, setItems] = useState<ConsultantAdmin[]>([]);
   const [apps, setApps] = useState<PartnerApplication[]>([]);   // 입점 신청 대기(운영자 지시 2026-07-11)
   const [inqs, setInqs] = useState<PartnerInquiry[]>([]);       // 입점 문의 대기(신청 전 게이트, 2026-07-12)
@@ -939,25 +939,25 @@ function ConsultantsTab() {
   }
 
   async function approveApp(a: PartnerApplication) {
-    if (!confirm(`${a.business_name}(${a.email}) 입점을 승인할까요?\n승인 즉시 상담사 권한이 부여되고 목록에 노출됩니다.`)) return;
-    try { await api.adminPartnerApprove(a.id); setMsg(`${a.business_name} 승인 완료 — 입점 목록에 추가됐어요.`); await load(); }
+    if (!confirm(tr("admin.consult.app_approve_confirm", { name: a.business_name, email: a.email }))) return;
+    try { await api.adminPartnerApprove(a.id); setMsg(tr("admin.consult.app_approve_ok", { name: a.business_name })); await load(); }
     catch (e: any) { alert(e?.message || String(e)); }
   }
   async function rejectApp(a: PartnerApplication) {
-    const reason = prompt(`${a.business_name} 반려 사유(신청자에게 알림으로 전달):`, "");
+    const reason = prompt(tr("admin.consult.app_reject_prompt", { name: a.business_name }), "");
     if (reason === null) return;
-    try { await api.adminPartnerReject(a.id, reason); setMsg(`${a.business_name} 반려 처리했어요.`); await load(); }
+    try { await api.adminPartnerReject(a.id, reason); setMsg(tr("admin.consult.app_reject_ok", { name: a.business_name })); await load(); }
     catch (e: any) { alert(e?.message || String(e)); }
   }
   async function allowInq(q: PartnerInquiry) {
-    if (!confirm(`${q.email} 님의 입점 신청을 허용할까요?\n허용 즉시 신청서(서류·약관) 작성이 열리고 알림이 발송됩니다.`)) return;
-    try { await api.adminPartnerInquiryAllow(q.id); setMsg(`${q.email} 신청 허용 완료 — 신청서 작성이 열렸어요.`); await load(); }
+    if (!confirm(tr("admin.consult.inq_allow_confirm", { email: q.email }))) return;
+    try { await api.adminPartnerInquiryAllow(q.id); setMsg(tr("admin.consult.inq_allow_ok", { email: q.email })); await load(); }
     catch (e: any) { alert(e?.message || String(e)); }
   }
   async function dismissInq(q: PartnerInquiry) {
-    const reason = prompt(`${q.email} 문의 기각 사유(문의자에게 알림으로 전달):`, "");
+    const reason = prompt(tr("admin.consult.inq_dismiss_prompt", { email: q.email }), "");
     if (reason === null) return;
-    try { await api.adminPartnerInquiryDismiss(q.id, reason); setMsg(`${q.email} 문의를 기각했어요.`); await load(); }
+    try { await api.adminPartnerInquiryDismiss(q.id, reason); setMsg(tr("admin.consult.inq_dismiss_ok", { email: q.email })); await load(); }
     catch (e: any) { alert(e?.message || String(e)); }
   }
   useEffect(() => { load(); }, []);
@@ -990,11 +990,11 @@ function ConsultantsTab() {
     try {
       if (editingId) {
         await api.adminUpdateConsultant(editingId, body);
-        setMsg("수정되었습니다.");
+        setMsg(tr("admin.consult.saved"));
       } else {
-        if (!form.login_email.trim() || !body.business_name) { alert("입점 ID(이메일)와 업체명은 필수예요."); return; }
+        if (!form.login_email.trim() || !body.business_name) { alert(tr("admin.consult.id_name_required")); return; }
         await api.adminCreateConsultant({ login_email: form.login_email.trim(), ...body });
-        setMsg("등록되었습니다.");
+        setMsg(tr("admin.consult.created"));
       }
       cancelEdit();
       await load();
@@ -1029,13 +1029,13 @@ function ConsultantsTab() {
     catch (e: any) { alert(e?.message || String(e)); }
   }
   async function del(c: ConsultantAdmin) {
-    if (!confirm(`입점업체 "${c.business_name}" 을(를) 삭제할까요? 관련 세션/정산도 함께 삭제됩니다.`)) return;
+    if (!confirm(tr("admin.consult.del_confirm", { name: c.business_name }))) return;
     try { await api.adminDeleteConsultant(c.id); await load(); }
     catch (e: any) { alert(e?.message || String(e)); }
   }
   async function uploadSign(c: ConsultantAdmin, file: File) {
     const fd = new FormData(); fd.append("file", file);
-    try { await api.adminUploadSignboard(c.id, fd); setMsg("간판 이미지를 등록했어요."); await load(); }
+    try { await api.adminUploadSignboard(c.id, fd); setMsg(tr("admin.consult.sign_ok")); await load(); }
     catch (e: any) { alert(e?.message || String(e)); }
   }
   async function saveSettings() {
@@ -1043,7 +1043,7 @@ function ConsultantsTab() {
     setErr(null); setMsg(null);
     try {
       const res = await api.adminPatchConsultationSettings(settings);
-      setSettings(res.settings); setMsg("전역 설정을 저장했어요.");
+      setSettings(res.settings); setMsg(tr("admin.consult.settings_saved"));
     } catch (e: any) { setErr(e?.message || String(e)); }
   }
 
@@ -1056,11 +1056,11 @@ function ConsultantsTab() {
       {/* ── 입점 문의 대기(신청 전 게이트) — [신청 허용] 시 해당 메일 ID에 신청서 작성이 열림 ── */}
       {inqs.length > 0 && (
         <div style={{ border: "1.5px solid var(--brand-500, #7a5cff)", background: "var(--brand-50, #f4f1ff)", borderRadius: 10, padding: 14, marginBottom: 16 }}>
-          <h3 style={{ margin: "0 0 10px" }}>📨 입점 문의 대기 ({inqs.length})</h3>
+          <h3 style={{ margin: "0 0 10px" }}>{tr("admin.consult.inq_title", { count: inqs.length })}</h3>
           <table style={{ width: "100%", fontSize: 13, borderCollapse: "collapse" }}>
             <thead>
               <tr style={{ background: "var(--bg)" }}>
-                <th style={aTh}>문의일</th><th style={aTh}>이메일(권한 ID)</th><th style={aTh}>남긴 말</th><th style={aTh}>처리</th>
+                <th style={aTh}>{tr("admin.consult.inq_th_date")}</th><th style={aTh}>{tr("admin.consult.inq_th_email")}</th><th style={aTh}>{tr("admin.consult.inq_th_note")}</th><th style={aTh}>{tr("admin.consult.inq_th_action")}</th>
               </tr>
             </thead>
             <tbody>
@@ -1070,8 +1070,8 @@ function ConsultantsTab() {
                   <td style={aTd}><b>{q.email}</b></td>
                   <td style={{ ...aTd, maxWidth: 340 }} title={q.note || ""}>{(q.note || "—").slice(0, 60)}{(q.note || "").length > 60 ? "…" : ""}</td>
                   <td style={aTd}>
-                    <button onClick={() => allowInq(q)} style={{ marginRight: 6, background: "var(--brand-500)", color: "#fff", border: "none", borderRadius: 6, padding: "4px 10px", cursor: "pointer" }}>신청 허용</button>
-                    <button onClick={() => dismissInq(q)} style={{ background: "none", border: "1px solid var(--line)", borderRadius: 6, padding: "4px 10px", cursor: "pointer" }}>기각</button>
+                    <button onClick={() => allowInq(q)} style={{ marginRight: 6, background: "var(--brand-500)", color: "#fff", border: "none", borderRadius: 6, padding: "4px 10px", cursor: "pointer" }}>{tr("admin.consult.inq_allow")}</button>
+                    <button onClick={() => dismissInq(q)} style={{ background: "none", border: "1px solid var(--line)", borderRadius: 6, padding: "4px 10px", cursor: "pointer" }}>{tr("admin.consult.inq_dismiss")}</button>
                   </td>
                 </tr>
               ))}
@@ -1083,13 +1083,13 @@ function ConsultantsTab() {
       {/* ── 입점 신청 대기(운영자 지시) — 승인=권한 부여, 반려=사유 알림 ── */}
       {apps.length > 0 && (
         <div style={{ border: "1.5px solid var(--gold, #b9862f)", background: "var(--gold-tint, #f6efdd)", borderRadius: 10, padding: 14, marginBottom: 16 }}>
-          <h3 style={{ margin: "0 0 10px" }}>🤝 입점 신청 대기 ({apps.length})</h3>
+          <h3 style={{ margin: "0 0 10px" }}>{tr("admin.consult.app_title", { count: apps.length })}</h3>
           <table style={{ width: "100%", fontSize: 13, borderCollapse: "collapse" }}>
             <thead>
               <tr style={{ background: "var(--bg)" }}>
-                <th style={aTh}>신청일</th><th style={aTh}>이메일(권한 ID)</th><th style={aTh}>업체명</th>
-                <th style={aTh}>분야</th><th style={aTh}>연락처</th><th style={aTh}>소개</th>
-                <th style={aTh}>서류</th><th style={aTh}>약관동의</th><th style={aTh}>처리</th>
+                <th style={aTh}>{tr("admin.consult.app_th_date")}</th><th style={aTh}>{tr("admin.consult.app_th_email")}</th><th style={aTh}>{tr("admin.consult.app_th_name")}</th>
+                <th style={aTh}>{tr("admin.consult.app_th_spec")}</th><th style={aTh}>{tr("admin.consult.app_th_contact")}</th><th style={aTh}>{tr("admin.consult.app_th_intro")}</th>
+                <th style={aTh}>{tr("admin.consult.app_th_docs")}</th><th style={aTh}>{tr("admin.consult.app_th_terms")}</th><th style={aTh}>{tr("admin.consult.app_th_action")}</th>
               </tr>
             </thead>
             <tbody>
@@ -1098,22 +1098,22 @@ function ConsultantsTab() {
                   <td style={aTd}>{fmtKSTDate(a.created_at)}</td>
                   <td style={aTd}>{a.email}</td>
                   <td style={aTd}><b>{a.business_name}</b></td>
-                  <td style={aTd}>{a.specialty === "saju" ? "사주" : a.specialty === "tarot" ? "타로" : "사주+타로"}</td>
+                  <td style={aTd}>{tr(`admin.spec.${a.specialty}`, a.specialty)}</td>
                   <td style={aTd}>{a.contact || "—"}</td>
                   <td style={{ ...aTd, maxWidth: 220 }} title={a.intro || ""}>{(a.intro || "—").slice(0, 40)}{(a.intro || "").length > 40 ? "…" : ""}</td>
                   <td style={aTd}>
-                    {(a.docs || []).length === 0 ? <span style={{ color: "var(--ink-400)" }}>없음</span> : (a.docs || []).map((d) => (
+                    {(a.docs || []).length === 0 ? <span style={{ color: "var(--ink-400)" }}>{tr("admin.consult.doc_none")}</span> : (a.docs || []).map((d) => (
                       <button key={d.id} title={d.name}
-                              onClick={() => api.adminPartnerDocOpen(a.id, d.id).catch((e: any) => setErr(e?.message || "서류를 열 수 없어요."))}
+                              onClick={() => api.adminPartnerDocOpen(a.id, d.id).catch((e: any) => setErr(e?.message || tr("admin.consult.doc_open_fail")))}
                               style={{ display: "block", background: "none", border: "1px solid var(--line)", borderRadius: 6, padding: "2px 8px", marginBottom: 3, cursor: "pointer", fontSize: 12, whiteSpace: "nowrap" }}>
-                        {d.kind === "biz_license" ? "📄 사업자등록증" : d.kind === "bank_book" ? "🏦 통장사본" : "📎 증빙"} 열람
+                        {d.kind === "biz_license" ? tr("admin.consult.doc_biz") : d.kind === "bank_book" ? tr("admin.consult.doc_bank") : tr("admin.consult.doc_etc")} {tr("admin.consult.doc_view")}
                       </button>
                     ))}
                   </td>
                   <td style={aTd}>v{a.terms_version}</td>
                   <td style={aTd}>
-                    <button onClick={() => approveApp(a)} style={{ marginRight: 6, background: "var(--brand-500)", color: "#fff", border: "none", borderRadius: 6, padding: "4px 10px", cursor: "pointer" }}>승인</button>
-                    <button onClick={() => rejectApp(a)} style={{ background: "none", border: "1px solid var(--line)", borderRadius: 6, padding: "4px 10px", cursor: "pointer" }}>반려</button>
+                    <button onClick={() => approveApp(a)} style={{ marginRight: 6, background: "var(--brand-500)", color: "#fff", border: "none", borderRadius: 6, padding: "4px 10px", cursor: "pointer" }}>{tr("admin.consult.app_approve")}</button>
+                    <button onClick={() => rejectApp(a)} style={{ background: "none", border: "1px solid var(--line)", borderRadius: 6, padding: "4px 10px", cursor: "pointer" }}>{tr("admin.consult.app_reject")}</button>
                   </td>
                 </tr>
               ))}
@@ -1126,125 +1126,125 @@ function ConsultantsTab() {
 
       {/* 전역 기본값 */}
       <div style={box}>
-        <div style={{ fontWeight: 700, marginBottom: 4 }}>전역 기본값</div>
+        <div style={{ fontWeight: 700, marginBottom: 4 }}>{tr("admin.consult.gd_title")}</div>
         <div style={{ fontSize: 12, color: "#888", marginBottom: 10 }}>
-          상담사별 개별 설정이 비어 있으면 이 값이 적용돼요. 정산 = 매출 × (1−수수료%) × (1−세율%).
+          {tr("admin.consult.gd_desc")}
         </div>
         {settings && (
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(190px, 1fr))", gap: 10 }}>
-            <NumField label="기본 단가(P)" value={settings.consultation_default_price_p}
+            <NumField label={tr("admin.consult.gd_price")} value={settings.consultation_default_price_p}
               onChange={(v) => setSettings({ ...settings, consultation_default_price_p: v })} />
-            <NumField label="기본 상담시간(분)" value={settings.consultation_default_duration_min}
+            <NumField label={tr("admin.consult.gd_duration")} value={settings.consultation_default_duration_min}
               onChange={(v) => setSettings({ ...settings, consultation_default_duration_min: v })} />
-            <NumField label="자율요금 하한(P·0=없음)" value={settings.consultation_min_price_p}
+            <NumField label={tr("admin.consult.gd_min_price")} value={settings.consultation_min_price_p}
               onChange={(v) => setSettings({ ...settings, consultation_min_price_p: v })} />
-            <NumField label="플랫폼 수수료(%)" value={settings.consultation_commission_pct}
+            <NumField label={tr("admin.consult.gd_commission")} value={settings.consultation_commission_pct}
               onChange={(v) => setSettings({ ...settings, consultation_commission_pct: v })} />
-            <NumField label="원천징수 세율(%)" step="0.1" value={settings.consultation_tax_pct}
+            <NumField label={tr("admin.consult.gd_tax")} step="0.1" value={settings.consultation_tax_pct}
               onChange={(v) => setSettings({ ...settings, consultation_tax_pct: v })} />
-            <NumField label="노쇼 타임아웃(초)" value={settings.consultation_no_show_timeout_sec}
+            <NumField label={tr("admin.consult.gd_noshow")} value={settings.consultation_no_show_timeout_sec}
               onChange={(v) => setSettings({ ...settings, consultation_no_show_timeout_sec: v })} />
-            <NumField label="연장 경고(초 전)" value={settings.consultation_extend_warn_sec}
+            <NumField label={tr("admin.consult.gd_extend_warn")} value={settings.consultation_extend_warn_sec}
               onChange={(v) => setSettings({ ...settings, consultation_extend_warn_sec: v })} />
-            <NumField label="대화 보관(일)" value={settings.consultation_retention_days}
+            <NumField label={tr("admin.consult.gd_retention")} value={settings.consultation_retention_days}
               onChange={(v) => setSettings({ ...settings, consultation_retention_days: v })} />
-            <NumField label="예약 전액환불 기준(시간 전)" value={settings.consultation_reserve_full_refund_hours ?? 24}
+            <NumField label={tr("admin.consult.gd_reserve_full")} value={settings.consultation_reserve_full_refund_hours ?? 24}
               onChange={(v) => setSettings({ ...settings, consultation_reserve_full_refund_hours: v })} />
-            <NumField label="예약 지연취소 환불(%)" value={settings.consultation_reserve_late_refund_pct ?? 50}
+            <NumField label={tr("admin.consult.gd_reserve_late")} value={settings.consultation_reserve_late_refund_pct ?? 50}
               onChange={(v) => setSettings({ ...settings, consultation_reserve_late_refund_pct: v })} />
-            <NumField label="예약 미수락 유예(분)" value={settings.consultation_reserve_grace_min ?? 10}
+            <NumField label={tr("admin.consult.gd_reserve_grace")} value={settings.consultation_reserve_grace_min ?? 10}
               onChange={(v) => setSettings({ ...settings, consultation_reserve_grace_min: v })} />
           </div>
         )}
-        <button onClick={saveSettings} style={{ marginTop: 10 }}>전역 설정 저장</button>
+        <button onClick={saveSettings} style={{ marginTop: 10 }}>{tr("admin.consult.gd_save")}</button>
       </div>
 
       {/* 등록/수정 폼 */}
       <div style={box}>
-        <div style={{ fontWeight: 700, marginBottom: 8 }}>{editingId ? `입점업체 수정 #${editingId}` : "새 입점업체 등록"}</div>
+        <div style={{ fontWeight: 700, marginBottom: 8 }}>{editingId ? tr("admin.consult.form_edit_title", { id: editingId }) : tr("admin.consult.form_new_title")}</div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-          <label style={fld}>입점 ID (이메일) <span style={{ color: "#c00" }}>*필수</span>
-            <input style={inp} placeholder="예: master@example.com" value={form.login_email} disabled={!!editingId}
+          <label style={fld}>{tr("admin.consult.f_login_email")} <span style={{ color: "#c00" }}>{tr("admin.consult.f_required")}</span>
+            <input style={inp} placeholder={tr("admin.consult.f_login_ph")} value={form.login_email} disabled={!!editingId}
               onChange={(e) => setForm({ ...form, login_email: e.target.value })} />
           </label>
-          <label style={fld}>업체명 (간판) <span style={{ color: "#c00" }}>*필수</span>
-            <input style={inp} placeholder="예: 김도사 사주원" value={form.business_name}
+          <label style={fld}>{tr("admin.consult.f_biz_name")} <span style={{ color: "#c00" }}>{tr("admin.consult.f_required")}</span>
+            <input style={inp} placeholder={tr("admin.consult.f_biz_name_ph")} value={form.business_name}
               onChange={(e) => setForm({ ...form, business_name: e.target.value })} />
           </label>
-          <label style={fld}>분야
+          <label style={fld}>{tr("admin.consult.f_spec")}
             <select style={inp} value={form.specialty}
               onChange={(e) => setForm({ ...form, specialty: e.target.value as ConsultantSpecialty })}>
-              <option value="saju">사주</option>
-              <option value="tarot">타로</option>
-              <option value="both">사주+타로</option>
+              <option value="saju">{tr("admin.spec.saju")}</option>
+              <option value="tarot">{tr("admin.spec.tarot")}</option>
+              <option value="both">{tr("admin.spec.both")}</option>
             </select>
           </label>
-          <label style={fld}>노출 순서 (목록에서 보이는 위치)
+          <label style={fld}>{tr("admin.consult.f_sort")}
             <select style={inp} value={form.sort_order}
               onChange={(e) => setForm({ ...form, sort_order: e.target.value })}>
-              <option value="0">맨 위</option>
-              <option value="50">위쪽</option>
-              <option value="100">보통 (기본)</option>
-              <option value="200">아래쪽</option>
-              <option value="1000">맨 아래</option>
+              <option value="0">{tr("admin.consult.sort_top")}</option>
+              <option value="50">{tr("admin.consult.sort_up")}</option>
+              <option value="100">{tr("admin.consult.sort_normal")}</option>
+              <option value="200">{tr("admin.consult.sort_down")}</option>
+              <option value="1000">{tr("admin.consult.sort_bottom")}</option>
             </select>
           </label>
-          <label style={fld}>요금 방식 (상담사가 셀프 변경 가능)
+          <label style={fld}>{tr("admin.consult.f_price_unit")}
             <select style={inp} value={form.price_unit}
               onChange={(e) => setForm({ ...form, price_unit: e.target.value as ConsultantPriceUnit })}>
-              <option value="session">세션당 (1회 고정)</option>
-              <option value="minute">분당</option>
-              <option value="hour">시간당</option>
+              <option value="session">{tr("admin.consult.unit_session")}</option>
+              <option value="minute">{tr("admin.consult.unit_minute")}</option>
+              <option value="hour">{tr("admin.consult.unit_hour")}</option>
             </select>
           </label>
-          <label style={fld}>개별 상담시간 (분·블록)
-            <input style={inp} type="number" placeholder="비우면 전역 기본값 적용" value={form.duration_min}
+          <label style={fld}>{tr("admin.consult.f_duration")}
+            <input style={inp} type="number" placeholder={tr("admin.consult.f_default_ph")} value={form.duration_min}
               onChange={(e) => setForm({ ...form, duration_min: e.target.value })} />
           </label>
-          <label style={fld}>세션 단가 (P) {form.price_unit !== "session" && <span style={{ color: "#aaa" }}>· 세션당일 때</span>}
-            <input style={inp} type="number" placeholder="비우면 전역 기본값 적용" value={form.rate_p}
+          <label style={fld}>{tr("admin.consult.f_session_price")} {form.price_unit !== "session" && <span style={{ color: "#aaa" }}>{tr("admin.consult.when_session")}</span>}
+            <input style={inp} type="number" placeholder={tr("admin.consult.f_default_ph")} value={form.rate_p}
               onChange={(e) => setForm({ ...form, rate_p: e.target.value })} />
           </label>
-          <label style={fld}>수수료 (%)
-            <input style={inp} type="number" placeholder="비우면 전역 기본값 적용" value={form.commission_pct}
+          <label style={fld}>{tr("admin.consult.f_commission")}
+            <input style={inp} type="number" placeholder={tr("admin.consult.f_default_ph")} value={form.commission_pct}
               onChange={(e) => setForm({ ...form, commission_pct: e.target.value })} />
           </label>
-          <label style={fld}>분당 요금 (P) {form.price_unit !== "minute" && <span style={{ color: "#aaa" }}>· 분당일 때</span>}
-            <input style={inp} type="number" placeholder="예: 300" value={form.per_min_p}
+          <label style={fld}>{tr("admin.consult.f_per_min")} {form.price_unit !== "minute" && <span style={{ color: "#aaa" }}>{tr("admin.consult.when_minute")}</span>}
+            <input style={inp} type="number" placeholder={tr("admin.consult.per_min_ph")} value={form.per_min_p}
               onChange={(e) => setForm({ ...form, per_min_p: e.target.value })} />
           </label>
-          <label style={fld}>시간당 요금 (P) {form.price_unit !== "hour" && <span style={{ color: "#aaa" }}>· 시간당일 때</span>}
-            <input style={inp} type="number" placeholder="예: 18000" value={form.per_hour_p}
+          <label style={fld}>{tr("admin.consult.f_per_hour")} {form.price_unit !== "hour" && <span style={{ color: "#aaa" }}>{tr("admin.consult.when_hour")}</span>}
+            <input style={inp} type="number" placeholder={tr("admin.consult.per_hour_ph")} value={form.per_hour_p}
               onChange={(e) => setForm({ ...form, per_hour_p: e.target.value })} />
           </label>
-          <label style={fld}>노출 상태
+          <label style={fld}>{tr("admin.consult.f_status")}
             <select style={inp} value={form.status}
               onChange={(e) => setForm({ ...form, status: e.target.value as ConsultantStatus })}>
-              <option value="active">정상 노출</option>
-              <option value="coming_soon">입점예정 (오버레이·신청잠금)</option>
-              <option value="hidden">숨김 (목록 제외)</option>
+              <option value="active">{tr("admin.consult.status_active")}</option>
+              <option value="coming_soon">{tr("admin.consult.status_coming")}</option>
+              <option value="hidden">{tr("admin.consult.status_hidden")}</option>
             </select>
           </label>
           <label style={{ ...fld, flexDirection: "row", alignItems: "center", gap: 6, alignSelf: "end", paddingBottom: 8 }}>
             <input type="checkbox" checked={form.is_active}
-              onChange={(e) => setForm({ ...form, is_active: e.target.checked })} /> 활성 (마스터 스위치)
+              onChange={(e) => setForm({ ...form, is_active: e.target.checked })} /> {tr("admin.consult.f_active")}
           </label>
           <label style={{ ...fld, flexDirection: "row", alignItems: "center", gap: 6, alignSelf: "end", paddingBottom: 8 }}>
             <input type="checkbox" checked={form.self_managed}
-              onChange={(e) => setForm({ ...form, self_managed: e.target.checked })} /> 셀프 편집 허용 (끄면 상담사 잠금)
+              onChange={(e) => setForm({ ...form, self_managed: e.target.checked })} /> {tr("admin.consult.f_self")}
           </label>
         </div>
-        <label style={{ ...fld, marginTop: 10 }}>#키워드 (쉼표로 구분 · 최대 8개 · 카드에 표시)
-          <input style={inp} placeholder="예: 연애, 취업, 재물" value={form.keywords}
+        <label style={{ ...fld, marginTop: 10 }}>{tr("admin.consult.f_keywords")}
+          <input style={inp} placeholder={tr("admin.consult.keywords_ph")} value={form.keywords}
             onChange={(e) => setForm({ ...form, keywords: e.target.value })} />
         </label>
-        <label style={{ ...fld, marginTop: 10 }}>소개 (선택 · 사용자 카드에 표시)
-          <textarea style={{ ...inp, minHeight: 54 }} placeholder="예: 20년 경력 · 진로/재물/인연 전문"
+        <label style={{ ...fld, marginTop: 10 }}>{tr("admin.consult.f_intro")}
+          <textarea style={{ ...inp, minHeight: 54 }} placeholder={tr("admin.consult.intro_ph")}
             value={form.intro} onChange={(e) => setForm({ ...form, intro: e.target.value })} />
         </label>
         <div style={{ marginTop: 8, display: "flex", gap: 8 }}>
-          <button onClick={submit}>{editingId ? "수정 저장" : "등록"}</button>
-          {editingId && <button onClick={cancelEdit} style={{ color: "#666" }}>취소</button>}
+          <button onClick={submit}>{editingId ? tr("admin.consult.f_save") : tr("admin.consult.f_create")}</button>
+          {editingId && <button onClick={cancelEdit} style={{ color: "#666" }}>{tr("admin.consult.f_cancel")}</button>}
         </div>
       </div>
 
@@ -1252,15 +1252,15 @@ function ConsultantsTab() {
       <table style={{ width: "100%", fontSize: 13, borderCollapse: "collapse" }}>
         <thead>
           <tr style={{ background: "#f7f7f7" }}>
-            <th style={th}>간판</th>
-            <th style={th}>업체명 / 입점ID</th>
-            <th style={th}>분야</th>
-            <th style={th}>단가·시간</th>
-            <th style={th}>수수료</th>
-            <th style={th}>상태</th>
-            <th style={th}>실적(세션/매출/정산대기)</th>
-            <th style={th}>활성</th>
-            <th style={th}>작업</th>
+            <th style={th}>{tr("admin.consult.lt_sign")}</th>
+            <th style={th}>{tr("admin.consult.lt_name_id")}</th>
+            <th style={th}>{tr("admin.consult.lt_spec")}</th>
+            <th style={th}>{tr("admin.consult.lt_price")}</th>
+            <th style={th}>{tr("admin.consult.lt_commission")}</th>
+            <th style={th}>{tr("admin.consult.lt_status")}</th>
+            <th style={th}>{tr("admin.consult.lt_perf")}</th>
+            <th style={th}>{tr("admin.consult.lt_active")}</th>
+            <th style={th}>{tr("admin.consult.lt_action")}</th>
           </tr>
         </thead>
         <tbody>
@@ -1272,7 +1272,7 @@ function ConsultantsTab() {
                     ? <img src={c.signboard_image_url} alt="" style={{ width: 44, height: 44, borderRadius: 8, objectFit: "cover" }} />
                     : <span style={{ width: 44, height: 44, borderRadius: 8, background: "#f0eef8", display: "inline-flex", alignItems: "center", justifyContent: "center" }}>🪧</span>}
                   <label style={{ fontSize: 10, color: "var(--brand-600)", cursor: "pointer" }}>
-                    업로드
+                    {tr("admin.consult.upload")}
                     <input type="file" accept="image/*" style={{ display: "none" }}
                       onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadSign(c, f); e.currentTarget.value = ""; }} />
                   </label>
@@ -1281,32 +1281,32 @@ function ConsultantsTab() {
               <td style={td}>
                 <div style={{ fontWeight: 700 }}>{c.business_name}</div>
                 <div style={{ color: "#888", fontSize: 11 }}>
-                  {c.login_email} {c.linked ? <span style={{ color: "seagreen" }}>· 연결됨</span> : <span style={{ color: "#c26a00" }}>· 미가입</span>}
+                  {c.login_email} {c.linked ? <span style={{ color: "seagreen" }}>{tr("admin.consult.linked")}</span> : <span style={{ color: "#c26a00" }}>{tr("admin.consult.not_joined")}</span>}
                 </div>
               </td>
-              <td style={td}>{CONSULT_SPECIALTY_LABEL[c.specialty] || c.specialty}</td>
-              <td style={td}>{c.eff_price_p.toLocaleString()}P · {c.eff_duration_min}분</td>
+              <td style={td}>{tr(`admin.spec.${c.specialty}`, c.specialty)}</td>
+              <td style={td}>{c.eff_price_p.toLocaleString()}P · {c.eff_duration_min}{tr("admin.min")}</td>
               <td style={td}>{c.eff_commission_pct}%</td>
               <td style={td}>
-                {CONSULT_PRESENCE_LABEL[c.presence] || c.presence}
-                {c.status === "coming_soon" && <div style={{ fontSize: 10, color: "#c26a00" }}>입점예정</div>}
-                {c.status === "hidden" && <div style={{ fontSize: 10, color: "#999" }}>숨김</div>}
-                {c.self_managed === false && <div style={{ fontSize: 10, color: "#c2334f" }}>셀프잠금</div>}
+                {tr(`admin.presence.${c.presence}`, c.presence)}
+                {c.status === "coming_soon" && <div style={{ fontSize: 10, color: "#c26a00" }}>{tr("admin.consult.coming")}</div>}
+                {c.status === "hidden" && <div style={{ fontSize: 10, color: "#999" }}>{tr("admin.consult.hidden")}</div>}
+                {c.self_managed === false && <div style={{ fontSize: 10, color: "#c2334f" }}>{tr("admin.consult.self_lock")}</div>}
               </td>
               <td style={td}>
-                {c.stats.sessions}건 · {c.stats.revenue_p.toLocaleString()}P · {c.stats.payout_pending_p.toLocaleString()}P
+                {c.stats.sessions}{tr("admin.cnt")} · {c.stats.revenue_p.toLocaleString()}P · {c.stats.payout_pending_p.toLocaleString()}P
               </td>
               <td style={td}>
                 <button onClick={() => toggleActive(c)}>{c.is_active ? "ON" : "OFF"}</button>
               </td>
               <td style={td}>
-                <button onClick={() => startEdit(c)}>수정</button>{" "}
-                <button onClick={() => del(c)} style={{ color: "crimson" }}>삭제</button>
+                <button onClick={() => startEdit(c)}>{tr("admin.consult.list_edit")}</button>{" "}
+                <button onClick={() => del(c)} style={{ color: "crimson" }}>{tr("admin.consult.list_del")}</button>
               </td>
             </tr>
           ))}
           {items.length === 0 && (
-            <tr><td style={td} colSpan={9}>등록된 입점업체가 없어요.</td></tr>
+            <tr><td style={td} colSpan={9}>{tr("admin.consult.list_empty")}</td></tr>
           )}
         </tbody>
       </table>
@@ -1337,6 +1337,7 @@ function SumCard({ label, value, color }: { label: string; value: string; color?
 }
 
 function SettlementTab() {
+  const { t: tr } = useTranslation();
   const [rows, setRows] = useState<ConsultationSettlementRow[]>([]);
   const [totals, setTotals] = useState<SettlementTotals | null>(null);
   const [consultants, setConsultants] = useState<ConsultantAdmin[]>([]);
@@ -1371,7 +1372,7 @@ function SettlementTab() {
     });
   })();
 
-  const won = (n: number) => `${n.toLocaleString()}원`;
+  const won = (n: number) => tr("admin.settle.won", { n: n.toLocaleString() });
 
   async function settle(r: ConsultationSettlementRow) {
     try { await api.adminSettleSettlement(r.id); await load(); } catch (e: any) { alert(e?.message || String(e)); }
@@ -1380,10 +1381,10 @@ function SettlementTab() {
     try { await api.adminUnsettleSettlement(r.id); await load(); } catch (e: any) { alert(e?.message || String(e)); }
   }
   async function settleAll(c: ConsultantAdmin) {
-    if (!confirm(`${c.business_name} 정산대기 ${won(c.stats.payout_pending_p)}을(를) 일괄 실지급 처리할까요?`)) return;
+    if (!confirm(tr("admin.settle.settle_all_confirm", { name: c.business_name, amount: won(c.stats.payout_pending_p) }))) return;
     try {
       const r = await api.adminSettleAllConsultant(c.id);
-      setMsg(`${c.business_name}: ${r.settled}건 · ${won(r.total_payout_p)} 정산 완료`);
+      setMsg(tr("admin.settle.settle_all_ok", { name: c.business_name, count: r.settled, amount: won(r.total_payout_p) }));
       await load();
     } catch (e: any) { alert(e?.message || String(e)); }
   }
@@ -1395,49 +1396,49 @@ function SettlementTab() {
     <div>
       {/* 정산 규칙(운영자 확정): 매월 25일 24시 마감(전월 26일~당월 25일 실적) → 당월 마지막 영업일 지급(수동 송금) */}
       <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", marginBottom: 12 }}>
-        <label style={{ fontSize: 13 }}>정산월{" "}
+        <label style={{ fontSize: 13 }}>{tr("admin.settle.cycle_label")}{" "}
           <select value={cycle} onChange={(e) => setCycle(e.target.value)} style={{ padding: "4px 8px" }}>
-            <option value="">전체 기간</option>
+            <option value="">{tr("admin.settle.cycle_all")}</option>
             {cycleOptions.map((c) => (
-              <option key={c} value={c}>{c} {c === currentCycle ? "(이번 정산월)" : ""}</option>
+              <option key={c} value={c}>{c} {c === currentCycle ? tr("admin.settle.cycle_current") : ""}</option>
             ))}
           </select>
         </label>
         {cycle && payoutDate && (
           <span style={{ fontSize: 13, background: "var(--gold-tint, #f6efdd)", border: "1px solid var(--gold, #b9862f)", borderRadius: 999, padding: "4px 12px", fontWeight: 700 }}>
-            💸 지급예정일: {payoutDate} (당월 마지막 영업일 · 수동 송금)
+            {tr("admin.settle.payout_badge", { date: payoutDate })}
           </span>
         )}
-        <span style={{ fontSize: 12, color: "var(--ink-400)" }}>실적 기준: 전월 26일 ~ 당월 25일(25일 24시 마감)</span>
+        <span style={{ fontSize: 12, color: "var(--ink-400)" }}>{tr("admin.settle.period_basis")}</span>
         {totals?.commission_p !== undefined && (
           <span style={{ fontSize: 13, fontWeight: 700, color: "var(--brand-700)" }}>
-            🏦 관리자 수익(수수료 합계): {(totals.commission_p || 0).toLocaleString()}원
+            {tr("admin.settle.commission_total", { amount: (totals.commission_p || 0).toLocaleString() })}
           </span>
         )}
       </div>
       {err && <div style={{ color: "crimson", marginBottom: 8 }}>{err}</div>}
       {msg && <div style={{ color: "seagreen", marginBottom: 8 }}>{msg}</div>}
       <div style={{ fontSize: 12, color: "#888", marginBottom: 12 }}>
-        1P = 1원. 실지급 = 매출 × (1−수수료%) × (1−세율%). 프리랜서 3.3% 원천징수 반영. 실제 계좌 이체 후 ‘정산 완료’로 처리하세요.
+        {tr("admin.settle.rule_desc")}
       </div>
 
       {totals && (
         <div style={{ display: "flex", gap: 12, marginBottom: 16, flexWrap: "wrap" }}>
-          <SumCard label="총 매출" value={won(totals.revenue_p)} />
-          <SumCard label="정산 대기 (실지급)" value={won(totals.payout_pending_p)} color="#c26a00" />
-          <SumCard label="정산 완료 (실지급)" value={won(totals.payout_settled_p)} color="#1a8f4c" />
+          <SumCard label={tr("admin.settle.sc_revenue")} value={won(totals.revenue_p)} />
+          <SumCard label={tr("admin.settle.sc_pending")} value={won(totals.payout_pending_p)} color="#c26a00" />
+          <SumCard label={tr("admin.settle.sc_settled")} value={won(totals.payout_settled_p)} color="#1a8f4c" />
         </div>
       )}
 
       {pendingConsultants.length > 0 && (
         <div style={box}>
-          <div style={{ fontWeight: 700, marginBottom: 8 }}>상담사별 정산 대기 · 일괄 처리</div>
+          <div style={{ fontWeight: 700, marginBottom: 8 }}>{tr("admin.settle.pending_title")}</div>
           {pendingConsultants.map((c) => (
             <div key={c.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "7px 0", borderBottom: "1px solid #f0f0f4" }}>
-              <span>{c.business_name} <span style={{ color: "#888", fontSize: 12 }}>· {c.stats.sessions}건</span></span>
+              <span>{c.business_name} <span style={{ color: "#888", fontSize: 12 }}>· {c.stats.sessions}{tr("admin.cnt")}</span></span>
               <span style={{ display: "flex", alignItems: "center", gap: 12 }}>
                 <b style={{ color: "#c26a00" }}>{won(c.stats.payout_pending_p)}</b>
-                <button onClick={() => settleAll(c)}>일괄 정산</button>
+                <button onClick={() => settleAll(c)}>{tr("admin.settle.settle_all_btn")}</button>
               </span>
             </div>
           ))}
@@ -1446,24 +1447,24 @@ function SettlementTab() {
 
       <div style={{ marginBottom: 10 }}>
         <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as "" | "pending" | "settled")}>
-          <option value="">전체</option>
-          <option value="pending">정산 대기</option>
-          <option value="settled">정산 완료</option>
+          <option value="">{tr("admin.settle.filter_all")}</option>
+          <option value="pending">{tr("admin.settle.filter_pending")}</option>
+          <option value="settled">{tr("admin.settle.filter_settled")}</option>
         </select>
       </div>
 
       <table style={{ width: "100%", fontSize: 13, borderCollapse: "collapse" }}>
         <thead>
           <tr style={{ background: "#f7f7f7" }}>
-            <th style={th}>상담사</th>
-            <th style={th}>매출</th>
-            <th style={th}>수수료</th>
-            <th style={th}>과세대상</th>
-            <th style={th}>원천징수</th>
-            <th style={th}>실지급</th>
-            <th style={th}>상태</th>
-            <th style={th}>정산일</th>
-            <th style={th}>처리</th>
+            <th style={th}>{tr("admin.settle.th_consultant")}</th>
+            <th style={th}>{tr("admin.settle.th_revenue")}</th>
+            <th style={th}>{tr("admin.settle.th_commission")}</th>
+            <th style={th}>{tr("admin.settle.th_taxable")}</th>
+            <th style={th}>{tr("admin.settle.th_tax")}</th>
+            <th style={th}>{tr("admin.settle.th_payout")}</th>
+            <th style={th}>{tr("admin.settle.th_status")}</th>
+            <th style={th}>{tr("admin.settle.th_settled_date")}</th>
+            <th style={th}>{tr("admin.settle.th_action")}</th>
           </tr>
         </thead>
         <tbody>
@@ -1475,16 +1476,16 @@ function SettlementTab() {
               <td style={td}>{won(r.taxable_p)}</td>
               <td style={td}>{won(r.tax_p)} <span style={{ color: "#aaa" }}>({r.tax_pct}%)</span></td>
               <td style={{ ...td, fontWeight: 800 }}>{won(r.payout_p)}</td>
-              <td style={td}>{r.status === "settled" ? <span style={{ color: "#1a8f4c" }}>완료</span> : <span style={{ color: "#c26a00" }}>대기</span>}</td>
+              <td style={td}>{r.status === "settled" ? <span style={{ color: "#1a8f4c" }}>{tr("admin.settle.st_settled")}</span> : <span style={{ color: "#c26a00" }}>{tr("admin.settle.st_pending")}</span>}</td>
               <td style={td}>{r.settled_at ? fmtKSTDate(r.settled_at) : "—"}</td>
               <td style={td}>
                 {r.status === "pending"
-                  ? <button onClick={() => settle(r)}>정산 완료</button>
-                  : <button onClick={() => unsettle(r)} style={{ color: "#666" }}>취소</button>}
+                  ? <button onClick={() => settle(r)}>{tr("admin.settle.act_settle")}</button>
+                  : <button onClick={() => unsettle(r)} style={{ color: "#666" }}>{tr("admin.settle.act_unsettle")}</button>}
               </td>
             </tr>
           ))}
-          {rows.length === 0 && <tr><td style={td} colSpan={9}>정산 내역이 없어요.</td></tr>}
+          {rows.length === 0 && <tr><td style={td} colSpan={9}>{tr("admin.settle.empty")}</td></tr>}
         </tbody>
       </table>
     </div>
@@ -1494,6 +1495,7 @@ function SettlementTab() {
 // -------- 과금/한도 설정 --------
 
 function BillingTab() {
+  const { t: tr } = useTranslation();
   const [s, setS] = useState<AppSettings | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
@@ -1511,77 +1513,77 @@ function BillingTab() {
     try {
       const res = await api.adminPatchSettings(s);
       setS(res.settings);
-      setMsg("저장되었습니다.");
+      setMsg(tr("admin.billing.saved"));
     } catch (e: any) { setErr(e?.message || String(e)); }
     finally { setSaving(false); }
   }
 
   if (err && !s) return <div style={{ color: "crimson" }}>{err}</div>;
-  if (!s) return <div>불러오는 중…</div>;
+  if (!s) return <div>{tr("admin.loading")}</div>;
 
   return (
     <div style={{ maxWidth: 520 }}>
       <div style={{ border: "1px solid #ddd", borderRadius: 6, padding: 16, display: "grid", gap: 12 }}>
-        <Field label="무료 질문 횟수">
+        <Field label={tr("admin.billing.f_free_quota")}>
           <input
             type="number"
             value={s.free_quota_count}
             onChange={(e) => setS({ ...s, free_quota_count: parseInt(e.target.value, 10) || 0 })}
           />
         </Field>
-        <Field label="무료 횟수 리셋 주기">
+        <Field label={tr("admin.billing.f_reset")}>
           <select
             value={s.free_quota_reset}
             onChange={(e) => setS({ ...s, free_quota_reset: e.target.value as AppSettings["free_quota_reset"] })}
           >
-            <option value="none">리셋 없음(누적 소진)</option>
-            <option value="daily">매일</option>
-            <option value="monthly">매월</option>
+            <option value="none">{tr("admin.billing.reset_none")}</option>
+            <option value="daily">{tr("admin.billing.reset_daily")}</option>
+            <option value="monthly">{tr("admin.billing.reset_monthly")}</option>
           </select>
         </Field>
-        <Field label="기본 질문 비용 (P)">
+        <Field label={tr("admin.billing.f_cost_basic")}>
           <input
             type="number"
             value={s.credit_cost_basic}
             onChange={(e) => setS({ ...s, credit_cost_basic: parseInt(e.target.value, 10) || 0 })}
           />
         </Field>
-        <Field label="심화 질문 비용 (P)">
+        <Field label={tr("admin.billing.f_cost_deep")}>
           <input
             type="number"
             value={s.credit_cost_deep}
             onChange={(e) => setS({ ...s, credit_cost_deep: parseInt(e.target.value, 10) || 0 })}
           />
         </Field>
-        <Field label="미리보기 전체공개 비용 (P)">
+        <Field label={tr("admin.billing.f_reveal")}>
           <input
             type="number"
             value={s.preview_reveal_cost}
             onChange={(e) => setS({ ...s, preview_reveal_cost: parseInt(e.target.value, 10) || 0 })}
           />
         </Field>
-        <Field label="미리보기 표시 글자수 (무료 맛보기 분량)">
+        <Field label={tr("admin.billing.f_preview_chars")}>
           <input
             type="number"
             value={s.preview_max_chars}
             onChange={(e) => setS({ ...s, preview_max_chars: parseInt(e.target.value, 10) || 0 })}
           />
         </Field>
-        <Field label="피드백 리워드 비율 (%)">
+        <Field label={tr("admin.billing.f_fb_pct")}>
           <input
             type="number"
             value={s.feedback_reward_pct}
             onChange={(e) => setS({ ...s, feedback_reward_pct: Math.max(0, Math.min(100, parseInt(e.target.value, 10) || 0)) })}
           />
         </Field>
-        <Field label="피드백 리워드 일일 상한 (P)">
+        <Field label={tr("admin.billing.f_fb_cap")}>
           <input
             type="number"
             value={s.feedback_reward_daily_cap}
             onChange={(e) => setS({ ...s, feedback_reward_daily_cap: parseInt(e.target.value, 10) || 0 })}
           />
         </Field>
-        <Field label="부적 발행 비용 (P)">
+        <Field label={tr("admin.billing.f_amulet")}>
           <input
             type="number"
             min={0}
@@ -1589,7 +1591,7 @@ function BillingTab() {
             onChange={(e) => setS({ ...s, amulet_cost_p: parseInt(e.target.value, 10) || 0 })}
           />
         </Field>
-        <Field label="영상 생성 비용 (P)">
+        <Field label={tr("admin.billing.f_video")}>
           <input
             type="number"
             min={0}
@@ -1597,7 +1599,7 @@ function BillingTab() {
             onChange={(e) => setS({ ...s, video_gen_cost: parseInt(e.target.value, 10) || 0 })}
           />
         </Field>
-        <Field label="후기 승인 리워드 (P)">
+        <Field label={tr("admin.billing.f_review_reward")}>
           <input
             type="number"
             min={0}
@@ -1605,27 +1607,26 @@ function BillingTab() {
             onChange={(e) => setS({ ...s, review_reward_p: parseInt(e.target.value, 10) || 0 })}
           />
         </Field>
-        <Field label="외부 AI 보강 사용">
+        <Field label={tr("admin.billing.f_ext_llm")}>
           <label style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
             <input
               type="checkbox"
               checked={s.external_llm_enabled}
               onChange={(e) => setS({ ...s, external_llm_enabled: e.target.checked })}
             />
-            {s.external_llm_enabled ? "사용" : "미사용"}
+            {s.external_llm_enabled ? tr("admin.billing.use") : tr("admin.billing.no_use")}
           </label>
         </Field>
 
         <div style={{ borderTop: "1px solid #eee", marginTop: 4, paddingTop: 12 }}>
           <div style={{ fontSize: 13, fontWeight: 700, color: "#333", marginBottom: 4 }}>
-            프리미엄 메뉴 입장료 (생성 시 1회 차감 · 사주 상담 제외)
+            {tr("admin.billing.premium_title")}
           </div>
           <div style={{ fontSize: 12, color: "#777", marginBottom: 10 }}>
-            추가질문은 위 기본/심화 비용({(s.credit_cost_basic ?? 0).toLocaleString()}P/{(s.credit_cost_deep ?? 0).toLocaleString()}P)으로 별도 차감됩니다.
-            할인%를 적용하면 7개 메뉴 모두에 반영됩니다(행사용).
+            {tr("admin.billing.premium_desc", { basic: (s.credit_cost_basic ?? 0).toLocaleString(), deep: (s.credit_cost_deep ?? 0).toLocaleString() })}
           </div>
         </div>
-        <Field label="행사 할인 (%)">
+        <Field label={tr("admin.billing.f_discount")}>
           <input
             type="number"
             min={0}
@@ -1637,19 +1638,19 @@ function BillingTab() {
           />
         </Field>
         {([
-          ["entry_cost_compat", "궁합 입장료 (P)"],
-          ["entry_cost_taekil", "택일 입장료 (P)"],
-          ["entry_cost_jakmyeong", "작명 입장료 (P)"],
-          ["entry_cost_gaemyeong", "개명 입장료 (P)"],
-          ["entry_cost_aho", "아호 입장료 (P)"],
-          ["entry_cost_tarot", "타로 입장료 (P)"],
-          ["entry_cost_sinnyeon", "신년운세 입장료 (P)"],
-        ] as [keyof AppSettings, string][]).map(([key, label]) => {
+          ["entry_cost_compat", "e_compat"],
+          ["entry_cost_taekil", "e_taekil"],
+          ["entry_cost_jakmyeong", "e_jakmyeong"],
+          ["entry_cost_gaemyeong", "e_gaemyeong"],
+          ["entry_cost_aho", "e_aho"],
+          ["entry_cost_tarot", "e_tarot"],
+          ["entry_cost_sinnyeon", "e_sinnyeon"],
+        ] as [keyof AppSettings, string][]).map(([key, labelKey]) => {
           const base = (s[key] as number) || 0;
           const disc = s.premium_entry_discount_pct || 0;
           const eff = Math.max(0, Math.round((base * (100 - disc)) / 100));
           return (
-            <Field key={key} label={label}>
+            <Field key={key} label={tr(`admin.billing.${labelKey}`)}>
               <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                 <input
                   type="number"
@@ -1659,7 +1660,7 @@ function BillingTab() {
                 />
                 {disc > 0 && (
                   <span style={{ fontSize: 12, color: "crimson" }}>
-                    → 적용가 {eff.toLocaleString()}P
+                    {tr("admin.billing.eff_price", { eff: eff.toLocaleString() })}
                   </span>
                 )}
               </div>
@@ -1668,7 +1669,7 @@ function BillingTab() {
         })}
 
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          <button onClick={save} disabled={saving}>{saving ? "저장 중…" : "저장"}</button>
+          <button onClick={save} disabled={saving}>{saving ? tr("admin.billing.saving") : tr("admin.billing.save")}</button>
           {msg && <span style={{ color: "green", fontSize: 13 }}>{msg}</span>}
           {err && <span style={{ color: "crimson", fontSize: 13 }}>{err}</span>}
         </div>
@@ -1689,6 +1690,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 // -------- 답변양식(시스템 프롬프트) 관리 --------
 
 function TemplatesTab() {
+  const { t: tr } = useTranslation();
   const [items, setItems] = useState<AnswerTemplate[]>([]);
   const [err, setErr] = useState<string | null>(null);
   const [editing, setEditing] = useState<AnswerTemplate | null>(null);
@@ -1712,7 +1714,7 @@ function TemplatesTab() {
   }
 
   async function save() {
-    if (!form.name.trim() || !form.body.trim()) return alert("이름과 내용을 입력하세요.");
+    if (!form.name.trim() || !form.body.trim()) return alert(tr("admin.tpl.name_body_required"));
     try {
       if (editing) {
         await api.adminUpdateTemplate(editing.id, form);
@@ -1728,7 +1730,7 @@ function TemplatesTab() {
     await load();
   }
   async function del(t: AnswerTemplate) {
-    if (!confirm(`양식 "${t.name}" v${t.version} 삭제?`)) return;
+    if (!confirm(tr("admin.tpl.del_confirm", { name: t.name, ver: t.version }))) return;
     await api.adminDeleteTemplate(t.id);
     if (editing?.id === t.id) startNew();
     await load();
@@ -1739,16 +1741,16 @@ function TemplatesTab() {
       <div>
         {err && <div style={{ color: "crimson" }}>{err}</div>}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-          <strong>답변양식 목록</strong>
-          <button onClick={startNew}>+ 새 양식</button>
+          <strong>{tr("admin.tpl.list_title")}</strong>
+          <button onClick={startNew}>{tr("admin.tpl.new_btn")}</button>
         </div>
         <table style={{ width: "100%", fontSize: 13, borderCollapse: "collapse" }}>
           <thead>
             <tr style={{ background: "#f7f7f7" }}>
-              <th style={th}>이름</th>
-              <th style={th}>버전</th>
-              <th style={th}>활성</th>
-              <th style={th}>작업</th>
+              <th style={th}>{tr("admin.tpl.th_name")}</th>
+              <th style={th}>{tr("admin.tpl.th_version")}</th>
+              <th style={th}>{tr("admin.tpl.th_active")}</th>
+              <th style={th}>{tr("admin.tpl.th_action")}</th>
             </tr>
           </thead>
           <tbody>
@@ -1758,30 +1760,30 @@ function TemplatesTab() {
                 <td style={td}>v{t.version}</td>
                 <td style={td}>{t.active ? "✅" : ""}</td>
                 <td style={td}>
-                  <button onClick={() => startEdit(t)}>편집</button>{" "}
-                  {!t.active && <button onClick={() => activate(t)}>활성화</button>}{" "}
-                  <button onClick={() => del(t)} style={{ color: "crimson" }}>삭제</button>
+                  <button onClick={() => startEdit(t)}>{tr("admin.tpl.edit")}</button>{" "}
+                  {!t.active && <button onClick={() => activate(t)}>{tr("admin.tpl.activate")}</button>}{" "}
+                  <button onClick={() => del(t)} style={{ color: "crimson" }}>{tr("admin.tpl.del")}</button>
                 </td>
               </tr>
             ))}
             {items.length === 0 && (
-              <tr><td style={td} colSpan={4}>등록된 양식이 없습니다. 기본 양식이 사용됩니다.</td></tr>
+              <tr><td style={td} colSpan={4}>{tr("admin.tpl.empty")}</td></tr>
             )}
           </tbody>
         </table>
       </div>
 
       <div style={{ border: "1px solid #ddd", borderRadius: 6, padding: 12 }}>
-        <div style={{ fontWeight: 600, marginBottom: 8 }}>{editing ? `편집: ${editing.name} v${editing.version}` : "새 양식"}</div>
+        <div style={{ fontWeight: 600, marginBottom: 8 }}>{editing ? tr("admin.tpl.edit_title", { name: editing.name, ver: editing.version }) : tr("admin.tpl.new_title")}</div>
         <input
           style={{ width: "100%", marginBottom: 8 }}
-          placeholder="양식 이름"
+          placeholder={tr("admin.tpl.name_ph")}
           value={form.name}
           onChange={(e) => setForm({ ...form, name: e.target.value })}
         />
         <textarea
           style={{ width: "100%", minHeight: 240, fontFamily: "inherit", fontSize: 13 }}
-          placeholder="시스템 프롬프트 본문"
+          placeholder={tr("admin.tpl.body_ph")}
           value={form.body}
           onChange={(e) => setForm({ ...form, body: e.target.value })}
         />
@@ -1791,10 +1793,10 @@ function TemplatesTab() {
             checked={form.active}
             onChange={(e) => setForm({ ...form, active: e.target.checked })}
           />
-          저장 시 활성화(다른 양식 비활성화)
+          {tr("admin.tpl.active_label")}
         </label>
         <div>
-          <button onClick={save}>{editing ? "수정 저장" : "추가"}</button>
+          <button onClick={save}>{editing ? tr("admin.tpl.save") : tr("admin.tpl.add")}</button>
         </div>
       </div>
     </div>
@@ -1802,14 +1804,14 @@ function TemplatesTab() {
 }
 
 // -------- 고객센터 (문의 게시판 + 메일 수신자 CRUD) --------
-const SUPPORT_STATUSES: { value: SupportStatus; label: string }[] = [
-  { value: "received", label: "접수" },
-  { value: "in_progress", label: "처리중" },
-  { value: "resolved", label: "처리완료" },
-  { value: "rejected", label: "반려" },
-];
-
 function SupportTab() {
+  const { t: tr } = useTranslation();
+  const SUPPORT_STATUSES: { value: SupportStatus; label: string }[] = [
+    { value: "received", label: tr("admin.support.st_received") },
+    { value: "in_progress", label: tr("admin.support.st_in_progress") },
+    { value: "resolved", label: tr("admin.support.st_resolved") },
+    { value: "rejected", label: tr("admin.support.st_rejected") },
+  ];
   const [tickets, setTickets] = useState<SupportTicket[]>([]);
   const [filter, setFilter] = useState<SupportStatus | "">("");
   const [recipients, setRecipients] = useState<SupportRecipient[]>([]);
@@ -1836,14 +1838,14 @@ function SupportTab() {
   // 환불 요청 승인 → 실제 환불 자동 실행(주문번호 연결분). 토스 결제취소 + 크레딧 회수 + 처리완료.
   async function refundTicket(t: SupportTicket) {
     if (!t.order_id) return;
-    const won = t.amount != null ? `${t.amount.toLocaleString()}원 ` : "";
-    if (!window.confirm(`#${t.id} 환불 승인 — 주문 ${t.order_id} ${won}을(를) 실제 환불할까요?\n토스 결제취소 + 크레딧 회수가 실행되고, 문의는 '처리완료'로 전환됩니다. (토스 실키 미설정 시 mock)`)) return;
+    const won = t.amount != null ? tr("admin.support.won_amt", { amount: t.amount.toLocaleString() }) : "";
+    if (!window.confirm(tr("admin.support.refund_confirm", { id: t.id, order: t.order_id, won }))) return;
     try {
       const r = await api.adminSupportRefundTicket(t.id);
-      alert(`환불 완료${r.refund.mock ? " (mock)" : ""} — 회수 ${r.refund.recovered_credits.toLocaleString()}P`);
+      alert(tr("admin.support.refund_done", { mock: r.refund.mock ? tr("admin.support.refund_mock") : "", recovered: r.refund.recovered_credits.toLocaleString() }));
       loadTickets();
     } catch (e: any) {
-      alert(`환불 실패: ${e?.message || String(e)}`);
+      alert(tr("admin.support.refund_fail", { err: e?.message || String(e) }));
     }
   }
   async function addRecipient() {
@@ -1857,7 +1859,7 @@ function SupportTab() {
     catch (e: any) { setErr(String(e?.message || e)); }
   }
   async function delRecipient(r: SupportRecipient) {
-    if (!window.confirm(`수신자 "${r.email}" 를 삭제할까요?`)) return;
+    if (!window.confirm(tr("admin.support.del_recipient_confirm", { email: r.email }))) return;
     try { await api.adminSupportDeleteRecipient(r.id); loadRecipients(); }
     catch (e: any) { setErr(String(e?.message || e)); }
   }
@@ -1870,9 +1872,9 @@ function SupportTab() {
 
       {/* 메일 수신자 CRUD */}
       <div className="card" style={{ marginBottom: 16 }}>
-        <h3 style={{ marginTop: 0 }}>문의 알림 메일 수신자</h3>
+        <h3 style={{ marginTop: 0 }}>{tr("admin.support.recipients_title")}</h3>
         <p style={{ fontSize: 12, color: "var(--ink-400)", marginTop: -4 }}>
-          새 문의가 접수되면 아래 <b>활성</b> 메일로 알림이 발송됩니다. (SMTP 미설정 시 서버 로그로 대체)
+          <Trans i18nKey="admin.support.recipients_note" components={{ b: <b /> }} />
         </p>
         <div style={{ display: "flex", gap: 8, margin: "10px 0" }}>
           <input
@@ -1881,19 +1883,19 @@ function SupportTab() {
             onKeyDown={(e) => { if (e.key === "Enter") addRecipient(); }}
             style={{ maxWidth: 320 }}
           />
-          <button onClick={addRecipient}>추가</button>
+          <button onClick={addRecipient}>{tr("admin.support.add")}</button>
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          {recipients.length === 0 && <div style={{ fontSize: 13, color: "var(--ink-400)" }}>등록된 수신자가 없습니다.</div>}
+          {recipients.length === 0 && <div style={{ fontSize: 13, color: "var(--ink-400)" }}>{tr("admin.support.no_recipients")}</div>}
           {recipients.map((r) => (
             <div key={r.id} style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 13 }}>
               <span style={{ flex: 1, color: r.active ? "var(--ink-900)" : "var(--ink-400)", textDecoration: r.active ? "none" : "line-through" }}>
                 {r.email}
               </span>
               <label style={{ display: "inline-flex", alignItems: "center", gap: 4, cursor: "pointer" }}>
-                <input type="checkbox" checked={r.active} onChange={() => toggleRecipient(r)} /> 활성
+                <input type="checkbox" checked={r.active} onChange={() => toggleRecipient(r)} /> {tr("admin.support.active")}
               </label>
-              <button className="ghost" style={{ color: "#c0392b" }} onClick={() => delRecipient(r)}>삭제</button>
+              <button className="ghost" style={{ color: "#c0392b" }} onClick={() => delRecipient(r)}>{tr("admin.support.del")}</button>
             </div>
           ))}
         </div>
@@ -1902,14 +1904,14 @@ function SupportTab() {
       {/* 문의 게시판 */}
       <div className="card">
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
-          <h3 style={{ margin: 0 }}>문의 게시판 ({tickets.length})</h3>
+          <h3 style={{ margin: 0 }}>{tr("admin.support.board_title", { count: tickets.length })}</h3>
           <select value={filter} onChange={(e) => setFilter(e.target.value as SupportStatus | "")} style={{ maxWidth: 160 }}>
-            <option value="">전체 상태</option>
+            <option value="">{tr("admin.support.filter_all")}</option>
             {SUPPORT_STATUSES.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
           </select>
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 12 }}>
-          {tickets.length === 0 && <div style={{ fontSize: 13, color: "var(--ink-400)" }}>접수된 문의가 없습니다.</div>}
+          {tickets.length === 0 && <div style={{ fontSize: 13, color: "var(--ink-400)" }}>{tr("admin.support.no_tickets")}</div>}
           {tickets.map((t) => (
             <div key={t.id} style={{ border: "1px solid var(--line)", borderRadius: 10, padding: 12 }}>
               <div style={{ display: "flex", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
@@ -1920,15 +1922,15 @@ function SupportTab() {
               </div>
               <div style={{ fontSize: 12, color: "var(--ink-600)", margin: "4px 0" }}>
                 {t.contact_name ? `${t.contact_name} · ` : ""}{t.contact_email}
-                {t.user_id != null ? ` · 회원ID ${t.user_id}` : " · 비로그인"}
-                {t.order_id ? ` · 주문 ${t.order_id}` : ""}
-                {t.amount != null ? ` · ${t.amount.toLocaleString()}원` : ""}
+                {t.user_id != null ? tr("admin.support.meta_member", { id: t.user_id }) : tr("admin.support.meta_guest")}
+                {t.order_id ? tr("admin.support.meta_order", { order: t.order_id }) : ""}
+                {t.amount != null ? tr("admin.support.meta_amount", { amount: t.amount.toLocaleString() }) : ""}
               </div>
               <div style={{ whiteSpace: "pre-wrap", fontSize: 13, color: "var(--ink-900)", background: "var(--bg)", borderRadius: 8, padding: "8px 10px", margin: "6px 0" }}>
                 {t.message}
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-                <span style={{ fontSize: 12, color: "var(--ink-400)" }}>상태:</span>
+                <span style={{ fontSize: 12, color: "var(--ink-400)" }}>{tr("admin.support.status_label")}</span>
                 {SUPPORT_STATUSES.map((s) => (
                   <button
                     key={s.value}
@@ -1951,22 +1953,22 @@ function SupportTab() {
                     onClick={() => refundTicket(t)}
                     style={{ padding: "5px 12px", fontSize: 12, fontWeight: 700, color: "#fff", background: "#c0392b", border: "none", borderRadius: 6, cursor: "pointer" }}
                   >
-                    💸 환불 승인·실행 (주문 {t.order_id})
+                    {tr("admin.support.refund_btn", { order: t.order_id })}
                   </button>
                   <span style={{ fontSize: 11, color: "var(--ink-400)" }}>
-                    토스 결제취소 + 크레딧 회수 자동 실행 → 처리완료 전환
+                    {tr("admin.support.refund_note")}
                   </span>
                 </div>
               )}
               <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
                 <input
                   className="bf-input"
-                  placeholder="처리 메모(사용자 화면에 표시됨) — 예: 6/22 환불 완료"
+                  placeholder={tr("admin.support.note_ph")}
                   value={noteDraft[t.id] ?? t.admin_note ?? ""}
                   onChange={(e) => setNoteDraft((d) => ({ ...d, [t.id]: e.target.value }))}
                   style={{ flex: 1 }}
                 />
-                <button onClick={() => saveNote(t.id)}>메모 저장</button>
+                <button onClick={() => saveNote(t.id)}>{tr("admin.support.save_note")}</button>
               </div>
             </div>
           ))}
@@ -1977,13 +1979,13 @@ function SupportTab() {
 }
 
 // -------- B-3 이용 후기 승인 (수집 → 승인 시 공개 노출 + 리워드 지급) --------
-const REVIEW_STATUSES: { key: string; label: string }[] = [
-  { key: "pending", label: "대기" },
-  { key: "approved", label: "승인" },
-  { key: "rejected", label: "반려" },
-];
-
 function ReviewsTab() {
+  const { t: tr } = useTranslation();
+  const REVIEW_STATUSES: { key: string; label: string }[] = [
+    { key: "pending", label: tr("admin.reviews.st_pending") },
+    { key: "approved", label: tr("admin.reviews.st_approved") },
+    { key: "rejected", label: tr("admin.reviews.st_rejected") },
+  ];
   const [items, setItems] = useState<Review[]>([]);
   const [total, setTotal] = useState(0);
   const [filter, setFilter] = useState("pending");
@@ -2001,7 +2003,7 @@ function ReviewsTab() {
       await api.adminUpdateReview(id, status);
       await load();
     } catch (e: any) {
-      alert(e?.message || "상태 변경에 실패했어요.");
+      alert(e?.message || tr("admin.reviews.status_fail"));
     } finally {
       setBusy(null);
     }
@@ -2010,16 +2012,16 @@ function ReviewsTab() {
   return (
     <div>
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
-        <h3 style={{ margin: 0 }}>이용 후기 ({total})</h3>
+        <h3 style={{ margin: 0 }}>{tr("admin.reviews.title", { count: total })}</h3>
         <select value={filter} onChange={(e) => setFilter(e.target.value)}>
-          <option value="">전체</option>
+          <option value="">{tr("admin.reviews.filter_all")}</option>
           {REVIEW_STATUSES.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
         </select>
         <span style={{ fontSize: 12, color: "var(--ink-400)" }}>
-          승인하면 랜딩·메뉴·후기 페이지에 공개되고, 작성자에게 리워드(과금/한도 탭 review_reward_p)가 1회 지급됩니다.
+          {tr("admin.reviews.note")}
         </span>
       </div>
-      {items.length === 0 && <p style={{ color: "var(--ink-400)" }}>해당 상태의 후기가 없어요.</p>}
+      {items.length === 0 && <p style={{ color: "var(--ink-400)" }}>{tr("admin.reviews.empty")}</p>}
       <div style={{ display: "grid", gap: 10 }}>
         {items.map((r) => (
           <div key={r.id} className="card" style={{ border: "1px solid var(--line)", borderRadius: 10, padding: 12 }}>
@@ -2060,31 +2062,6 @@ function ReviewsTab() {
 
 // -------- 운영설정 (사업자 정보 · 약관 버전/본문 · 메일 SMTP) --------
 type SK = keyof SiteSettings;
-const BIZ_FIELDS: { key: SK; label: string; ph?: string }[] = [
-  { key: "service_name", label: "서비스명", ph: "예: 인생상담 친구" },
-  { key: "biz_name", label: "상호", ph: "예: ○○ 사주연구소" },
-  { key: "biz_ceo", label: "대표자" },
-  { key: "biz_reg_no", label: "사업자등록번호", ph: "123-45-67890" },
-  { key: "biz_mailorder_no", label: "통신판매업 신고번호", ph: "2026-서울강남-01234" },
-  { key: "biz_address", label: "사업장 소재지" },
-  { key: "biz_tel", label: "고객센터 전화", ph: "02-000-0000" },
-  { key: "biz_hours", label: "고객센터 운영시간", ph: "평일 09:00~17:00" },
-  { key: "biz_email", label: "전자우편(고객문의)", ph: "help@example.com" },
-  { key: "biz_privacy_officer", label: "개인정보 보호책임자" },
-  { key: "biz_hosting", label: "호스팅 제공자" },
-];
-const VER_FIELDS: { key: SK; label: string; ph?: string }[] = [
-  { key: "terms_version", label: "이용약관 버전", ph: "2026-06-01" },
-  { key: "privacy_version", label: "개인정보 버전", ph: "2026-06-01" },
-  { key: "refund_version", label: "환불정책 버전", ph: "2026-06-01" },
-  { key: "min_age_years", label: "최소 가입연령", ph: "19" },
-];
-const BODY_FIELDS: { key: SK; label: string }[] = [
-  { key: "legal_body_terms", label: "이용약관 본문" },
-  { key: "legal_body_privacy", label: "개인정보처리방침 본문" },
-  { key: "legal_body_refund", label: "환불·청약철회 정책 본문" },
-  { key: "legal_body_disclaimer", label: "면책고지 본문" },
-];
 
 function SiteField({ label, value, ph, type = "text", onChange }: {
   label: string; value: string; ph?: string; type?: string; onChange: (v: string) => void;
@@ -2106,6 +2083,32 @@ function SiteSection({ title, children }: { title: string; children: ReactNode }
 }
 
 function SiteTab() {
+  const { t: tr } = useTranslation();
+  const BIZ_FIELDS: { key: SK; label: string; ph?: string }[] = [
+    { key: "service_name", label: tr("admin.site.f_service_name"), ph: tr("admin.site.ph_service_name") },
+    { key: "biz_name", label: tr("admin.site.f_biz_name"), ph: tr("admin.site.ph_biz_name") },
+    { key: "biz_ceo", label: tr("admin.site.f_biz_ceo") },
+    { key: "biz_reg_no", label: tr("admin.site.f_biz_reg_no"), ph: tr("admin.site.ph_biz_reg_no") },
+    { key: "biz_mailorder_no", label: tr("admin.site.f_biz_mailorder"), ph: tr("admin.site.ph_biz_mailorder") },
+    { key: "biz_address", label: tr("admin.site.f_biz_address") },
+    { key: "biz_tel", label: tr("admin.site.f_biz_tel"), ph: tr("admin.site.ph_biz_tel") },
+    { key: "biz_hours", label: tr("admin.site.f_biz_hours"), ph: tr("admin.site.ph_biz_hours") },
+    { key: "biz_email", label: tr("admin.site.f_biz_email"), ph: tr("admin.site.ph_biz_email") },
+    { key: "biz_privacy_officer", label: tr("admin.site.f_biz_privacy") },
+    { key: "biz_hosting", label: tr("admin.site.f_biz_hosting") },
+  ];
+  const VER_FIELDS: { key: SK; label: string; ph?: string }[] = [
+    { key: "terms_version", label: tr("admin.site.f_terms_ver"), ph: tr("admin.site.ph_ver") },
+    { key: "privacy_version", label: tr("admin.site.f_privacy_ver"), ph: tr("admin.site.ph_ver") },
+    { key: "refund_version", label: tr("admin.site.f_refund_ver"), ph: tr("admin.site.ph_ver") },
+    { key: "min_age_years", label: tr("admin.site.f_min_age"), ph: tr("admin.site.ph_min_age") },
+  ];
+  const BODY_FIELDS: { key: SK; label: string }[] = [
+    { key: "legal_body_terms", label: tr("admin.site.b_terms") },
+    { key: "legal_body_privacy", label: tr("admin.site.b_privacy") },
+    { key: "legal_body_refund", label: tr("admin.site.b_refund") },
+    { key: "legal_body_disclaimer", label: tr("admin.site.b_disclaimer") },
+  ];
   const [form, setForm] = useState<SiteSettings | null>(null);
   const [orig, setOrig] = useState<SiteSettings | null>(null);
   const [busy, setBusy] = useState(false);
@@ -2131,7 +2134,7 @@ function SiteTab() {
       .catch((e) => setErr(String(e?.message || e)));
   }, []);
 
-  if (!form || !orig) return <div>{err ? <div className="err">{err}</div> : "불러오는 중…"}</div>;
+  if (!form || !orig) return <div>{err ? <div className="err">{err}</div> : tr("admin.loading")}</div>;
   const f = form;
   const up = (k: SK, v: string) => setForm((cur) => (cur ? { ...cur, [k]: v } : cur));
   const checked = (k: SK) => String(f[k]).toLowerCase() === "true";
@@ -2145,21 +2148,21 @@ function SiteTab() {
       else if (k === "smtp_port") changed[k] = form[k] ? Number(form[k]) : 587;
       else changed[k] = form[k];
     });
-    if (Object.keys(changed).length === 0) { setMsg("변경사항이 없습니다."); return; }
+    if (Object.keys(changed).length === 0) { setMsg(tr("admin.site.no_change")); return; }
     setBusy(true); setMsg(null); setErr(null);
     try {
       const r = await api.adminPatchSiteSettings(changed);
       setForm(r.settings); setOrig(r.settings);
-      setMsg("저장되었습니다. 약관/사업자 정보 화면에 즉시 반영됩니다.");
+      setMsg(tr("admin.site.saved"));
     } catch (e: any) { setErr(String(e?.message || e)); }
     finally { setBusy(false); }
   }
 
   return (
     <div>
-      <SiteSection title="사업자 정보 (전자상거래법 §13 — 약관·푸터에 노출)">
+      <SiteSection title={tr("admin.site.biz_title")}>
         <p style={{ fontSize: 12, color: "var(--ink-400)", marginTop: -4 }}>
-          입력하면 이용약관 ‘제1조 사업자 정보’ 표 등에 즉시 반영됩니다. 비우면 “(운영자 설정 전)”으로 표시돼요.
+          {tr("admin.site.biz_note")}
         </p>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
           {BIZ_FIELDS.map((x) => (
@@ -2168,49 +2171,48 @@ function SiteTab() {
         </div>
       </SiteSection>
 
-      <SiteSection title="약관 버전 · 가입 연령">
+      <SiteSection title={tr("admin.site.ver_title")}>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 10 }}>
           {VER_FIELDS.map((x) => (
             <SiteField key={x.key} label={x.label} ph={x.ph} value={f[x.key]} onChange={(v) => up(x.key, v)} />
           ))}
         </div>
-        <p style={{ fontSize: 11.5, color: "var(--ink-400)" }}>비우면 서버 기본값을 사용합니다.</p>
+        <p style={{ fontSize: 11.5, color: "var(--ink-400)" }}>{tr("admin.site.ver_note")}</p>
       </SiteSection>
 
-      <SiteSection title="고객센터 알림 메일 (SMTP)">
+      <SiteSection title={tr("admin.site.smtp_title")}>
         <p style={{ fontSize: 12, color: "var(--ink-400)", marginTop: -4 }}>
-          문의 접수 시 수신자에게 메일을 보낼 SMTP 설정입니다. (수신자 목록은 <b>고객센터</b> 탭에서 관리)
-          미설정 시 서버 로그로 대체됩니다.
+          <Trans i18nKey="admin.site.smtp_note" components={{ b: <b /> }} />
         </p>
         <div style={{ display: "flex", gap: 18, flexWrap: "wrap", alignItems: "center", margin: "6px 0 10px" }}>
           <label style={{ display: "inline-flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
             <input type="checkbox" checked={checked("smtp_enabled")} onChange={(e) => up("smtp_enabled", e.target.checked ? "true" : "false")} />
-            메일 발송 사용
+            {tr("admin.site.smtp_use")}
           </label>
           <label style={{ display: "inline-flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
             <input type="checkbox" checked={checked("smtp_use_tls")} onChange={(e) => up("smtp_use_tls", e.target.checked ? "true" : "false")} />
-            STARTTLS 사용
+            {tr("admin.site.smtp_tls")}
           </label>
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 10 }}>
-          <SiteField label="SMTP 호스트" ph="smtp.gmail.com" value={f.smtp_host} onChange={(v) => up("smtp_host", v)} />
-          <SiteField label="포트" ph="587" value={f.smtp_port} onChange={(v) => up("smtp_port", v)} />
+          <SiteField label={tr("admin.site.smtp_host")} ph="smtp.gmail.com" value={f.smtp_host} onChange={(v) => up("smtp_host", v)} />
+          <SiteField label={tr("admin.site.smtp_port")} ph="587" value={f.smtp_port} onChange={(v) => up("smtp_port", v)} />
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-          <SiteField label="계정(User)" ph="account@gmail.com" value={f.smtp_user} onChange={(v) => up("smtp_user", v)} />
-          <SiteField label="비밀번호/앱비밀번호" type="password" ph="앱 비밀번호" value={f.smtp_password} onChange={(v) => up("smtp_password", v)} />
+          <SiteField label={tr("admin.site.smtp_user")} ph="account@gmail.com" value={f.smtp_user} onChange={(v) => up("smtp_user", v)} />
+          <SiteField label={tr("admin.site.smtp_pw")} type="password" ph={tr("admin.site.smtp_pw_ph")} value={f.smtp_password} onChange={(v) => up("smtp_password", v)} />
         </div>
-        <SiteField label="보내는 사람(From)" ph="인생상담 친구 <no-reply@example.com>" value={f.smtp_from} onChange={(v) => up("smtp_from", v)} />
+        <SiteField label={tr("admin.site.smtp_from")} ph={tr("admin.site.smtp_from_ph")} value={f.smtp_from} onChange={(v) => up("smtp_from", v)} />
 
         <div style={{ marginTop: 14, paddingTop: 12, borderTop: "1px solid var(--line)" }}>
-          <div style={{ fontSize: 12, fontWeight: 700, color: "var(--ink-600)", marginBottom: 4 }}>설정 검증 — 테스트 메일 발송</div>
+          <div style={{ fontSize: 12, fontWeight: 700, color: "var(--ink-600)", marginBottom: 4 }}>{tr("admin.site.test_title")}</div>
           <p style={{ fontSize: 11.5, color: "var(--ink-400)", margin: "0 0 8px" }}>
-            <b>위 설정을 먼저 저장</b>한 뒤 눌러 주세요. 저장된 SMTP로 실제 발송을 시도하고, 실패 시 사유를 그대로 보여줍니다.
+            <Trans i18nKey="admin.site.test_note" components={{ b: <b /> }} />
           </p>
           <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
             <input
               className="bf-input" type="email" style={{ flex: "1 1 240px", minWidth: 0 }}
-              placeholder="받는 사람(비우면 내 메일로)" value={testTo}
+              placeholder={tr("admin.site.test_to_ph")} value={testTo}
               onChange={(e) => setTestTo(e.target.value)}
             />
             <button
@@ -2220,7 +2222,7 @@ function SiteTab() {
                 background: "var(--brand-grad)", color: "#fff", cursor: testBusy ? "default" : "pointer", opacity: testBusy ? 0.6 : 1,
               }}
             >
-              {testBusy ? "발송 중…" : "✉️ 테스트 메일 보내기"}
+              {testBusy ? tr("admin.site.test_busy") : tr("admin.site.test_btn")}
             </button>
           </div>
           {testRes && (
@@ -2231,20 +2233,19 @@ function SiteTab() {
         </div>
       </SiteSection>
 
-      <SiteSection title="약관 본문 직접 편집 (선택)">
+      <SiteSection title={tr("admin.site.body_title")}>
         <p style={{ fontSize: 12, color: "var(--ink-400)", marginTop: -4 }}>
-          내용을 입력하면 해당 문서가 <b>입력한 본문(Markdown)</b>으로 대체됩니다. <b>비워두면 기본 제공 문안</b>(사업자 정보 자동 반영)이 표시됩니다.
-          제목은 <code># 제목</code>, 굵게는 <code>**굵게**</code>, 목록은 <code>- 항목</code>.
+          <Trans i18nKey="admin.site.body_note" components={{ b: <b />, c: <code /> }} />
         </p>
         {BODY_FIELDS.map((x) => (
           <div key={x.key} className="bf-field" style={{ marginBottom: 10 }}>
             <label style={{ fontSize: 12, fontWeight: 700, color: "var(--ink-600)", marginBottom: 4 }}>
-              {x.label} {String(f[x.key] ?? "").trim() ? "· (덮어쓰기 적용)" : "· (기본 문안 사용 중)"}
+              {x.label} {String(f[x.key] ?? "").trim() ? tr("admin.site.body_overwrite") : tr("admin.site.body_default")}
             </label>
             <textarea
               className="sf-textarea" rows={4}
               value={f[x.key] ?? ""}
-              placeholder="비우면 기본 문안 사용"
+              placeholder={tr("admin.site.body_ph")}
               onChange={(e) => up(x.key, e.target.value)}
             />
           </div>
@@ -2252,7 +2253,7 @@ function SiteTab() {
       </SiteSection>
 
       <div style={{ display: "flex", alignItems: "center", gap: 12, position: "sticky", bottom: 0, background: "var(--bg)", padding: "10px 0" }}>
-        <button onClick={save} disabled={busy} style={{ fontWeight: 700 }}>{busy ? "저장 중…" : "전체 저장"}</button>
+        <button onClick={save} disabled={busy} style={{ fontWeight: 700 }}>{busy ? tr("admin.site.save_busy") : tr("admin.site.save_all")}</button>
         {msg && <span style={{ color: "var(--brand-600)", fontSize: 13 }}>{msg}</span>}
         {err && <span className="err" style={{ margin: 0 }}>{err}</span>}
       </div>
@@ -2262,13 +2263,10 @@ function SiteTab() {
 
 // -------- 타로 카드 해석/키워드 편집 --------
 
-const SUIT_LABEL: Record<string, string> = {
-  wands: "완드·불", cups: "컵·물", swords: "소드·공기", pentacles: "펜타클·흙",
-};
-
 function KeywordEditor({ label, value, onChange }: {
   label: string; value: string[]; onChange: (v: string[]) => void;
 }) {
+  const { t: tr } = useTranslation();
   const [input, setInput] = useState("");
   function add() {
     const s = input.trim();
@@ -2283,26 +2281,27 @@ function KeywordEditor({ label, value, onChange }: {
         {value.map((k) => (
           <span key={k} style={{ background: "var(--brand-50)", border: "1px solid var(--line)", borderRadius: 999, padding: "3px 8px", fontSize: 12, display: "inline-flex", gap: 6, alignItems: "center" }}>
             {k}
-            <button type="button" aria-label={`${k} 삭제`} onClick={() => onChange(value.filter((x) => x !== k))} style={{ border: "none", background: "none", cursor: "pointer", color: "crimson", padding: 0, fontSize: 14, lineHeight: 1 }}>×</button>
+            <button type="button" aria-label={tr("admin.tarot.kw_del_aria", { k })} onClick={() => onChange(value.filter((x) => x !== k))} style={{ border: "none", background: "none", cursor: "pointer", color: "crimson", padding: 0, fontSize: 14, lineHeight: 1 }}>×</button>
           </span>
         ))}
-        {value.length === 0 && <span style={{ color: "#bbb", fontSize: 12 }}>키워드 없음</span>}
+        {value.length === 0 && <span style={{ color: "#bbb", fontSize: 12 }}>{tr("admin.tarot.kw_empty")}</span>}
       </div>
       <div style={{ display: "flex", gap: 6 }}>
         <input
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); add(); } }}
-          placeholder="키워드 입력 후 Enter"
+          placeholder={tr("admin.tarot.kw_ph")}
           style={{ flex: 1, fontSize: 13, padding: "5px 8px" }}
         />
-        <button type="button" onClick={add}>추가</button>
+        <button type="button" onClick={add}>{tr("admin.tarot.kw_add")}</button>
       </div>
     </div>
   );
 }
 
 function CardEditor({ card, onSaved }: { card: TarotAdminCard; onSaved: (u: TarotAdminCard) => void }) {
+  const { t: tr } = useTranslation();
   const [kwUp, setKwUp] = useState<string[]>(card.keywords_up);
   const [kwRev, setKwRev] = useState<string[]>(card.keywords_rev);
   const [iUp, setIUp] = useState(card.interp_up);
@@ -2317,22 +2316,22 @@ function CardEditor({ card, onSaved }: { card: TarotAdminCard; onSaved: (u: Taro
     iUp !== card.interp_up || iRev !== card.interp_rev;
 
   async function save() {
-    if (!kwUp.length || !kwRev.length) { alert("정/역 키워드는 최소 1개 이상이어야 합니다."); return; }
-    if (!iUp.trim() || !iRev.trim()) { alert("정/역 해석은 비울 수 없습니다."); return; }
+    if (!kwUp.length || !kwRev.length) { alert(tr("admin.tarot.kw_min")); return; }
+    if (!iUp.trim() || !iRev.trim()) { alert(tr("admin.tarot.interp_min")); return; }
     setBusy(true); setErr(null); setMsg(null);
     try {
       const u = await api.adminUpdateTarotCard(card.code, { keywords_up: kwUp, keywords_rev: kwRev, interp_up: iUp, interp_rev: iRev });
-      onSaved(u); setMsg("저장됨 · 즉시 반영");
+      onSaved(u); setMsg(tr("admin.tarot.saved"));
     } catch (e: any) { setErr(String(e?.message || e)); }
     finally { setBusy(false); }
   }
   async function reset() {
-    if (!confirm(`${card.name_kr} 카드를 초안(시드)으로 되돌릴까요? 편집분이 삭제됩니다.`)) return;
+    if (!confirm(tr("admin.tarot.reset_confirm", { name: card.name_kr }))) return;
     setBusy(true); setErr(null); setMsg(null);
     try {
       const u = await api.adminResetTarotCard(card.code);
       setKwUp(u.keywords_up); setKwRev(u.keywords_rev); setIUp(u.interp_up); setIRev(u.interp_rev);
-      onSaved(u); setMsg("초안으로 되돌림");
+      onSaved(u); setMsg(tr("admin.tarot.reset_done"));
     } catch (e: any) { setErr(String(e?.message || e)); }
     finally { setBusy(false); }
   }
@@ -2343,33 +2342,33 @@ function CardEditor({ card, onSaved }: { card: TarotAdminCard; onSaved: (u: Taro
         <img src={card.image_url} alt="" style={{ width: 52, height: 88, objectFit: "cover", borderRadius: 4 }} />
         <div style={{ flex: 1 }}>
           <div style={{ fontWeight: 700, fontSize: 18 }}>{card.name_kr} <span style={{ color: "#999", fontWeight: 400, fontSize: 14 }}>{card.name_en}</span></div>
-          <div style={{ fontSize: 12, color: "#888" }}>{card.arcana === "major" ? "메이저 아르카나" : SUIT_LABEL[card.suit || ""]} · {card.code}</div>
+          <div style={{ fontSize: 12, color: "#888" }}>{card.arcana === "major" ? tr("admin.tarot.major") : tr(`admin.tarot.suit.${card.suit || ""}`, card.suit || "")} · {card.code}</div>
           <div style={{ fontSize: 11, color: card.overridden ? "var(--brand-600)" : "#aaa", marginTop: 2 }}>
-            {card.overridden ? `수정됨${card.updated_at ? " · " + fmtKSTShort(card.updated_at) : ""}` : "초안(미수정)"}
+            {card.overridden ? `${tr("admin.tarot.edited")}${card.updated_at ? " · " + fmtKSTShort(card.updated_at) : ""}` : tr("admin.tarot.draft")}
           </div>
         </div>
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
         <div>
-          <div style={{ fontWeight: 700, fontSize: 13, color: "var(--brand-600)", marginBottom: 8 }}>↑ 정방향 (Upright)</div>
-          <KeywordEditor label="정방향 키워드" value={kwUp} onChange={setKwUp} />
-          <div style={{ fontSize: 12, color: "#888", margin: "4px 0" }}>정방향 해석</div>
+          <div style={{ fontWeight: 700, fontSize: 13, color: "var(--brand-600)", marginBottom: 8 }}>{tr("admin.tarot.up_title")}</div>
+          <KeywordEditor label={tr("admin.tarot.up_kw")} value={kwUp} onChange={setKwUp} />
+          <div style={{ fontSize: 12, color: "#888", margin: "4px 0" }}>{tr("admin.tarot.up_interp")}</div>
           <textarea value={iUp} onChange={(e) => setIUp(e.target.value)} rows={6} style={{ width: "100%", boxSizing: "border-box", fontSize: 13, lineHeight: 1.6, padding: 8, resize: "vertical" }} />
           <div style={{ textAlign: "right", fontSize: 11, color: iUp.length > 2000 ? "crimson" : "#bbb" }}>{iUp.length}/2000</div>
         </div>
         <div>
-          <div style={{ fontWeight: 700, fontSize: 13, color: "#6b5bb0", marginBottom: 8 }}>↻ 역방향 (Reversed)</div>
-          <KeywordEditor label="역방향 키워드" value={kwRev} onChange={setKwRev} />
-          <div style={{ fontSize: 12, color: "#888", margin: "4px 0" }}>역방향 해석</div>
+          <div style={{ fontWeight: 700, fontSize: 13, color: "#6b5bb0", marginBottom: 8 }}>{tr("admin.tarot.rev_title")}</div>
+          <KeywordEditor label={tr("admin.tarot.rev_kw")} value={kwRev} onChange={setKwRev} />
+          <div style={{ fontSize: 12, color: "#888", margin: "4px 0" }}>{tr("admin.tarot.rev_interp")}</div>
           <textarea value={iRev} onChange={(e) => setIRev(e.target.value)} rows={6} style={{ width: "100%", boxSizing: "border-box", fontSize: 13, lineHeight: 1.6, padding: 8, resize: "vertical" }} />
           <div style={{ textAlign: "right", fontSize: 11, color: iRev.length > 2000 ? "crimson" : "#bbb" }}>{iRev.length}/2000</div>
         </div>
       </div>
 
       <div style={{ display: "flex", gap: 10, alignItems: "center", marginTop: 14 }}>
-        <button onClick={save} disabled={busy || !dirty} style={{ fontWeight: 700 }}>{busy ? "저장 중…" : dirty ? "저장 · 즉시 반영" : "변경 없음"}</button>
-        <button onClick={reset} disabled={busy || !card.overridden} style={{ color: "crimson" }}>초안으로 되돌리기</button>
+        <button onClick={save} disabled={busy || !dirty} style={{ fontWeight: 700 }}>{busy ? tr("admin.tarot.save_busy") : dirty ? tr("admin.tarot.save_dirty") : tr("admin.tarot.save_clean")}</button>
+        <button onClick={reset} disabled={busy || !card.overridden} style={{ color: "crimson" }}>{tr("admin.tarot.reset_btn")}</button>
         {msg && <span style={{ color: "var(--brand-600)", fontSize: 13 }}>{msg}</span>}
         {err && <span className="err" style={{ margin: 0 }}>{err}</span>}
       </div>
@@ -2378,6 +2377,7 @@ function CardEditor({ card, onSaved }: { card: TarotAdminCard; onSaved: (u: Taro
 }
 
 function TarotTab() {
+  const { t: tr } = useTranslation();
   const [cards, setCards] = useState<TarotAdminCard[]>([]);
   const [sel, setSel] = useState<string | null>(null);
   const [filter, setFilter] = useState<string>("all");
@@ -2398,14 +2398,14 @@ function TarotTab() {
 
   async function relearnNow() {
     if (learning) return;
-    if (!window.confirm("입력된 변경분을 지금 재학습(확정 스냅샷 반영)할까요?")) return;
+    if (!window.confirm(tr("admin.tarot.relearn_confirm"))) return;
     setLearning(true);
     try {
       const r = await api.adminTarotRelearn();
       setLearn(r);
-      alert(`재학습 완료 — v${r.version} (${r.learned_at ? new Date(r.learned_at).toLocaleString() : ""})`);
+      alert(tr("admin.tarot.relearn_done", { version: r.version, date: r.learned_at ? new Date(r.learned_at).toLocaleString() : "" }));
     } catch (e: any) {
-      alert(e?.message || "재학습에 실패했어요.");
+      alert(e?.message || tr("admin.tarot.relearn_fail"));
       loadLearn();
     } finally {
       setLearning(false);
@@ -2415,13 +2415,13 @@ function TarotTab() {
   const cur = cards.find((c) => c.code === sel) || null;
 
   const FILTERS: [string, string, (c: TarotAdminCard) => boolean][] = [
-    ["all", "전체", () => true],
-    ["edited", "수정됨", (c) => c.overridden],
-    ["major", "메이저", (c) => c.arcana === "major"],
-    ["wands", "완드", (c) => c.suit === "wands"],
-    ["cups", "컵", (c) => c.suit === "cups"],
-    ["swords", "소드", (c) => c.suit === "swords"],
-    ["pentacles", "펜타클", (c) => c.suit === "pentacles"],
+    ["all", tr("admin.tarot.filter_all"), () => true],
+    ["edited", tr("admin.tarot.filter_edited"), (c) => c.overridden],
+    ["major", tr("admin.tarot.filter_major"), (c) => c.arcana === "major"],
+    ["wands", tr("admin.tarot.filter_wands"), (c) => c.suit === "wands"],
+    ["cups", tr("admin.tarot.filter_cups"), (c) => c.suit === "cups"],
+    ["swords", tr("admin.tarot.filter_swords"), (c) => c.suit === "swords"],
+    ["pentacles", tr("admin.tarot.filter_pentacles"), (c) => c.suit === "pentacles"],
   ];
   const filterFn = FILTERS.find((f) => f[0] === filter)?.[2] || (() => true);
   const filtered = cards
@@ -2444,31 +2444,30 @@ function TarotTab() {
           onClick={relearnNow}
           disabled={learning || (!!learn && !learn.changed)}
           title={learn && !learn.changed
-            ? "변경분이 없어 재학습할 내용이 없습니다. 카드를 수정·저장하면 버튼이 다시 활성화됩니다."
-            : "입력된 변경분을 지금 확정 스냅샷으로 재학습"}
+            ? tr("admin.tarot.relearn_title_none")
+            : tr("admin.tarot.relearn_title_do")}
           style={{ padding: "7px 16px", borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: learning || (learn && !learn.changed) ? "not-allowed" : "pointer",
                    border: "none", background: learning || (learn && !learn.changed) ? "var(--line)" : "var(--brand-500)", color: learning || (learn && !learn.changed) ? "var(--ink-500)" : "#fff" }}
         >
-          {learning ? "재학습 중…" : "🔄 내용 재학습하기"}
+          {learning ? tr("admin.tarot.relearn_busy") : tr("admin.tarot.relearn_btn")}
         </button>
         <span style={{ fontSize: 13, color: "var(--ink-700)" }}>
-          최종 학습일자: <b>{learn?.learned_at ? new Date(learn.learned_at).toLocaleString() : "아직 없음"}</b>
-          {" · "}버전: <b>v{learn?.version ?? 0}</b>
+          {tr("admin.tarot.last_learned")} <b>{learn?.learned_at ? new Date(learn.learned_at).toLocaleString() : tr("admin.tarot.not_yet")}</b>
+          {" · "}{tr("admin.tarot.version_label")} <b>v{learn?.version ?? 0}</b>
         </span>
         {learn?.changed && (
           <span style={{ fontSize: 12, fontWeight: 700, color: "#C2554D" }}>
-            학습 후 변경분 있음 — 지금 재학습하거나 오늘 밤 04:15 자동 반영
+            {tr("admin.tarot.changed_note")}
           </span>
         )}
         {learn && !learn.changed && (
           <span style={{ fontSize: 12, color: "var(--ink-500)" }}>
-            최신 상태(변경분 없음) — 수정·저장 시 버튼이 다시 활성화됩니다
+            {tr("admin.tarot.unchanged_note")}
           </span>
         )}
       </div>
       <div style={{ fontSize: 13, color: "#666", marginBottom: 10 }}>
-        타로 78장 정/역 키워드·해석을 수정합니다. <b>저장 즉시 새 뽑기·해석에 반영</b>됩니다(재시작 불필요).
-        수정한 카드는 “초안으로 되돌리기”로 언제든 원복할 수 있어요.
+        <Trans i18nKey="admin.tarot.desc" components={{ b: <b /> }} />
       </div>
       {err && <div className="err" style={{ marginBottom: 8 }}>{err}</div>}
 
@@ -2478,7 +2477,7 @@ function TarotTab() {
             {label} <span style={{ opacity: 0.6 }}>{cards.filter(fn).length}</span>
           </button>
         ))}
-        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="카드명 검색" style={{ marginLeft: "auto", fontSize: 13, padding: "5px 10px" }} />
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={tr("admin.tarot.q_ph")} style={{ marginLeft: "auto", fontSize: 13, padding: "5px 10px" }} />
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "260px 1fr", gap: 16, alignItems: "start" }}>
@@ -2490,17 +2489,17 @@ function TarotTab() {
                 <span style={{ fontWeight: 600, fontSize: 13 }}>{c.name_kr}</span>
                 <span style={{ display: "block", color: "#999", fontSize: 11 }}>{c.name_en}</span>
               </span>
-              {c.overridden && <span title="수정됨" style={{ width: 7, height: 7, borderRadius: "50%", background: "var(--brand-500)", flexShrink: 0 }} />}
+              {c.overridden && <span title={tr("admin.tarot.edited")} style={{ width: 7, height: 7, borderRadius: "50%", background: "var(--brand-500)", flexShrink: 0 }} />}
             </button>
           ))}
-          {filtered.length === 0 && <div style={{ padding: 16, color: "#999", fontSize: 13 }}>결과 없음</div>}
+          {filtered.length === 0 && <div style={{ padding: 16, color: "#999", fontSize: 13 }}>{tr("admin.tarot.no_result")}</div>}
         </div>
 
         {cur ? (
           <CardEditor key={cur.code} card={cur} onSaved={onSaved} />
         ) : (
           <div style={{ color: "#999", padding: 30, textAlign: "center", border: "1px dashed var(--line)", borderRadius: 8 }}>
-            왼쪽 목록에서 카드를 선택하세요.
+            {tr("admin.tarot.select_prompt")}
           </div>
         )}
       </div>
@@ -2511,6 +2510,7 @@ function TarotTab() {
 // -------- AI가격: 마케팅 가격 에이전트(2026-07-13) --------
 // 시장조사(관리자 수동 시트) → 결정적 권장가 → 관리자 [적용] 클릭으로만 가격변경. 자동적용 없음.
 function PricingAgentTab() {
+  const { t: tr } = useTranslation();
   const [ov, setOv] = useState<PricingOverview | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
@@ -2523,33 +2523,33 @@ function PricingAgentTab() {
   useEffect(() => { load(); }, []);
 
   async function toggleSurvey(on: boolean) {
-    try { await api.adminPatchSettings({ pricing_survey_enabled: on } as any); setMsg(`주단위 자동 조사 ${on ? "ON" : "OFF"}`); await load(); }
+    try { await api.adminPatchSettings({ pricing_survey_enabled: on } as any); setMsg(tr("admin.pricing.survey_toggled", { state: on ? "ON" : "OFF" })); await load(); }
     catch (e: any) { alert(e?.message || String(e)); }
   }
   async function runSurvey() {
     setBusy(true); setErr(null); setMsg(null);
-    try { const r = await api.adminPricingSurvey(); setMsg(`조사 완료 — 권장 ${r.pending}건 / 변동없음 ${r.skipped}건. 아래에서 검토·승인하세요.`); await load(); }
+    try { const r = await api.adminPricingSurvey(); setMsg(tr("admin.pricing.survey_done", { pending: r.pending, skipped: r.skipped })); await load(); }
     catch (e: any) { setErr(e?.message || String(e)); } finally { setBusy(false); }
   }
   async function addCompetitor() {
     const price = parseInt(form.price_krw, 10);
-    if (!form.competitor_name.trim() || !(price >= 0)) { alert("경쟁사 이름과 가격(원)을 입력하세요."); return; }
+    if (!form.competitor_name.trim() || !(price >= 0)) { alert(tr("admin.pricing.competitor_required")); return; }
     try {
       await api.adminPricingUpsertCompetitor({ competitor_name: form.competitor_name.trim(), menu_key: form.menu_key, price_krw: price, note: form.note.trim() || undefined });
       setForm({ ...form, competitor_name: "", price_krw: "", note: "" }); await load();
     } catch (e: any) { alert(e?.message || String(e)); }
   }
   async function apply(r: PricingRecommendation) {
-    if (!confirm(`【실제 가격 변경】\n${r.label}: ${r.current_price.toLocaleString()}P → ${r.recommended_price.toLocaleString()}P\n\n승인하면 즉시 라이브에 반영됩니다. 계속할까요?`)) return;
-    try { await api.adminPricingApply(r.id); setMsg(`${r.label} 적용 완료 — ${r.recommended_price.toLocaleString()}P 반영.`); await load(); }
+    if (!confirm(tr("admin.pricing.apply_confirm", { label: r.label, cur: r.current_price.toLocaleString(), rec: r.recommended_price.toLocaleString() }))) return;
+    try { await api.adminPricingApply(r.id); setMsg(tr("admin.pricing.apply_done", { label: r.label, rec: r.recommended_price.toLocaleString() })); await load(); }
     catch (e: any) { alert(e?.message || String(e)); }
   }
   async function dismiss(r: PricingRecommendation) {
     try { await api.adminPricingDismiss(r.id); await load(); } catch (e: any) { alert(e?.message || String(e)); }
   }
   async function rollback(r: PricingRecommendation) {
-    if (!confirm(`${r.label}을(를) 적용 직전값 ${(r.applied_from ?? 0).toLocaleString()}P로 되돌릴까요?`)) return;
-    try { await api.adminPricingRollback(r.id); setMsg(`${r.label} 롤백 완료.`); await load(); }
+    if (!confirm(tr("admin.pricing.rollback_confirm", { label: r.label, from: (r.applied_from ?? 0).toLocaleString() }))) return;
+    try { await api.adminPricingRollback(r.id); setMsg(tr("admin.pricing.rollback_done", { label: r.label })); await load(); }
     catch (e: any) { alert(e?.message || String(e)); }
   }
   async function saveGuardrail(menu_key: string, patch: Record<string, number | boolean>) {
@@ -2557,7 +2557,7 @@ function PricingAgentTab() {
     catch (e: any) { alert(e?.message || String(e)); }
   }
 
-  if (!ov) return <div style={{ padding: 16 }}>{err ? <span style={{ color: "crimson" }}>{err}</span> : "불러오는 중…"}</div>;
+  if (!ov) return <div style={{ padding: 16 }}>{err ? <span style={{ color: "crimson" }}>{err}</span> : tr("admin.loading")}</div>;
   const box: React.CSSProperties = { border: "1px solid #ddd", borderRadius: 8, padding: 14, marginBottom: 16 };
   const staleCount = ov.competitors.filter((c) => c.stale).length;
 
@@ -2568,42 +2568,41 @@ function PricingAgentTab() {
 
       {/* 안전 고지 + 조사 실행 */}
       <div style={{ ...box, borderColor: "var(--gold, #b9862f)", background: "var(--gold-tint, #f6efdd)" }}>
-        <div style={{ fontWeight: 800, marginBottom: 6 }}>🤖 AI 가격 에이전트</div>
+        <div style={{ fontWeight: 800, marginBottom: 6 }}>{tr("admin.pricing.title")}</div>
         <div style={{ fontSize: 12.5, color: "#555", lineHeight: 1.7, marginBottom: 10 }}>
-          경쟁사 시트를 근거로 <b>권장가를 산출</b>합니다. <b>가격 변경은 아래 권장 목록에서 [적용]을 눌러 관리자가 최종 승인할 때만</b> 일어나요
-          (자동 적용 없음). 산출은 결정적 계산(언더컷·가드레일·반올림)이라 재현·검증됩니다.
+          <Trans i18nKey="admin.pricing.desc" components={{ b: <b /> }} />
         </div>
         <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
           <label style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
             <input type="checkbox" checked={ov.survey_enabled} onChange={(e) => toggleSurvey(e.target.checked)} />
-            주단위 자동 조사(월 05:00) — 권장만 생성
+            {tr("admin.pricing.auto_survey")}
           </label>
           <button onClick={runSurvey} disabled={busy} style={{ background: "var(--brand-500)", color: "#fff", border: "none", borderRadius: 6, padding: "6px 14px", cursor: "pointer" }}>
-            {busy ? "조사 중…" : "🔍 지금 시장조사"}
+            {busy ? tr("admin.pricing.survey_busy") : tr("admin.pricing.survey_btn")}
           </button>
-          {staleCount > 0 && <span style={{ color: "#c0392b", fontSize: 12 }}>⚠️ 경쟁사 데이터 {staleCount}건이 14일 이상 지났어요(갱신 권장).</span>}
+          {staleCount > 0 && <span style={{ color: "#c0392b", fontSize: 12 }}>{tr("admin.pricing.stale_warn", { count: staleCount })}</span>}
         </div>
       </div>
 
       {/* 권장 대기(승인) */}
       <div style={box}>
-        <div style={{ fontWeight: 700, marginBottom: 8 }}>📋 권장 가격 (승인 대기 {ov.pending.length})</div>
-        {ov.pending.length === 0 ? <div style={{ fontSize: 13, color: "#888" }}>대기 중인 권장이 없어요. [지금 시장조사]로 산출하세요.</div> : (
+        <div style={{ fontWeight: 700, marginBottom: 8 }}>{tr("admin.pricing.rec_title", { count: ov.pending.length })}</div>
+        {ov.pending.length === 0 ? <div style={{ fontSize: 13, color: "#888" }}>{tr("admin.pricing.rec_empty")}</div> : (
           <table style={{ width: "100%", fontSize: 13, borderCollapse: "collapse" }}>
             <thead><tr style={{ background: "var(--bg)" }}>
-              <th style={aTh}>항목</th><th style={aTh}>현재가</th><th style={aTh}>경쟁사 최저</th><th style={aTh}>권장가</th><th style={aTh}>근거</th><th style={aTh}>처리</th>
+              <th style={aTh}>{tr("admin.pricing.rth_item")}</th><th style={aTh}>{tr("admin.pricing.rth_current")}</th><th style={aTh}>{tr("admin.pricing.rth_comp_min")}</th><th style={aTh}>{tr("admin.pricing.rth_recommended")}</th><th style={aTh}>{tr("admin.pricing.rth_rationale")}</th><th style={aTh}>{tr("admin.pricing.rth_action")}</th>
             </tr></thead>
             <tbody>
               {ov.pending.map((r) => (
                 <tr key={r.id}>
                   <td style={aTd}><b>{r.label}</b></td>
                   <td style={aTd}>{r.current_price.toLocaleString()}P</td>
-                  <td style={aTd}>{r.competitor_min ? r.competitor_min.toLocaleString() + "원" : "—"}</td>
+                  <td style={aTd}>{r.competitor_min ? r.competitor_min.toLocaleString() + tr("admin.won") : "—"}</td>
                   <td style={aTd}><b style={{ color: "var(--brand-600)" }}>{r.recommended_price.toLocaleString()}P</b></td>
                   <td style={{ ...aTd, maxWidth: 320, fontSize: 11.5, color: "#666", whiteSpace: "normal" }}>{r.rationale}</td>
                   <td style={aTd}>
-                    <button onClick={() => apply(r)} style={{ marginRight: 6, background: "var(--brand-500)", color: "#fff", border: "none", borderRadius: 6, padding: "4px 10px", cursor: "pointer" }}>적용</button>
-                    <button onClick={() => dismiss(r)} style={{ background: "none", border: "1px solid var(--line)", borderRadius: 6, padding: "4px 10px", cursor: "pointer" }}>무시</button>
+                    <button onClick={() => apply(r)} style={{ marginRight: 6, background: "var(--brand-500)", color: "#fff", border: "none", borderRadius: 6, padding: "4px 10px", cursor: "pointer" }}>{tr("admin.pricing.apply_btn")}</button>
+                    <button onClick={() => dismiss(r)} style={{ background: "none", border: "1px solid var(--line)", borderRadius: 6, padding: "4px 10px", cursor: "pointer" }}>{tr("admin.pricing.dismiss_btn")}</button>
                   </td>
                 </tr>
               ))}
@@ -2614,26 +2613,26 @@ function PricingAgentTab() {
 
       {/* 경쟁사 시트 */}
       <div style={box}>
-        <div style={{ fontWeight: 700, marginBottom: 4 }}>🏷️ 경쟁사 가격 시트 (수동 관리)</div>
-        <div style={{ fontSize: 12, color: "#888", marginBottom: 10 }}>경쟁사별·항목별 가격(원)을 입력하면 조사 시 근거로 사용돼요. 주기적으로 확인·갱신하세요.</div>
+        <div style={{ fontWeight: 700, marginBottom: 4 }}>{tr("admin.pricing.sheet_title")}</div>
+        <div style={{ fontSize: 12, color: "#888", marginBottom: 10 }}>{tr("admin.pricing.sheet_desc")}</div>
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 10 }}>
-          <input placeholder="경쟁사" value={form.competitor_name} onChange={(e) => setForm({ ...form, competitor_name: e.target.value })} style={{ width: 110 }} />
+          <input placeholder={tr("admin.pricing.comp_ph")} value={form.competitor_name} onChange={(e) => setForm({ ...form, competitor_name: e.target.value })} style={{ width: 110 }} />
           <select value={form.menu_key} onChange={(e) => setForm({ ...form, menu_key: e.target.value })}>
             {ov.guardrails.map((g) => <option key={g.menu_key} value={g.menu_key}>{g.label}</option>)}
           </select>
-          <input placeholder="가격(원)" type="number" value={form.price_krw} onChange={(e) => setForm({ ...form, price_krw: e.target.value })} style={{ width: 90 }} />
-          <input placeholder="메모(선택)" value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} style={{ width: 130 }} />
-          <button onClick={addCompetitor} style={{ background: "var(--brand-500)", color: "#fff", border: "none", borderRadius: 6, padding: "4px 12px", cursor: "pointer" }}>추가</button>
+          <input placeholder={tr("admin.pricing.price_ph")} type="number" value={form.price_krw} onChange={(e) => setForm({ ...form, price_krw: e.target.value })} style={{ width: 90 }} />
+          <input placeholder={tr("admin.pricing.note_ph")} value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} style={{ width: 130 }} />
+          <button onClick={addCompetitor} style={{ background: "var(--brand-500)", color: "#fff", border: "none", borderRadius: 6, padding: "4px 12px", cursor: "pointer" }}>{tr("admin.pricing.add")}</button>
         </div>
         {ov.competitors.length > 0 && (
           <table style={{ width: "100%", fontSize: 13, borderCollapse: "collapse" }}>
-            <thead><tr style={{ background: "var(--bg)" }}><th style={aTh}>경쟁사</th><th style={aTh}>항목</th><th style={aTh}>가격</th><th style={aTh}>확인일</th><th style={aTh}>메모</th><th style={aTh}></th></tr></thead>
+            <thead><tr style={{ background: "var(--bg)" }}><th style={aTh}>{tr("admin.pricing.cth_competitor")}</th><th style={aTh}>{tr("admin.pricing.cth_item")}</th><th style={aTh}>{tr("admin.pricing.cth_price")}</th><th style={aTh}>{tr("admin.pricing.cth_verified")}</th><th style={aTh}>{tr("admin.pricing.cth_note")}</th><th style={aTh}></th></tr></thead>
             <tbody>
               {ov.competitors.map((c) => (
                 <tr key={c.id}>
                   <td style={aTd}>{c.competitor_name}</td>
                   <td style={aTd}>{c.label}</td>
-                  <td style={aTd}>{c.price_krw.toLocaleString()}원</td>
+                  <td style={aTd}>{c.price_krw.toLocaleString()}{tr("admin.won")}</td>
                   <td style={{ ...aTd, color: c.stale ? "#c0392b" : undefined }}>{c.verified_at ? fmtKSTDate(c.verified_at) : "—"}{c.stale ? " ⚠️" : ""}</td>
                   <td style={aTd}>{c.note || "—"}</td>
                   <td style={aTd}><button onClick={() => api.adminPricingDeleteCompetitor(c.id).then(load)} style={{ background: "none", border: "none", cursor: "pointer", color: "#c0392b" }}>✕</button></td>
@@ -2646,10 +2645,10 @@ function PricingAgentTab() {
 
       {/* 가드레일 */}
       <div style={box}>
-        <div style={{ fontWeight: 700, marginBottom: 4 }}>🛡️ 가드레일 (권장가 안전범위)</div>
-        <div style={{ fontSize: 12, color: "#888", marginBottom: 10 }}>언더컷% = 경쟁사 최저 대비 낮출 비율 · 최대변동% = 1회 조사당 변동 상한 · 하한/상한 = 절대 범위.</div>
+        <div style={{ fontWeight: 700, marginBottom: 4 }}>{tr("admin.pricing.guardrail_title")}</div>
+        <div style={{ fontSize: 12, color: "#888", marginBottom: 10 }}>{tr("admin.pricing.guardrail_desc")}</div>
         <table style={{ width: "100%", fontSize: 12.5, borderCollapse: "collapse" }}>
-          <thead><tr style={{ background: "var(--bg)" }}><th style={aTh}>항목</th><th style={aTh}>언더컷%</th><th style={aTh}>최대변동%</th><th style={aTh}>하한</th><th style={aTh}>상한</th><th style={aTh}>사용</th></tr></thead>
+          <thead><tr style={{ background: "var(--bg)" }}><th style={aTh}>{tr("admin.pricing.gth_item")}</th><th style={aTh}>{tr("admin.pricing.gth_undercut")}</th><th style={aTh}>{tr("admin.pricing.gth_maxchange")}</th><th style={aTh}>{tr("admin.pricing.gth_floor")}</th><th style={aTh}>{tr("admin.pricing.gth_ceiling")}</th><th style={aTh}>{tr("admin.pricing.gth_enabled")}</th></tr></thead>
           <tbody>
             {ov.guardrails.map((g) => (
               <tr key={g.menu_key}>
@@ -2668,12 +2667,12 @@ function PricingAgentTab() {
       {/* 3소스 diff 안내 */}
       {ov.sync_diff.length > 0 && (
         <div style={{ ...box, borderColor: "#e0b000", background: "#fffbe6" }}>
-          <div style={{ fontWeight: 700, marginBottom: 4 }}>🔧 코드 폴백 동기화 필요 ({ov.sync_diff.length})</div>
+          <div style={{ fontWeight: 700, marginBottom: 4 }}>{tr("admin.pricing.sync_title", { count: ov.sync_diff.length })}</div>
           <div style={{ fontSize: 12, color: "#775500", marginBottom: 8 }}>
-            라이브 값(DB)이 코드 기본값과 달라요. <b>실제 과금·표시는 라이브 값(정확)</b>이지만, 다음 배포 때 코드 기본값(settings_service.DEFAULTS + entryFee.ts)을 아래로 맞추면 완전 일치합니다.
+            <Trans i18nKey="admin.pricing.sync_desc" components={{ b: <b /> }} />
           </div>
           <table style={{ width: "100%", fontSize: 12.5, borderCollapse: "collapse" }}>
-            <thead><tr style={{ background: "var(--bg)" }}><th style={aTh}>항목</th><th style={aTh}>라이브(DB)</th><th style={aTh}>코드 기본값</th></tr></thead>
+            <thead><tr style={{ background: "var(--bg)" }}><th style={aTh}>{tr("admin.pricing.sth_item")}</th><th style={aTh}>{tr("admin.pricing.sth_live")}</th><th style={aTh}>{tr("admin.pricing.sth_code")}</th></tr></thead>
             <tbody>{ov.sync_diff.map((d) => (
               <tr key={d.menu_key}><td style={aTd}>{d.label}</td><td style={aTd}><b>{d.live.toLocaleString()}</b></td><td style={aTd}>{d.code_default.toLocaleString()}</td></tr>
             ))}</tbody>
@@ -2683,18 +2682,18 @@ function PricingAgentTab() {
 
       {/* 변경 이력 */}
       <div style={box}>
-        <div style={{ fontWeight: 700, marginBottom: 8 }}>🕑 변경 이력</div>
+        <div style={{ fontWeight: 700, marginBottom: 8 }}>{tr("admin.pricing.history_title")}</div>
         <table style={{ width: "100%", fontSize: 12.5, borderCollapse: "collapse" }}>
-          <thead><tr style={{ background: "var(--bg)" }}><th style={aTh}>일시</th><th style={aTh}>항목</th><th style={aTh}>변경</th><th style={aTh}>상태</th><th style={aTh}>처리자</th><th style={aTh}></th></tr></thead>
+          <thead><tr style={{ background: "var(--bg)" }}><th style={aTh}>{tr("admin.pricing.hth_time")}</th><th style={aTh}>{tr("admin.pricing.hth_item")}</th><th style={aTh}>{tr("admin.pricing.hth_change")}</th><th style={aTh}>{tr("admin.pricing.hth_status")}</th><th style={aTh}>{tr("admin.pricing.hth_by")}</th><th style={aTh}></th></tr></thead>
           <tbody>
             {ov.history.filter((r) => r.status !== "pending").slice(0, 30).map((r) => (
               <tr key={r.id}>
                 <td style={aTd}>{r.decided_at ? fmtKSTShort(r.decided_at) : (r.created_at ? fmtKSTShort(r.created_at) : "—")}</td>
                 <td style={aTd}>{r.label}</td>
                 <td style={aTd}>{r.current_price.toLocaleString()} → {r.recommended_price.toLocaleString()}</td>
-                <td style={aTd}>{r.status === "applied" ? "✅ 적용" : r.status === "dismissed" ? "무시/롤백" : "변동없음"}</td>
+                <td style={aTd}>{r.status === "applied" ? tr("admin.pricing.st_applied") : r.status === "dismissed" ? tr("admin.pricing.st_dismissed") : tr("admin.pricing.st_nochange")}</td>
                 <td style={aTd}>{r.decided_by || "—"}</td>
-                <td style={aTd}>{r.status === "applied" && r.applied_from != null && <button onClick={() => rollback(r)} style={{ background: "none", border: "1px solid var(--line)", borderRadius: 6, padding: "2px 8px", cursor: "pointer", fontSize: 11 }}>되돌리기</button>}</td>
+                <td style={aTd}>{r.status === "applied" && r.applied_from != null && <button onClick={() => rollback(r)} style={{ background: "none", border: "1px solid var(--line)", borderRadius: 6, padding: "2px 8px", cursor: "pointer", fontSize: 11 }}>{tr("admin.pricing.rollback_btn")}</button>}</td>
               </tr>
             ))}
           </tbody>

@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation, Trans } from "react-i18next";
+import type { TFunction } from "i18next";
 import { api, EvalRun, EvalStatus } from "../api";
 import { fmtKSTDate } from "../lib/datetime";
 
@@ -21,50 +23,50 @@ const MS = (v: number) => `${v.toFixed(0)}ms`;
 
 type MetricDef = {
   key: keyof EvalRun;
-  label: string;
+  labelKey: string;
   short: string;
   color: string;
   fmt: (v: number) => string;
   higherBetter: boolean;
-  hint: string;
+  hintKey: string;
 };
 
 const METRICS: MetricDef[] = [
   {
     key: "keyword_hit_rate_mean",
-    label: "핵심 적중률",
+    labelKey: "admin.trend.m_hit_label",
     short: "hit",
     color: "#2563eb",
     fmt: PCT,
     higherBetter: true,
-    hint: "한 질문의 정답 핵심어 중, 검색된 상위 청크에서 발견된 평균 비율. 높을수록 정답 재료를 잘 가져옴.",
+    hintKey: "admin.trend.m_hit_hint",
   },
   {
     key: "pass_at_60",
-    label: "합격률",
+    labelKey: "admin.trend.m_pass_label",
     short: "pass@60",
     color: "#16a34a",
     fmt: PCT,
     higherBetter: true,
-    hint: "핵심어를 60% 이상 찾은 '합격' 질문의 비율. 목표 100%. 합격한 질문은 답변 근거가 충분하다고 본다.",
+    hintKey: "admin.trend.m_pass_hint",
   },
   {
     key: "top1_score_mean",
-    label: "최상위 유사도",
+    labelKey: "admin.trend.m_top1_label",
     short: "top1",
     color: "#9333ea",
     fmt: SCORE,
     higherBetter: true,
-    hint: "1순위 검색 청크의 의미 유사도(코사인, 0~1). 질문과 가장 가까운 자료가 얼마나 가까운지.",
+    hintKey: "admin.trend.m_top1_hint",
   },
   {
     key: "latency_ms_mean",
-    label: "검색 속도",
+    labelKey: "admin.trend.m_lat_label",
     short: "lat",
     color: "#f59e0b",
     fmt: MS,
     higherBetter: false,
-    hint: "질문 1건당 평균 검색 시간(ms). 낮을수록 빠름. 사용자 응답 체감과 직결.",
+    hintKey: "admin.trend.m_lat_hint",
   },
 ];
 
@@ -85,7 +87,7 @@ function comparableIdx(runs: EvalRun[], i: number): number {
   return -1;
 }
 
-function deltaLabel(m: MetricDef, cur: number, prev: number) {
+function deltaLabel(m: MetricDef, cur: number, prev: number, tr: TFunction) {
   const d = cur - prev;
   const improved = m.higherBetter ? d > 1e-9 : d < -1e-9;
   const worse = m.higherBetter ? d < -1e-9 : d > 1e-9;
@@ -97,12 +99,13 @@ function deltaLabel(m: MetricDef, cur: number, prev: number) {
   if (m.fmt === PCT) txt = `${d >= 0 ? "+" : ""}${(d * 100).toFixed(1)}%p`;
   else if (m.fmt === MS) txt = `${d >= 0 ? "+" : ""}${d.toFixed(0)}ms`;
   else txt = `${d >= 0 ? "+" : ""}${d.toFixed(3)}`;
-  const word = improved ? "개선" : worse ? "하락" : "유지";
+  const word = improved ? tr("admin.trend.d_improved") : worse ? tr("admin.trend.d_worse") : tr("admin.trend.d_same");
   return { color, arrow, txt, word };
 }
 
 // ===================== KPI 효과 타일 =====================
 function KpiTiles({ runs }: { runs: EvalRun[] }) {
+  const { t: tr } = useTranslation();
   const last = runs.length - 1;
   const compIdx = comparableIdx(runs, last);
   const cur = runs[last];
@@ -111,11 +114,11 @@ function KpiTiles({ runs }: { runs: EvalRun[] }) {
   return (
     <div className="card">
       <div className="card-head-row" style={{ marginBottom: 6 }}>
-        <h3 style={{ margin: 0 }}>최신 평가 효과</h3>
+        <h3 style={{ margin: 0 }}>{tr("admin.trend.kpi_title")}</h3>
         <span style={{ fontSize: 12, color: "var(--ink-400)" }}>
           {prev
-            ? `직전 동일조건(${evalMode(cur)}) 대비 변화 · 라벨 ${cur.tag || "-"}`
-            : `같은 조건(${evalMode(cur)})의 이전 실행 없음 — 비교 생략 · 라벨 ${cur.tag || "-"}`}
+            ? tr("admin.trend.kpi_cmp", { mode: evalMode(cur), tag: cur.tag || "-" })
+            : tr("admin.trend.kpi_nocmp", { mode: evalMode(cur), tag: cur.tag || "-" })}
         </span>
       </div>
       <div
@@ -127,11 +130,11 @@ function KpiTiles({ runs }: { runs: EvalRun[] }) {
       >
         {METRICS.map((m) => {
           const v = Number(cur[m.key]) || 0;
-          const d = prev ? deltaLabel(m, v, Number(prev[m.key]) || 0) : null;
+          const d = prev ? deltaLabel(m, v, Number(prev[m.key]) || 0, tr) : null;
           return (
             <div
               key={m.key}
-              title={m.hint}
+              title={tr(m.hintKey)}
               style={{
                 border: "1px solid var(--line)",
                 borderRadius: 12,
@@ -141,7 +144,7 @@ function KpiTiles({ runs }: { runs: EvalRun[] }) {
             >
               <div style={{ fontSize: 12, color: "var(--ink-600)", display: "flex", alignItems: "center", gap: 6 }}>
                 <span style={{ width: 9, height: 9, borderRadius: 9, background: m.color, display: "inline-block" }} />
-                {m.label}
+                {tr(m.labelKey)}
               </div>
               <div style={{ fontSize: 24, fontWeight: 800, marginTop: 4, color: "var(--ink-900)" }}>
                 {m.fmt(v)}
@@ -151,7 +154,7 @@ function KpiTiles({ runs }: { runs: EvalRun[] }) {
                   {d.arrow} {d.txt} <span style={{ opacity: 0.8 }}>({d.word})</span>
                 </div>
               ) : (
-                <div style={{ fontSize: 12, marginTop: 2, color: "var(--ink-400)" }}>비교 기준 없음</div>
+                <div style={{ fontSize: 12, marginTop: 2, color: "var(--ink-400)" }}>{tr("admin.trend.kpi_nobase")}</div>
               )}
             </div>
           );
@@ -178,6 +181,7 @@ function LineChart({
   yKind?: "pct" | "ratio" | "count";
   targetLine?: { value: number; label: string };
 }) {
+  const { t: tr } = useTranslation();
   const W = 720;
   const H = 260;
   const padL = 46;
@@ -317,7 +321,7 @@ function LineChart({
             ● {s.label}
           </span>
         ))}
-        <span style={{ color: "var(--ink-400)" }}>※ Y축은 변화를 보기 쉽게 확대 표시</span>
+        <span style={{ color: "var(--ink-400)" }}>{tr("admin.trend.chart_yaxis_note")}</span>
       </div>
     </div>
   );
@@ -331,10 +335,12 @@ function RunControls({
   runs: EvalRun[];
   onDone: () => void;
 }) {
+  const { t: tr } = useTranslation();
   const [status, setStatus] = useState<EvalStatus | null>(null);
   const [busy, setBusy] = useState(false);
   const [tag, setTag] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
+  const [msgErr, setMsgErr] = useState(false);  // msg 가 오류 문구인지(색상용) — 로케일 무관
   const pollRef = useRef<number | null>(null);
 
   const fetchStatus = useCallback(async () => {
@@ -362,15 +368,17 @@ function RunControls({
         if (pollRef.current) window.clearInterval(pollRef.current);
         pollRef.current = null;
         setBusy(false);
-        setMsg(s.last_error ? `실행 실패: ${s.last_error}` : "평가 완료 — 결과를 갱신했습니다.");
+        setMsgErr(!!s.last_error);
+        setMsg(s.last_error ? tr("admin.trend.run_fail", { err: s.last_error }) : tr("admin.trend.run_done"));
         onDone();
       }
     }, 2500);
-  }, [fetchStatus, onDone]);
+  }, [fetchStatus, onDone, tr]);
 
   const run = async () => {
     setBusy(true);
     setMsg(null);
+    setMsgErr(false);
     try {
       const r = await api.evalRun(tag.trim() || undefined);
       setMsg(r.message);
@@ -378,7 +386,8 @@ function RunControls({
       startPolling();
     } catch (e: any) {
       setBusy(false);
-      setMsg(e?.message || "실행 요청 실패");
+      setMsgErr(true);
+      setMsg(e?.message || tr("admin.trend.run_req_fail"));
     }
   };
 
@@ -393,22 +402,21 @@ function RunControls({
     <div className="card">
       <div className="card-head-row">
         <div>
-          <h3 style={{ margin: 0 }}>평가 실행</h3>
+          <h3 style={{ margin: 0 }}>{tr("admin.trend.run_title")}</h3>
           <div style={{ fontSize: 12.5, color: "var(--ink-600)", marginTop: 4 }}>
-            매일 <strong>03:30</strong> 야간 학습(코퍼스 색인) 직후 자동으로 평가가 1회 실행돼 추세가 쌓입니다.
-            아래 버튼은 지금 즉시 1회 더 돌리고 싶을 때(예: 방금 자료 추가) 사용하세요.
+            {tr("admin.trend.run_desc_1")}<strong>03:30</strong>{tr("admin.trend.run_desc_2")}
           </div>
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
           <input
             value={tag}
             onChange={(e) => setTag(e.target.value)}
-            placeholder="라벨(예: after_youtube)"
+            placeholder={tr("admin.trend.run_tag_ph")}
             style={{ width: 180, fontSize: 13 }}
             disabled={!!running}
           />
           <button onClick={run} disabled={!!running}>
-            {running ? "평가 중…" : "지금 평가 실행"}
+            {running ? tr("admin.trend.run_busy") : tr("admin.trend.run_now")}
           </button>
         </div>
       </div>
@@ -425,8 +433,8 @@ function RunControls({
           }}
         >
           {stale ? "⚠ " : ""}
-          마지막 평가: {last.ts.replace("T", " ").slice(0, 16)} ({ageDays}일 전) · 라벨 {last.tag || "-"}
-          {stale && " — 그동안 자료를 추가했다면 다시 평가하는 것을 권장합니다."}
+          {tr("admin.trend.fresh", { ts: last.ts.replace("T", " ").slice(0, 16), days: ageDays, tag: last.tag || "-" })}
+          {stale && tr("admin.trend.fresh_stale_suffix")}
         </div>
       )}
 
@@ -435,7 +443,7 @@ function RunControls({
           style={{
             fontSize: 13,
             marginTop: 8,
-            color: msg.includes("실패") ? "#b91c1c" : "var(--brand-700)",
+            color: msgErr ? "#b91c1c" : "var(--brand-700)",
           }}
         >
           {running ? "⏳ " : ""}
@@ -448,24 +456,25 @@ function RunControls({
 
 // ===================== 상세 비교 표 =====================
 function CompareTable({ runs, allRuns }: { runs: EvalRun[]; allRuns: EvalRun[] }) {
+  const { t: tr } = useTranslation();
   // 표는 최근 구간(runs)만 보여주되, 비교 대상(동일 N 직전)은 전체 이력(allRuns)에서 찾는다.
   const offset = allRuns.length - runs.length;
   return (
     <div className="card">
-      <h3 style={{ marginTop: 0 }}>실행별 상세 (직전 동일조건 대비 변화)</h3>
+      <h3 style={{ marginTop: 0 }}>{tr("admin.trend.cmp_title")}</h3>
       <div className="table-wrap">
         <table>
           <thead>
             <tr>
               <th>#</th>
-              <th>시각</th>
-              <th>라벨</th>
+              <th>{tr("admin.trend.th_time")}</th>
+              <th>{tr("admin.trend.th_tag")}</th>
               <th>N</th>
-              <th>핵심 적중률</th>
-              <th>합격률</th>
-              <th>최상위 유사도</th>
-              <th>평균 유사도</th>
-              <th>속도</th>
+              <th>{tr("admin.trend.m_hit_label")}</th>
+              <th>{tr("admin.trend.m_pass_label")}</th>
+              <th>{tr("admin.trend.m_top1_label")}</th>
+              <th>{tr("admin.trend.th_avg")}</th>
+              <th>{tr("admin.trend.th_speed")}</th>
             </tr>
           </thead>
           <tbody>
@@ -478,7 +487,7 @@ function CompareTable({ runs, allRuns }: { runs: EvalRun[]; allRuns: EvalRun[] }
               const aligned = (r.eval_mode || "legacy") === "aligned";
               const cell = (m: MetricDef) => {
                 const v = Number(r[m.key]) || 0;
-                const d = prev ? deltaLabel(m, v, Number(prev[m.key]) || 0) : null;
+                const d = prev ? deltaLabel(m, v, Number(prev[m.key]) || 0, tr) : null;
                 return (
                   <td>
                     <div style={{ fontWeight: 600 }}>{m.fmt(v)}</div>
@@ -499,21 +508,17 @@ function CompareTable({ runs, allRuns }: { runs: EvalRun[]; allRuns: EvalRun[] }
                     <span
                       className="tag"
                       style={{ marginLeft: 6, opacity: 0.85 }}
-                      title={
-                        aligned
-                          ? "운영과 동일한 검색 조건(리랭커·임계·게이트·top_k)으로 측정 — 실제 서비스 품질"
-                          : "옛 방식: 리랭커 없음·게이트 없음·top_k 8. 후보 풀이 운영의 1.88배라 점수가 높게 나온다(운영 품질 아님)"
-                      }
+                      title={aligned ? tr("admin.trend.tag_aligned_title") : tr("admin.trend.tag_legacy_title")}
                     >
-                      {aligned ? "운영정렬" : "옛측정"}
+                      {aligned ? tr("admin.trend.tag_aligned") : tr("admin.trend.tag_legacy")}
                     </span>
                     {modeChanged && (
                       <span
                         className="tag pending"
                         style={{ marginLeft: 6 }}
-                        title="측정 조건이 직전 실행과 다르다 — 위아래 점수를 이어서 비교하지 말 것"
+                        title={tr("admin.trend.mode_changed_title")}
                       >
-                        조건변경
+                        {tr("admin.trend.mode_changed")}
                       </span>
                     )}
                   </td>
@@ -530,8 +535,7 @@ function CompareTable({ runs, allRuns }: { runs: EvalRun[]; allRuns: EvalRun[] }
         </table>
       </div>
       <div style={{ fontSize: 11.5, color: "var(--ink-400)", marginTop: 8 }}>
-        ※ 변화(Δ)는 <strong>같은 N(표본 크기)</strong>을 가진 가장 최근 이전 실행과 비교합니다. N이 다르면
-        평가셋이 바뀐 것이라 점수 차이를 효과로 해석하면 안 됩니다.
+        <Trans i18nKey="admin.trend.cmp_note" components={{ b: <strong /> }} />
       </div>
     </div>
   );
@@ -539,38 +543,22 @@ function CompareTable({ runs, allRuns }: { runs: EvalRun[]; allRuns: EvalRun[] }
 
 // ===================== 해석 가이드 =====================
 function Guide() {
+  const { t: tr } = useTranslation();
   return (
     <details className="card">
-      <summary style={{ cursor: "pointer", fontWeight: 700 }}>이 화면 읽는 법 · 지표 설명</summary>
+      <summary style={{ cursor: "pointer", fontWeight: 700 }}>{tr("admin.trend.guide_summary")}</summary>
       <div style={{ fontSize: 13, lineHeight: 1.7, color: "var(--ink-600)", marginTop: 10 }}>
         <p style={{ marginTop: 0 }}>
-          <strong>무엇을 보나요?</strong> 고정된 49개 사주 질문에 대해, 우리 지식DB(RAG)가{" "}
-          <em>정답에 필요한 핵심어가 담긴 자료</em>를 검색 상위에 잘 올려주는지를 측정한 결과입니다. 자료를 추가할
-          때마다 평가를 돌리면, 그 추가가 검색 품질을 실제로 올렸는지(효과)를 숫자로 확인할 수 있습니다.
+          <Trans i18nKey="admin.trend.guide_p1" components={{ strong: <strong />, em: <em /> }} />
         </p>
         <ul style={{ margin: "0 0 10px", paddingLeft: 18 }}>
-          <li>
-            <strong style={{ color: "#2563eb" }}>핵심 적중률(hit)</strong> — 질문의 핵심어 중 검색결과에서 발견된
-            평균 비율. <b>높을수록 좋음.</b>
-          </li>
-          <li>
-            <strong style={{ color: "#16a34a" }}>합격률(pass@60)</strong> — 핵심어를 60% 이상 찾은 질문의 비율.{" "}
-            <b>목표 100%</b>, 높을수록 좋음.
-          </li>
-          <li>
-            <strong style={{ color: "#9333ea" }}>최상위 유사도(top1)</strong> — 1순위 자료의 의미 유사도(0~1).
-            높을수록 질문에 딱 맞는 자료가 있다는 뜻.
-          </li>
-          <li>
-            <strong style={{ color: "#f59e0b" }}>검색 속도(lat)</strong> — 질문당 평균 검색 시간(ms).{" "}
-            <b>낮을수록 좋음.</b>
-          </li>
+          <li><Trans i18nKey="admin.trend.guide_li_hit" components={{ c: <strong style={{ color: "#2563eb" }} />, b: <b /> }} /></li>
+          <li><Trans i18nKey="admin.trend.guide_li_pass" components={{ c: <strong style={{ color: "#16a34a" }} />, b: <b /> }} /></li>
+          <li><Trans i18nKey="admin.trend.guide_li_top1" components={{ c: <strong style={{ color: "#9333ea" }} />, b: <b /> }} /></li>
+          <li><Trans i18nKey="admin.trend.guide_li_lat" components={{ c: <strong style={{ color: "#f59e0b" }} />, b: <b /> }} /></li>
         </ul>
         <p style={{ margin: 0 }}>
-          <strong>꼭 기억할 점</strong> ① 이 점수는 “검색이 정답 재료를 잘 가져오는가”를 보는 <u>선행지표</u>이며,
-          최종 답변 문장의 품질 자체는 아닙니다(답변은 LLM 단계에서 별도로 생성). ② 표본 크기(N)가 다른 실행끼리는
-          점수를 직접 비교하지 마세요 — 평가셋이 바뀐 것입니다. ③ 효과를 정확히 보려면 자료 추가 <u>전·후</u>를{" "}
-          <u>같은 N</u>으로 한 번씩 돌려 비교하세요.
+          <Trans i18nKey="admin.trend.guide_p2" components={{ strong: <strong />, u: <u /> }} />
         </p>
       </div>
     </details>
@@ -579,6 +567,7 @@ function Guide() {
 
 // ===================== 메인 =====================
 export default function TrendPage() {
+  const { t: tr } = useTranslation();
   const [runs, setRuns] = useState<EvalRun[]>([]);
   const [err, setErr] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
@@ -599,13 +588,13 @@ export default function TrendPage() {
   }, [load]);
 
   if (err) return <div className="card err">{err}</div>;
-  if (!loaded) return <div className="card">불러오는 중…</div>;
+  if (!loaded) return <div className="card">{tr("admin.loading")}</div>;
 
   // 데이터가 없어도 실행 컨트롤/가이드는 보여준다.
   const headerNote =
     runs.length === 0
-      ? "아직 평가 기록이 없습니다. 아래 ‘지금 평가 실행’으로 첫 평가를 돌려보세요."
-      : `총 ${runs.length}회 평가 · 최근 라벨 ${runs[runs.length - 1].tag || "-"}`;
+      ? tr("admin.trend.head_none")
+      : tr("admin.trend.head_count", { count: runs.length, tag: runs[runs.length - 1].tag || "-" });
 
   // 매일 자동 평가로 점이 계속 쌓이므로, 차트/표는 최근 구간만 보여 가독성을 유지한다.
   const MAX_VIEW = 30;
@@ -615,9 +604,9 @@ export default function TrendPage() {
   return (
     <>
       <div className="card">
-        <h2 style={{ margin: "0 0 4px" }}>RAG 검색 품질 평가</h2>
+        <h2 style={{ margin: "0 0 4px" }}>{tr("admin.trend.main_title")}</h2>
         <div style={{ fontSize: 13, color: "var(--ink-600)" }}>
-          지식DB가 “정답에 필요한 자료”를 검색 상위에 잘 올려주는지 측정하는 회귀 테스트입니다. {headerNote}
+          {tr("admin.trend.desc_prefix")} {headerNote}
         </div>
       </div>
 
@@ -627,19 +616,19 @@ export default function TrendPage() {
 
       {truncated && (
         <div style={{ fontSize: 12, color: "var(--ink-400)", margin: "-8px 2px 8px" }}>
-          ※ 아래 차트·표는 가독성을 위해 최근 {MAX_VIEW}회만 표시합니다 (전체 {runs.length}회 기록 보관).
+          {tr("admin.trend.trunc_note", { max: MAX_VIEW, total: runs.length })}
         </div>
       )}
 
       {view.length > 0 && (
         <LineChart
           runs={view}
-          title="검색 정확도 추세 (핵심 적중률 · 합격률)"
+          title={tr("admin.trend.chart1_title")}
           yKind="pct"
-          targetLine={{ value: 0.6, label: "합격 기준 60%" }}
+          targetLine={{ value: 0.6, label: tr("admin.trend.chart1_target") }}
           series={[
-            { key: "keyword_hit_rate_mean", label: "핵심 적중률", color: "#2563eb", fmt: PCT },
-            { key: "pass_at_60", label: "합격률(≥60%)", color: "#16a34a", fmt: PCT },
+            { key: "keyword_hit_rate_mean", label: tr("admin.trend.m_hit_label"), color: "#2563eb", fmt: PCT },
+            { key: "pass_at_60", label: tr("admin.trend.s_pass"), color: "#16a34a", fmt: PCT },
           ]}
         />
       )}
@@ -647,11 +636,11 @@ export default function TrendPage() {
       {view.length > 0 && (
         <LineChart
           runs={view}
-          title="검색 유사도 추세 (의미적 일치도)"
+          title={tr("admin.trend.chart2_title")}
           yKind="ratio"
           series={[
-            { key: "top1_score_mean", label: "최상위 유사도", color: "#9333ea", fmt: SCORE },
-            { key: "topk_mean_score_mean", label: "평균 유사도", color: "#0ea5e9", fmt: SCORE },
+            { key: "top1_score_mean", label: tr("admin.trend.m_top1_label"), color: "#9333ea", fmt: SCORE },
+            { key: "topk_mean_score_mean", label: tr("admin.trend.th_avg"), color: "#0ea5e9", fmt: SCORE },
           ]}
         />
       )}
@@ -659,9 +648,9 @@ export default function TrendPage() {
       {view.length > 0 && (
         <LineChart
           runs={view}
-          title="검색 속도 추세 (낮을수록 빠름)"
+          title={tr("admin.trend.chart3_title")}
           yKind="count"
-          series={[{ key: "latency_ms_mean", label: "평균 검색시간(ms)", color: "#f59e0b", fmt: MS }]}
+          series={[{ key: "latency_ms_mean", label: tr("admin.trend.s_lat"), color: "#f59e0b", fmt: MS }]}
         />
       )}
 

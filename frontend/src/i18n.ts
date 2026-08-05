@@ -20,6 +20,7 @@ import { answerKo, answerVi } from "./locales/answer";
 import { shellKo, shellVi } from "./locales/shell";
 import { explainKo, explainVi } from "./locales/explain";
 import { miscKo, miscVi } from "./locales/misc";
+import { adminKo, adminVi } from "./locales/admin";
 
 export const SUPPORTED = ["ko", "vi"] as const;
 export type Locale = (typeof SUPPORTED)[number];
@@ -175,6 +176,7 @@ const resources = {
       shell: shellKo,
       explain: explainKo,
       misc: miscKo,
+      admin: adminKo,
     },
   },
   vi: {
@@ -318,6 +320,7 @@ const resources = {
       shell: shellVi,
       explain: explainVi,
       misc: miscVi,
+      admin: adminVi,
     },
   },
 };
