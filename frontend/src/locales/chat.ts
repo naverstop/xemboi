@@ -149,6 +149,37 @@ export const chatKo = {
   sl_start_full: "정리 후 시작할 수 있어요",
   sl_start: "새 상담 시작",
   sl_later: "나중에 할게요",
+  sl_selall: "전체 선택",
+  sl_deleting: "삭제 중…",
+  sl_bulk_del: "🗑 선택 삭제",
+  // 종합풀이 고민 정조준(comprehensive 뒤에 이어 붙는 문장 — LLM 프롬프트)
+  comprehensive_worry:
+    " 특히 요즘 제 가장 큰 고민은 「{{worry}}」입니다. 이 고민부터 짚어 주시고, 종합 풀이 전체를 이 고민과 연결해 주세요.",
+  bulk_del_confirm: "선택한 {{n}}개 상담을 삭제할까요?\n삭제한 상담 기록은 복구할 수 없어요.",
+  stream_stalled: "⚠️ 답변 생성이 지연되고 있어요. 잠시 후 다시 질문해 주세요. (포인트는 차감되지 않았어요)",
+  // 추가질문 무료/무과금 안내(FollowupBilling freeNote)
+  fn_admin: "관리자 · 무과금 (무제한)",
+  fn_free: "이번 질문 무료 · 남은 무료 {{rem}}/{{quota}}회{{deepNote}}",
+  fn_free_deep: " (심화도 무료)",
+  // 사주정보 기억하기 스위치/강조 카드
+  remember_on: "다음부터 자동 입력돼요",
+  remember_off: "켜면 매번 입력 안 해도 돼요",
+  remembered_badge: "🔖 기억된 내 정보",
+  remembered_sub: "자동으로 불러왔어요 · 바꾸려면 아래에서 수정하세요",
+  // (선택) 요즘 가장 큰 고민 입력
+  worry_label: "💬 요즘 가장 큰 고민",
+  worry_opt: "선택 · 적으면 이 고민에 맞춰 풀이",
+  worry_ph: "예: 내년에 이직할지, 지금 회사에 남을지 고민이에요",
+  // 명식 → 1:1 상담 배너
+  consult_banner_title: "이 명식으로 1:1 상담",
+  consult_banner_desc: "방금 본 사주 명식이 그대로 전해져요 — 사주 상담사와 이 명식으로 상담합니다",
+  consult_label: "{{date}} 명식",
+  // 사전 선택질문(clarify) 건너뛰기
+  clarify_skip_ctx: "(선택 안 함 — 전체적으로 봐주세요)",
+  clarify_skip: "그냥 전체적으로 봐주세요",
+  // 답변 작성 중 상태표시
+  writing_title: "응답 생성 중",
+  writing_now: "상담친구가 답변을 작성하고 있어요",
 };
 
 export const chatVi: typeof chatKo = {
@@ -298,4 +329,35 @@ export const chatVi: typeof chatKo = {
   sl_start_full: "Dọn xong mới bắt đầu được",
   sl_start: "Bắt đầu tư vấn mới",
   sl_later: "Để sau",
+  sl_selall: "Chọn tất cả",
+  sl_deleting: "Đang xóa…",
+  sl_bulk_del: "🗑 Xóa mục đã chọn",
+  // 종합풀이 고민 정조준(comprehensive 뒤에 이어 붙는 문장 — LLM 프롬프트)
+  comprehensive_worry:
+    " Đặc biệt, nỗi băn khoăn lớn nhất của tôi gần đây là “{{worry}}”. Hãy nhìn vào nỗi băn khoăn này trước, và kết nối toàn bộ luận giải tổng hợp với nó.",
+  bulk_del_confirm: "Xóa {{n}} cuộc tư vấn đã chọn?\nLịch sử tư vấn đã xóa không thể khôi phục.",
+  stream_stalled: "⚠️ Việc tạo câu trả lời đang bị chậm. Vui lòng hỏi lại sau giây lát. (Không bị trừ điểm)",
+  // 추가질문 무료/무과금 안내(FollowupBilling freeNote)
+  fn_admin: "Quản trị · miễn phí (không giới hạn)",
+  fn_free: "Câu hỏi này miễn phí · còn {{rem}}/{{quota}} lần miễn phí{{deepNote}}",
+  fn_free_deep: " (chuyên sâu cũng miễn phí)",
+  // 사주정보 기억하기 스위치/강조 카드
+  remember_on: "Từ lần sau sẽ tự động điền",
+  remember_off: "Bật lên thì không cần nhập lại mỗi lần",
+  remembered_badge: "🔖 Thông tin đã ghi nhớ",
+  remembered_sub: "Đã tự động tải lại · muốn đổi hãy sửa ở bên dưới",
+  // (선택) 요즘 가장 큰 고민 입력
+  worry_label: "💬 Nỗi băn khoăn lớn nhất gần đây",
+  worry_opt: "tùy chọn · nếu ghi, luận giải sẽ bám theo nỗi băn khoăn này",
+  worry_ph: "VD: Tôi phân vân sang năm nên chuyển việc hay ở lại công ty hiện tại",
+  // 명식 → 1:1 상담 배너
+  consult_banner_title: "Tư vấn 1:1 với lá số này",
+  consult_banner_desc: "Lá số bạn vừa xem sẽ được chuyển nguyên vẹn — tư vấn với tư vấn viên Tứ Trụ bằng lá số này",
+  consult_label: "Lá số {{date}}",
+  // 사전 선택질문(clarify) 건너뛰기
+  clarify_skip_ctx: "(Không chọn — hãy xem tổng thể giúp tôi)",
+  clarify_skip: "Cứ xem tổng thể giúp tôi",
+  // 답변 작성 중 상태표시
+  writing_title: "Đang tạo câu trả lời",
+  writing_now: "Người tư vấn đang soạn câu trả lời",
 };

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { api, Review, ReviewSource } from "../api";
 
 /** B-3 공개 후기 스트립 — 승인된 후기만 가로 스크롤 카드로 노출.
@@ -12,6 +13,7 @@ export default function ReviewStrip({
   limit?: number;
   title?: string;
 }) {
+  const { t: tr } = useTranslation();
   const [items, setItems] = useState<Review[]>([]);
 
   useEffect(() => {
@@ -33,7 +35,7 @@ export default function ReviewStrip({
       <div className="rv-strip" role="list">
         {items.map((r) => (
           <figure className="rv-card" role="listitem" key={r.id}>
-            <div className="rv-stars" aria-label={`별점 ${r.rating}점`}>
+            <div className="rv-stars" aria-label={tr("reviews.stars_aria", { n: r.rating })}>
               {"★".repeat(r.rating)}
               <span className="rv-stars-dim">{"★".repeat(5 - r.rating)}</span>
             </div>

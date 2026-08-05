@@ -30,32 +30,21 @@ import { readableBirth, type BirthValue } from "../components/BirthFields";
 import FollowupBilling from "../components/FollowupBilling";
 import { fmtNum } from "../lib/money";
 import { DEFAULT_LON } from "../lib/regions";
+import i18n from "../i18n";
 
 // 철학관 상호(항목 D) — 운영 설정값 연동은 P3, 우선 환경값으로 표시.
 const STUDIO_NAME = (import.meta.env.VITE_STUDIO_NAME as string | undefined) || "";
 
-// 추천 질문 칩 (suggestion chips)
 // 상담 시작 시 자동 전송하는 '종합 풀이' 질문(칩 클릭 없이 기본으로 풍부하게). 첫 답변=이 종합 풀이.
-const COMPREHENSIVE_READING =
-  "내 사주를 종합적으로 풀어주세요 — 성격·육친·건강운과, 올해 일어날 수 있는 일, 그리고 이번 달부터 월별로 생길 수 있는 일(직업·재물·인연 포함)을 알차고 풍부하게.";
-// 상담 시작 시 '요즘 고민 한 줄'이 있으면 종합풀이를 그 고민에 정조준(판정 먼저)한다.
-// COMPREHENSIVE_READING에 '종합'이 들어 있어 백엔드 라우팅은 종합구조를 그대로 유지(고민 키워드로 집중모드에 안 빠짐).
+// '요즘 고민 한 줄'이 있으면 종합풀이를 그 고민에 정조준(판정 먼저)한다. 로케일별 카탈로그(chat.comprehensive*)
+// — LLM에 그대로 전달되므로 현재 로케일 언어로 생성. '종합' 키워드가 들어 있어 백엔드 라우팅은 종합구조 유지.
 function comprehensiveMsg(worry: string): string {
   const w = (worry || "").trim();
-  if (!w) return COMPREHENSIVE_READING;
-  return `${COMPREHENSIVE_READING} 특히 요즘 제 가장 큰 고민은 「${w}」입니다. 이 고민부터 짚어 주시고, 종합 풀이 전체를 이 고민과 연결해 주세요.`;
+  const base = i18n.t("chat.comprehensive");
+  if (!w) return base;
+  return base + i18n.t("chat.comprehensive_worry", { worry: w });
 }
-const SUGGEST_CHIPS = [
-  "🔮 내 사주 종합 풀이 — 성격·육친·건강운, 올해와 월별로 생길 수 있는 일을 알차게 풀어주세요.",
-  "내 성격과 육친(가족·인연) 풀이를 해주세요.",
-  "올해 전체 운세가 어떤가요?",
-  "직업·적성은 어떤 분야가 맞나요?",
-  "재물운과 금전운을 알려주세요.",
-  "연애·결혼운은 어떤가요?",
-  "건강에서 주의할 점은?",
-  "대운 흐름을 짚어주세요.",
-];
-// 종합 풀이 프롬프트·추천 칩은 로케일별(tr("chat.comprehensive"|"chat.chips")) — 컴포넌트 내부에서 정의.
+// 추천 질문 칩(suggestion chips)도 로케일별(tr("chat.chips")) — 컴포넌트 내부에서 정의.
 
 type Turn = {
   role: "user" | "assistant";
@@ -92,8 +81,7 @@ export default function ChatPage() {
   // 상담서(PDF) 제목/대상에 쓰는 회원 표시명 — ⚠️ 호칭은 이메일 아이디 고정(운영자 결정 2026-07).
   //    정책·잠금 주석은 lib/displayName.ts 에 일원화 — 전 메뉴 공통 헬퍼를 쓸 것(닉네임 우선 금지).
   const memberName = displayName(me);
-  // 종합 풀이 자동전송 프롬프트 + 추천 칩(로케일별) — LLM에 그대로 전달된다.
-  const COMPREHENSIVE_READING = tr("chat.comprehensive");
+  // 추천 칩(로케일별) — LLM에 그대로 전달된다. (종합풀이 프롬프트는 모듈의 comprehensiveMsg가 i18n.t로 생성)
   const SUGGEST_CHIPS = tr("chat.chips", { returnObjects: true }) as string[];
 
   function billingHint(): string {
@@ -381,7 +369,7 @@ export default function ChatPage() {
   const bulkDeleteSessions = async () => {
     const ids = [...sel.selected];
     if (ids.length === 0 || bulkDeleting) return;
-    if (!window.confirm(`선택한 ${ids.length}개 상담을 삭제할까요?\n삭제한 상담 기록은 복구할 수 없어요.`)) return;
+    if (!window.confirm(tr("chat.bulk_del_confirm", { n: ids.length }))) return;
     setBulkDeleting(true);
     try {
       await api.bulkDeleteChatSessions(ids);
@@ -793,9 +781,9 @@ export default function ChatPage() {
       if (m.includes("402") || m.includes("quota_exceeded") || m.includes("insufficient_credits")) {
         setShowPaywall(true);
       } else if (m.includes("503") || m.includes("연결할 수 없습니다")) {
-        setErr("⚠️ 일시적으로 서비스에 연결할 수 없습니다. 잠시 후 다시 시도해 주세요.");
+        setErr(tr("chat.svc_unavailable"));
       } else if (m.includes("STREAM_STALLED")) {
-        setErr("⚠️ 답변 생성이 지연되고 있어요. 잠시 후 다시 질문해 주세요. (포인트는 차감되지 않았어요)");
+        setErr(tr("chat.stream_stalled"));
       } else {
         setErr(m);
       }
@@ -893,11 +881,11 @@ export default function ChatPage() {
   //   사주상담만 일일무료 한도가 있어 여기서 판단(다른 메뉴는 입장료 결제라 추가질문 항상 차감).
   function followupFreeNote(): string | null {
     if (!me) return null;   // 비로그인은 FollowupBilling 이 자체 안내(🔒)
-    if ((me.level ?? 9) <= 1) return "관리자 · 무과금 (무제한)";
+    if ((me.level ?? 9) <= 1) return tr("chat.fn_admin");
     if (me.is_member)
-      return `연간회원 · 무과금 · 잔여 ${(me.membership_remaining ?? 0).toLocaleString()}/${(me.membership_quota ?? 0).toLocaleString()}회`;
+      return tr("chat.bh_member", { rem: (me.membership_remaining ?? 0).toLocaleString(), quota: (me.membership_quota ?? 0).toLocaleString() });
     if ((me.free_remaining ?? 0) > 0)
-      return `이번 질문 무료 · 남은 무료 ${me.free_remaining}/${me.free_quota_count ?? 3}회${depth === "deep" ? " (심화도 무료)" : ""}`;
+      return tr("chat.fn_free", { rem: me.free_remaining, quota: me.free_quota_count ?? 3, deepNote: depth === "deep" ? tr("chat.fn_free_deep") : "" });
     return null;   // 유료 차감 → FollowupBilling 차감 배지(💳 N P 차감)
   }
 
@@ -963,7 +951,7 @@ export default function ChatPage() {
               </div>
             </div>
 
-            <ReviewStrip source="chat" title="이용자 후기" limit={8} />
+            <ReviewStrip source="chat" title={tr("landing.reviews_title")} limit={8} />
 
             <div className="gemini-greeting">
               <p className="hello">{me?.nickname ? tr("chat.hello_named", { name: me.nickname }) : tr("chat.hello")}</p>
@@ -984,8 +972,8 @@ export default function ChatPage() {
                 />
                 <span className="rc-switch" aria-hidden><i /></span>
                 <span className="rc-txt">
-                  💾 내 사주정보 기억하기
-                  <em>{remember ? "다음부터 자동 입력돼요" : "켜면 매번 입력 안 해도 돼요"}</em>
+                  💾 {tr("chat.remember")}
+                  <em>{remember ? tr("chat.remember_on") : tr("chat.remember_off")}</em>
                 </span>
               </label>
             </div>
@@ -995,11 +983,11 @@ export default function ChatPage() {
                 운영자 지적: 상담(사주상담)만 이 카드가 없어 '저장됨'이 안 보였다 → 동일 마크업/클래스로 통일. */}
             {remember && birth.birth_date && (
               <div className="bf-remembered" role="status">
-                <span className="bfr-badge">🔖 기억된 내 정보</span>
+                <span className="bfr-badge">{tr("chat.remembered_badge")}</span>
                 <span className="bfr-main">
                   {readableBirth({ ...birth, birth_time: birth.birth_time || "", unknown_time: unknownTime } as BirthValue)}
                 </span>
-                <span className="bfr-sub">자동으로 불러왔어요 · 바꾸려면 아래에서 수정하세요</span>
+                <span className="bfr-sub">{tr("chat.remembered_sub")}</span>
               </div>
             )}
 
@@ -1088,11 +1076,11 @@ export default function ChatPage() {
 
             {/* (선택) 요즘 가장 큰 고민 — 있으면 종합풀이를 이 고민에 정조준해 '한 줄 판정'부터 시작한다. */}
             <div className="bf-field bf-worry">
-              <label>💬 요즘 가장 큰 고민 <span className="bf-opt">선택 · 적으면 이 고민에 맞춰 풀이</span></label>
+              <label>{tr("chat.worry_label")} <span className="bf-opt">{tr("chat.worry_opt")}</span></label>
               <input
                 className="bf-input"
                 type="text" maxLength={100}
-                placeholder="예: 내년에 이직할지, 지금 회사에 남을지 고민이에요"
+                placeholder={tr("chat.worry_ph")}
                 value={worry}
                 onChange={(e) => setWorry(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter" && dateText && !busy) startSession(); }}
@@ -1139,12 +1127,12 @@ export default function ChatPage() {
                 타로 '이 카드로 1:1 상담'과 동일한 강조 배너(FLUX 엠블럼) — 눈에 잘 띄게(운영자 지시) */}
             {me && sid && (
               <ConsultBanner
-                title="이 명식으로 1:1 상담"
-                desc="방금 본 사주 명식이 그대로 전해져요 — 사주 상담사와 이 명식으로 상담합니다"
+                title={tr("chat.consult_banner_title")}
+                desc={tr("chat.consult_banner_desc")}
                 onClick={() =>
                   window.dispatchEvent(
                     new CustomEvent("saju:consult-open", {
-                      detail: { kind: "saju", refId: sid, label: `${birth.birth_date} 명식` },
+                      detail: { kind: "saju", refId: sid, label: tr("chat.consult_label", { date: birth.birth_date }) },
                     })
                   )
                 }
@@ -1202,14 +1190,14 @@ export default function ChatPage() {
                       <button
                         disabled={busy}
                         onClick={() =>
-                          answerWithContext(turns[i - 1]?.content || "", "(선택 안 함 — 전체적으로 봐주세요)")
+                          answerWithContext(turns[i - 1]?.content || "", tr("chat.clarify_skip_ctx"))
                         }
                         style={{
                           padding: "8px 14px", borderRadius: 20, cursor: busy ? "default" : "pointer",
                           border: "1px solid #ddd", background: "transparent", color: "#888", fontSize: 13,
                         }}
                       >
-                        그냥 전체적으로 봐주세요
+                        {tr("chat.clarify_skip")}
                       </button>
                     </div>
                   </div>
@@ -1377,8 +1365,8 @@ export default function ChatPage() {
               </div>
               <div className="composer-stream">
                 {streaming ? (
-                  <span className="alive-status alive-live" title="응답 생성 중">
-                    <TypingDots /> 상담친구가 답변을 작성하고 있어요
+                  <span className="alive-status alive-live" title={tr("chat.writing_title")}>
+                    <TypingDots /> {tr("chat.writing_now")}
                   </span>
                 ) : (
                   <span className="alive-status idle">{tr("chat.idle")}</span>
@@ -1500,14 +1488,14 @@ export default function ChatPage() {
                   ref={(el) => { if (el) el.indeterminate = sel.count > 0 && sel.count < sessions.length; }}
                   onChange={(e) => sel.setAll(sessions.map((s) => s.session_id), e.target.checked)}
                 />
-                전체 선택
+                {tr("chat.sl_selall")}
               </label>
               <button
                 className="sl-bulk-del"
                 disabled={sel.count === 0 || bulkDeleting}
                 onClick={bulkDeleteSessions}
               >
-                {bulkDeleting ? "삭제 중…" : `🗑 선택 삭제${sel.count ? ` (${sel.count})` : ""}`}
+                {bulkDeleting ? tr("chat.sl_deleting") : `${tr("chat.sl_bulk_del")}${sel.count ? ` (${sel.count})` : ""}`}
               </button>
             </div>
             <div className="sl-list">

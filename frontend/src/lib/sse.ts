@@ -1,5 +1,6 @@
 // 공용 SSE 스트리밍 (채팅/궁합/도구 동일 프로토콜). 한 어시스턴트 턴 스트리밍.
 import { ensureFreshToken, notifySessionExpired } from "../api";
+import i18n from "../i18n";
 
 export type SSEHandlers = {
   onChunk: (full: string) => void;
@@ -85,7 +86,7 @@ export async function streamSSE(
           gotDone = true;
           try { h.onDone?.(JSON.parse(data)); } catch {}
         } else if (event === "error" && data) {
-          try { throw new Error(JSON.parse(data).detail || "스트림 오류"); } catch (e) { throw e; }
+          try { throw new Error(JSON.parse(data).detail || i18n.t("libx.stream_error")); } catch (e) { throw e; }
         }
       }
     }

@@ -10,6 +10,7 @@
  *  집계 직후 갱신은 window 이벤트 'saju:share-counted' 로 받는다(ProgressDock 의 이벤트 방식과 동일).
  */
 import { useEffect, useState } from "react";
+import { useTranslation, Trans } from "react-i18next";
 import { api } from "../api";
 
 type Q = {
@@ -27,6 +28,7 @@ function nextResetLabel(q: Q): string | null {
 }
 
 export default function ShareQuotaNote({ className }: { className?: string }) {
+  const { t: tr } = useTranslation();
   const [q, setQ] = useState<Q | null>(null);
   useEffect(() => {
     let alive = true;
@@ -42,16 +44,16 @@ export default function ShareQuotaNote({ className }: { className?: string }) {
 
   if (!q) return null;
   const cls = className ?? "share-quota-note";
-  if (q.unlimited) return <div className={cls}>공유 무제한</div>;
+  if (q.unlimited) return <div className={cls}>{tr("answer.quota_unlimited")}</div>;
 
   const reset = nextResetLabel(q);
   const out = q.remaining <= 0;
   return (
     <div className={`${cls}${out ? " is-out" : ""}`}>
       {out
-        ? <>무료 공유를 모두 사용했어요</>
-        : <>남은 무료 공유 <b>{q.remaining}</b>회 <span className="sqn-of">/ {q.limit}회</span></>}
-      {reset && <span className="sqn-reset"> · {reset} 초기화</span>}
+        ? <>{tr("answer.quota_out")}</>
+        : <Trans i18nKey="answer.quota_left" values={{ n: q.remaining, limit: q.limit }} components={{ b: <b />, of: <span className="sqn-of" /> }} />}
+      {reset && <span className="sqn-reset">{tr("answer.quota_reset", { date: reset })}</span>}
     </div>
   );
 }

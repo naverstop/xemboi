@@ -1,0 +1,53 @@
+/** SnackPage(무료 스낵 테스트) 문자열 카탈로그 — common.snack 로 병합.
+ * ko 값은 기존 하드코딩 문구 그대로(한국 서비스 불변), vi 는 베트남어.
+ * 테스트 제목·설명·결과 라벨 등은 백엔드(SnackTest/SnackResult) 산출값이라 여기 없음.
+ */
+export const snackKo = {
+  badge: "테스트",
+  hub_title: "무료 사주 테스트",
+  hub_desc: "생년월일만 넣으면 끝! 내 사주로 보는 <b>재미있는 유형 테스트</b>예요. 결과는 카드로 저장·공유할 수 있어요. <b>무료·회원가입 없이</b>.",
+  hub_cta: "테스트 시작 →",
+  err_load: "테스트를 불러오지 못했어요.",
+  share_quota: "무료 공유 횟수를 모두 사용했어요. 월 패스를 이용하면 더 많이 공유할 수 있어요.",
+  share_login: "공유하려면 먼저 로그인해 주세요.",
+  card_filename: "테스트결과.png",
+  share_fail: "공유에 실패했어요. 링크 복사로 전달해 주세요.",
+  link_copied: "테스트 링크를 복사했어요! 친구에게 공유해 보세요.",
+  share_hold_save: "이미지를 길게 눌러 저장 후 공유해 주세요.",
+  title_fallback: "사주 테스트",
+  free_suffix: "<b>무료</b>예요.",
+  analyzing: "분석 중…",
+  cta_result: "{{emoji}} 결과 보기 (무료)",
+  hint_birth: "생년월일을 입력해 주세요",
+  card_alt: "테스트 결과 카드",
+  share_btn: "공유하기",
+  saved_done: "✅ 저장 완료",
+  save_btn: "⤓ 저장",
+  more_tests: "← 다른 테스트도 해보기",
+  see_saju: "내 사주 자세히 보기 →",
+};
+
+export const snackVi: typeof snackKo = {
+  badge: "Trắc nghiệm",
+  hub_title: "Trắc nghiệm Tứ Trụ miễn phí",
+  hub_desc: "Chỉ cần nhập ngày sinh là xong! Một <b>trắc nghiệm tính cách thú vị</b> dựa trên lá số của bạn. Kết quả có thể lưu·chia sẻ dưới dạng thẻ. <b>Miễn phí·không cần đăng ký</b>.",
+  hub_cta: "Bắt đầu trắc nghiệm →",
+  err_load: "Không tải được trắc nghiệm.",
+  share_quota: "Bạn đã dùng hết lượt chia sẻ miễn phí. Dùng gói tháng để chia sẻ nhiều hơn.",
+  share_login: "Vui lòng đăng nhập trước khi chia sẻ.",
+  card_filename: "ket-qua-trac-nghiem.png",
+  share_fail: "Chia sẻ thất bại. Hãy sao chép liên kết để gửi nhé.",
+  link_copied: "Đã sao chép liên kết trắc nghiệm! Hãy chia sẻ với bạn bè nhé.",
+  share_hold_save: "Hãy nhấn giữ hình ảnh để lưu rồi chia sẻ nhé.",
+  title_fallback: "Trắc nghiệm Tứ Trụ",
+  free_suffix: "Hoàn toàn <b>miễn phí</b>.",
+  analyzing: "Đang phân tích…",
+  cta_result: "{{emoji}} Xem kết quả (miễn phí)",
+  hint_birth: "Vui lòng nhập ngày sinh",
+  card_alt: "Thẻ kết quả trắc nghiệm",
+  share_btn: "Chia sẻ",
+  saved_done: "✅ Đã lưu",
+  save_btn: "⤓ Lưu",
+  more_tests: "← Thử trắc nghiệm khác",
+  see_saju: "Xem chi tiết lá số của tôi →",
+};

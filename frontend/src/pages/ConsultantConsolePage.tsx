@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useTranslation } from "react-i18next";
+import { useTranslation, Trans } from "react-i18next";
 import { Link } from "react-router-dom";
 import {
   api,
@@ -23,7 +23,7 @@ import ConsultantSettingsPage from "./ConsultantSettingsPage";
  * 설정: 간판·요금·#키워드(ConsultantSettingsPage 임베드). 영업 상태는 탭과 무관하게 유지된다.
  */
 export default function ConsultantConsolePage() {
-  const { t: tr } = useTranslation();
+  const { t: tr, i18n } = useTranslation();
   const me = useMe();
   const { openSession, setConsoleOnDuty } = useConsultation();
   const [profile, setProfile] = useState<ConsultantSelf | null | undefined>(undefined); // undefined=로딩
@@ -60,20 +60,20 @@ export default function ConsultantConsolePage() {
       setSlotAt("");
       loadSlots();
     } catch (e: any) {
-      setSlotErr(e?.message || "예약 시간 등록에 실패했어요.");
+      setSlotErr(e?.message || tr("consult.con_slot_add_fail"));
     }
   }
 
   async function removeSlot(s: ConsultationSlot) {
     const msg = s.status === "booked"
-      ? "이미 예약된 시간이에요. 취소하면 사용자에게 100% 환불되고 알림이 가요. 취소할까요?"
-      : "이 예약 시간을 삭제할까요?";
+      ? tr("consult.con_slot_del_booked")
+      : tr("consult.con_slot_del");
     if (!window.confirm(msg)) return;
     try {
       await api.removeConsultantSlot(s.id);
       loadSlots();
     } catch (e: any) {
-      alert(e?.message || "처리에 실패했어요.");
+      alert(e?.message || tr("consult.con_fail"));
     }
   }
 
@@ -169,7 +169,7 @@ export default function ConsultantConsolePage() {
     const ring = () => {
       if (soundOn) { chime(); speakAlert(); }
       flip = !flip;
-      document.title = flip ? `🔔 새 상담 요청 (${pending.length}) | ${baseTitle}` : baseTitle;
+      document.title = flip ? `${tr("consult.con_tab_alert", { n: pending.length })} | ${baseTitle}` : baseTitle;
     };
     ring();
     const iv = window.setInterval(ring, 15000);
@@ -216,11 +216,12 @@ export default function ConsultantConsolePage() {
       o.start(t + dt); o.stop(t + dt + 0.8);
     });
   }
-  function speakAlert() {                            // 음성 "상담이 들어왔어요"
+  function speakAlert() {                            // 음성 접수 안내(로케일 보이스)
     try {
       window.speechSynthesis.cancel();
-      const u = new SpeechSynthesisUtterance("상담이 들어왔어요");
-      u.lang = "ko-KR"; u.rate = 1.05; u.volume = 1;
+      const u = new SpeechSynthesisUtterance(tr("consult.con_voice_alert"));
+      u.lang = i18n.language?.toLowerCase().startsWith("vi") ? "vi-VN" : "ko-KR";
+      u.rate = 1.05; u.volume = 1;
       window.speechSynthesis.speak(u);
     } catch { /* 미지원 — 차임만 */ }
   }
@@ -242,18 +243,18 @@ export default function ConsultantConsolePage() {
       {onboard && (
         <div className="pwa-overlay" onClick={closeOnboard}>
           <div className="pwa-modal pwa-guide" onClick={(e) => e.stopPropagation()}>
-            <h3>🎉 입점을 환영해요! 시작 가이드</h3>
+            <h3>{tr("consult.con_ob_title")}</h3>
             <ol className="pwa-steps">
               <li><span className="pwa-step-ic" aria-hidden>🖼️</span><span className="pwa-step-no" aria-hidden>1</span>
-                <span className="pwa-step-tx"><b>간판·요금·설정</b> 탭에서 상담소 사진·소개·#키워드·요금(회당/분당/시간당)을 등록하세요. 사용자 목록 카드에 그대로 노출돼요.</span></li>
+                <span className="pwa-step-tx"><Trans i18nKey="consult.con_ob_1" components={{ b: <b /> }} /></span></li>
               <li><span className="pwa-step-ic" aria-hidden>📅</span><span className="pwa-step-no" aria-hidden>2</span>
-                <span className="pwa-step-tx"><b>예약</b> 탭에서 상담 가능한 시간대를 등록하면 사용자가 예약할 수 있어요.</span></li>
+                <span className="pwa-step-tx"><Trans i18nKey="consult.con_ob_2" components={{ b: <b /> }} /></span></li>
               <li><span className="pwa-step-ic" aria-hidden>🟢</span><span className="pwa-step-no" aria-hidden>3</span>
-                <span className="pwa-step-tx">우측 상단 <b>영업 중</b> 토글을 켜면 실시간 접수가 시작돼요. 새 요청은 수락/거절할 때까지 <b>소리·알림</b>으로 계속 알려드립니다.</span></li>
+                <span className="pwa-step-tx"><Trans i18nKey="consult.con_ob_3" components={{ b: <b /> }} /></span></li>
               <li><span className="pwa-step-ic" aria-hidden>📊</span><span className="pwa-step-no" aria-hidden>4</span>
-                <span className="pwa-step-tx"><b>내 수익</b> 탭에서 건수·매출·실지급액을 확인하세요. 매월 <b>25일 마감 → 당월 마지막 영업일</b>에 등록 계좌로 지급됩니다(원천징수 3.3% 공제).</span></li>
+                <span className="pwa-step-tx"><Trans i18nKey="consult.con_ob_4" components={{ b: <b /> }} /></span></li>
             </ol>
-            <div className="pwa-actions"><button onClick={closeOnboard}>시작하기</button></div>
+            <div className="pwa-actions"><button onClick={closeOnboard}>{tr("consult.con_ob_start")}</button></div>
           </div>
         </div>
       )}
@@ -292,45 +293,49 @@ export default function ConsultantConsolePage() {
       )}
       {tab === "earnings" && (
         <div className="ccon-earn">
-          {earnings === undefined && <p className="ccon-empty">불러오는 중…</p>}
-          {earnings === null && <p className="ccon-empty">수익 정보를 불러오지 못했어요.</p>}
+          {earnings === undefined && <p className="ccon-empty">{tr("consult.loading")}</p>}
+          {earnings === null && <p className="ccon-empty">{tr("consult.con_earn_fail")}</p>}
           {earnings && (
             <>
               <div style={{ display: "flex", gap: 12, flexWrap: "wrap", margin: "8px 0 16px" }}>
                 <div style={{ flex: "1 1 160px", padding: "14px 16px", borderRadius: 12, background: "var(--surface-2, #f5f3ee)" }}>
-                  <div style={{ fontSize: 13, opacity: 0.7 }}>지급 예정(현재)</div>
-                  <div style={{ fontSize: 22, fontWeight: 700 }}>{earnings.payout_pending_p.toLocaleString()}P</div>
+                  <div style={{ fontSize: 13, opacity: 0.7 }}>{tr("consult.con_earn_pending")}</div>
+                  <div style={{ fontSize: 22, fontWeight: 700 }}>{fmtNum(earnings.payout_pending_p)}{tr("pay.pt")}</div>
                 </div>
                 <div style={{ flex: "1 1 160px", padding: "14px 16px", borderRadius: 12, background: "var(--surface-2, #f5f3ee)" }}>
-                  <div style={{ fontSize: 13, opacity: 0.7 }}>지급 완료 누계</div>
-                  <div style={{ fontSize: 22, fontWeight: 700 }}>{earnings.payout_settled_p.toLocaleString()}P</div>
+                  <div style={{ fontSize: 13, opacity: 0.7 }}>{tr("consult.con_earn_settled")}</div>
+                  <div style={{ fontSize: 22, fontWeight: 700 }}>{fmtNum(earnings.payout_settled_p)}{tr("pay.pt")}</div>
                 </div>
               </div>
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
                 <thead>
                   <tr>
-                    <th style={{ textAlign: "left", padding: "8px 6px", opacity: 0.7 }}>기간</th>
-                    <th style={{ textAlign: "right", padding: "8px 6px", opacity: 0.7 }}>상담 건수</th>
-                    <th style={{ textAlign: "right", padding: "8px 6px", opacity: 0.7 }}>매출</th>
-                    <th style={{ textAlign: "right", padding: "8px 6px", opacity: 0.7 }}>수익(실지급)</th>
+                    <th style={{ textAlign: "left", padding: "8px 6px", opacity: 0.7 }}>{tr("consult.con_earn_period")}</th>
+                    <th style={{ textAlign: "right", padding: "8px 6px", opacity: 0.7 }}>{tr("consult.con_earn_count")}</th>
+                    <th style={{ textAlign: "right", padding: "8px 6px", opacity: 0.7 }}>{tr("consult.con_earn_revenue")}</th>
+                    <th style={{ textAlign: "right", padding: "8px 6px", opacity: 0.7 }}>{tr("consult.con_earn_payout")}</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {([["오늘", earnings.today], ["이번 달", earnings.month], ["올해", earnings.year], ["전체", earnings.total]] as const).map(
-                    ([label, p]) => (
-                      <tr key={label} style={{ borderTop: "1px solid var(--border, #e5e1d8)" }}>
-                        <td style={{ padding: "10px 6px", fontWeight: label === "전체" ? 700 : 400 }}>{label}</td>
-                        <td style={{ padding: "10px 6px", textAlign: "right" }}>{p.count.toLocaleString()}건</td>
-                        <td style={{ padding: "10px 6px", textAlign: "right" }}>{p.revenue_p.toLocaleString()}P</td>
-                        <td style={{ padding: "10px 6px", textAlign: "right", fontWeight: 600 }}>{p.payout_p.toLocaleString()}P</td>
+                  {([
+                    ["total_today", tr("consult.con_earn_today"), earnings.today],
+                    ["total_month", tr("consult.con_earn_month"), earnings.month],
+                    ["total_year", tr("consult.con_earn_year"), earnings.year],
+                    ["total_all", tr("consult.con_earn_total"), earnings.total],
+                  ] as const).map(
+                    ([k, label, p]) => (
+                      <tr key={k} style={{ borderTop: "1px solid var(--border, #e5e1d8)" }}>
+                        <td style={{ padding: "10px 6px", fontWeight: k === "total_all" ? 700 : 400 }}>{label}</td>
+                        <td style={{ padding: "10px 6px", textAlign: "right" }}>{tr("consult.con_earn_count_n", { n: fmtNum(p.count) })}</td>
+                        <td style={{ padding: "10px 6px", textAlign: "right" }}>{fmtNum(p.revenue_p)}{tr("pay.pt")}</td>
+                        <td style={{ padding: "10px 6px", textAlign: "right", fontWeight: 600 }}>{fmtNum(p.payout_p)}{tr("pay.pt")}</td>
                       </tr>
                     )
                   )}
                 </tbody>
               </table>
               <p className="ccon-off" style={{ marginTop: 14 }}>
-                ‘수익(실지급)’은 매출에서 플랫폼 수수료와 원천징수(3.3%)를 뺀 실수령 예정액이에요.
-                실제 지급은 정산 주기에 따라 별도로 이뤄집니다. (기준: 한국시간)
+                {tr("consult.con_earn_note")}
               </p>
             </>
           )}

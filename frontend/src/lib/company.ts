@@ -34,8 +34,6 @@ export const COMPANY = {
   hosting: _v("VITE_BIZ_HOSTING"),                    // 호스팅 제공자
 };
 
-export const PLACEHOLDER = "(운영자 설정 전)";
-
 /** 값이 있으면 그대로, 없으면 로케일 미설정 표기. 운영자가 채우면 자동 반영된다. */
 export function show(val: string): string {
   return val && val.length > 0 ? val : i18n.t("misc.biz_unset");

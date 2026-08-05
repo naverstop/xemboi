@@ -28,6 +28,7 @@ import SupportPage from "./pages/SupportPage";
 import PartnerApplyPage from "./pages/PartnerApplyPage";
 import LegalPage from "./pages/LegalPage";
 import InstallPrompt from "./components/InstallPrompt";
+import LanguageSwitch from "./components/LanguageSwitch";
 import ShareFab from "./components/ShareFab";
 import DisclaimerGate from "./components/DisclaimerGate";
 import TermsGate from "./components/TermsGate";
@@ -269,20 +270,20 @@ export default function App() {
           </button>
           {/* 입점 신청 — 일반 사용자에겐 비노출(운영자 지시): 신청 이력자·상담사·관리자만 */}
           {showPartnerMenu && (
-            <NavLink to="/partner-apply" onClick={() => setNavOpen(false)} className={({ isActive }) => (isActive ? "active" : "")}><MenuIc k="partner" ic="heart" /> 입점 신청</NavLink>
+            <NavLink to="/partner-apply" onClick={() => setNavOpen(false)} className={({ isActive }) => (isActive ? "active" : "")}><MenuIc k="partner" ic="heart" /> {tr("nav.partner")}</NavLink>
           )}
           {/* ── 이후 관리자/운영 메뉴(운영자 지시) ── */}
           {me && (
-            <NavLink to="/settings" onClick={() => setNavOpen(false)} className={({ isActive }) => (isActive ? "active" : "")}><MenuIc k="gear" ic="gear" /> 설정</NavLink>
+            <NavLink to="/settings" onClick={() => setNavOpen(false)} className={({ isActive }) => (isActive ? "active" : "")}><MenuIc k="gear" ic="gear" /> {tr("nav.settings")}</NavLink>
           )}
           {isConsultant && (
-            <NavLink to="/consultation/console" onClick={() => setNavOpen(false)} className={({ isActive }) => (isActive ? "active" : "")}><span className="nav-emoji" aria-hidden>💬</span> 상담사</NavLink>
+            <NavLink to="/consultation/console" onClick={() => setNavOpen(false)} className={({ isActive }) => (isActive ? "active" : "")}><span className="nav-emoji" aria-hidden>💬</span> {tr("nav.consultant_console")}</NavLink>
           )}
           {me?.role === "admin" && (
             <>
-              <NavLink to="/uploads" onClick={() => setNavOpen(false)} className={({ isActive }) => (isActive ? "active" : "")}><MenuIc k="folder" ic="folder" /> 업로드</NavLink>
-              <NavLink to="/trend" onClick={() => setNavOpen(false)} className={({ isActive }) => (isActive ? "active" : "")}><MenuIc k="chart" ic="chart" /> 평가 추세</NavLink>
-              <NavLink to="/admin" onClick={() => setNavOpen(false)} className={({ isActive }) => (isActive ? "active" : "")}><MenuIc k="wrench" ic="wrench" /> 관리자</NavLink>
+              <NavLink to="/uploads" onClick={() => setNavOpen(false)} className={({ isActive }) => (isActive ? "active" : "")}><MenuIc k="folder" ic="folder" /> {tr("nav.uploads")}</NavLink>
+              <NavLink to="/trend" onClick={() => setNavOpen(false)} className={({ isActive }) => (isActive ? "active" : "")}><MenuIc k="chart" ic="chart" /> {tr("nav.trend")}</NavLink>
+              <NavLink to="/admin" onClick={() => setNavOpen(false)} className={({ isActive }) => (isActive ? "active" : "")}><MenuIc k="wrench" ic="wrench" /> {tr("nav.admin")}</NavLink>
             </>
           )}
         </nav>
@@ -329,6 +330,7 @@ export default function App() {
         </div>
       </aside>
       <div className="app-content">
+      <LanguageSwitch />{/* ko/vi 전환(국기) — .app-content 좌상단 absolute. VN 빌드에서만 렌더 */}
       {showTarotShortcut && (
         <Link className="tarot-shortcut" to="/tarot" title={tr("shell.tarot_shortcut_title")} aria-label={tr("shell.tarot_shortcut_aria")}>
           <span className="tsc-emblem" aria-hidden>

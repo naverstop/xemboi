@@ -10,6 +10,7 @@
  *  어느 메뉴에서 기억하든 모든 메뉴에 반영된다. "0"은 '명시적으로 껐음' 마커.
  */
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { api, setCachedMe, useMe, type Birth } from "../api";
 import { resolveBirthTime } from "../lib/birthTime";
 import { profileToBirthValue, type BirthValue } from "./BirthFields";
@@ -143,15 +144,16 @@ export function useBirthMemory(
 export default function RememberBirthToggle({
   remember, onToggle,
 }: { remember: boolean; onToggle: (on: boolean) => void }) {
+  const { t: tr } = useTranslation();
   return (
     <div className="bf-remember-row">
       <label className={`remember-check${remember ? " on" : ""}`}
-             title="켜 두면 입력한 사주정보를 저장해, 어느 메뉴에서든 자동으로 불러옵니다.">
+             title={tr("libx.remember_tip")}>
         <input type="checkbox" checked={remember} onChange={(e) => onToggle(e.target.checked)} />
         <span className="rc-switch" aria-hidden><i /></span>
         <span className="rc-txt">
-          💾 내 사주정보 기억하기
-          <em>{remember ? "모든 메뉴에서 자동 입력돼요" : "켜면 매번 입력 안 해도 돼요"}</em>
+          {tr("libx.remember_label")}
+          <em>{remember ? tr("libx.remember_on") : tr("libx.remember_off")}</em>
         </span>
       </label>
     </div>

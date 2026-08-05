@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { subscribePush, getPushState } from "../hooks/usePwaInstall";
 
 /**
@@ -12,6 +13,7 @@ const SNOOZE_KEY = "saju_consult_push_snooze";
 const SNOOZE_MS = 3 * 864e5; // 3일
 
 export default function ConsultantPushPrompt({ active }: { active: boolean }) {
+  const { t: tr } = useTranslation();
   const [show, setShow] = useState(false);
   const [busy, setBusy] = useState(false);
 
@@ -49,11 +51,11 @@ export default function ConsultantPushPrompt({ active }: { active: boolean }) {
     <div className="cpush-banner" role="alert">
       <span className="cpush-ic" aria-hidden>🔔</span>
       <div className="cpush-tx">
-        <b>상담 요청 알림 켜기</b>
-        <span>영업 중이 아닐 때도 새 상담 요청을 놓치지 않아요.</span>
+        <b>{tr("consult.push_title")}</b>
+        <span>{tr("consult.push_sub")}</span>
       </div>
-      <button className="cpush-allow" onClick={allow} disabled={busy}>{busy ? "설정 중…" : "허용"}</button>
-      <button className="cpush-later" onClick={later} aria-label="나중에">✕</button>
+      <button className="cpush-allow" onClick={allow} disabled={busy}>{busy ? tr("consult.push_setting") : tr("consult.push_allow")}</button>
+      <button className="cpush-later" onClick={later} aria-label={tr("consult.push_later")}>✕</button>
     </div>
   );
 }

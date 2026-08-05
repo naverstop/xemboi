@@ -5,7 +5,7 @@
  *   · me.premium_entry_costs[menu] : 할인 반영된 메뉴별 입장료
  *   · me.premium_entry_free        : 이 사용자(관리자/멤버십) 입장 무료 여부
  * - 사주 상담(chat)은 이 정책 대상이 아니다.
- * - 문구/메뉴명은 i18n(pay.* / nav.*) 카탈로그 사용 → ko/vi 자동 전환.
+ * - 문구/메뉴명은 i18n(pay.* / nav.* / payx.*) 카탈로그 사용 → ko/vi 자동 전환.
  */
 import type { MeResp } from "../api";
 import i18n from "../i18n";
@@ -13,31 +13,15 @@ import { fmtNum } from "./money";
 
 export type EntryMenu = "compat" | "taekil" | "jakmyeong" | "gaemyeong" | "aho" | "tarot" | "sinnyeon";
 
-/** 메뉴 표시명 — nav 카탈로그(로케일) 재사용. 언어 전환 시 자동 반영. */
+/** 메뉴 표시명 — nav 카탈로그(로케일) 재사용(sinnyeon 만 nav 에 없어 payx). 언어 전환 시 자동 반영. */
 export function entryLabel(menu: EntryMenu): string {
-  return i18n.t(`nav.${menu}`);
+  return menu === "sinnyeon" ? i18n.t("payx.menu_sinnyeon") : i18n.t(`nav.${menu}`);
 }
 
-export const ENTRY_MENU_LABEL: Record<EntryMenu, string> = {
-  compat: "궁합",
-  taekil: "택일",
-  jakmyeong: "작명",
-  gaemyeong: "개명",
-  aho: "아호",
-  tarot: "타로",
-  sinnyeon: "신년운세",
-};
-
-/** 입장 시 '무엇을 전부 볼 수 있는지' — 입장 확인 모달의 오해 예방 안내 문구용. */
-export const ENTRY_MENU_DESC: Record<EntryMenu, string> = {
-  compat: "두 사람의 궁합 결과",
-  taekil: "선택한 기간의 길일 추천",
-  jakmyeong: "사주에 맞는 이름 후보",
-  gaemyeong: "현재 이름 진단·개선안",
-  aho: "어울리는 호(號) 후보",
-  tarot: "뽑은 카드의 해석",
-  sinnyeon: "올해 총운·월별 흐름",
-};
+/** 입장 시 '무엇을 전부 볼 수 있는지' — 입장 확인 모달의 오해 예방 안내 문구용(payx 카탈로그). */
+export function entryDesc(menu: EntryMenu): string {
+  return i18n.t(`payx.entry_desc_${menu}`);
+}
 
 /** 메뉴별 기본 입장료(서버 DEFAULTS와 동일) — 비로그인 등 me 부재 시 표시용 폴백(VND). */
 const ENTRY_FALLBACK: Record<EntryMenu, number> = {

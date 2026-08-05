@@ -65,6 +65,30 @@ export const compatKo = {
   axis_ohaeng: "오행",
   axis_sipseong: "십성",
   axis_sinsal: "신살",
+  // 지난 궁합(재열람 서랍)
+  past_title: "{{a}} · {{b}} 궁합",
+  past_label: "지난 궁합",
+  past_empty: "아직 저장된 궁합 결과가 없어요.",
+  // B-10 상대 초대(바이럴)
+  invite_need_a: "먼저 '나'(첫 번째 사람)의 생년월일을 입력해 주세요.",
+  invite_login: "초대 링크는 로그인 후 만들 수 있어요.",
+  invite_fail: "초대 링크를 만들지 못했어요.",
+  invite_copy_prompt: "아래 링크를 복사해 상대에게 보내 주세요",
+  invite_filled: "💌 초대 수락이 완료돼 <b>두 분의 생일이 자동으로 채워졌어요</b> — 바로 궁합을 볼 수 있어요.",
+  invite_hint: "💌 상대방 생일을 모르시나요? <b>초대 링크</b>를 보내면 상대가 직접 입력하고, 두 분 모두 궁합 등급을 받아요.",
+  copied: "✓ 복사됨",
+  copy_link: "링크 복사",
+  invite_making: "만드는 중…",
+  invite_make: "초대 링크 만들기",
+  // 해설/추가질문 진행 상태
+  explain_delay: "해설 생성이 지연되고 있어요. 네트워크나 서버 사정일 수 있어요.",
+  retry_free: "🔄 다시 시도 (무과금)",
+  gen_live: "🔮 <b>설명을 생성하고 있어요</b>",
+  preview_note_charge: "미리보기입니다. 충전 후 전체 해설과 추가 질문을 이용할 수 있어요.",
+  answer_live: "<b>답변을 생성하고 있어요</b>",
+  qa_q_prefix: "[질문] ",
+  // 즉석 영수증(입장료)
+  entry_charged: "✓ 입장료 {{n}} P 차감됨",
 };
 
 export const compatVi: typeof compatKo = {
@@ -131,4 +155,28 @@ export const compatVi: typeof compatKo = {
   axis_ohaeng: "Ngũ hành",
   axis_sipseong: "Thập thần",
   axis_sinsal: "Thần sát",
+  // 지난 궁합(재열람 서랍)
+  past_title: "Hợp tuổi {{a}} · {{b}}",
+  past_label: "Hợp tuổi đã xem",
+  past_empty: "Chưa có kết quả hợp tuổi nào được lưu.",
+  // B-10 상대 초대(바이럴)
+  invite_need_a: "Trước tiên hãy nhập ngày sinh của 'Tôi' (người thứ nhất).",
+  invite_login: "Đăng nhập để tạo liên kết mời.",
+  invite_fail: "Không tạo được liên kết mời.",
+  invite_copy_prompt: "Hãy sao chép liên kết dưới đây và gửi cho đối phương",
+  invite_filled: "💌 Lời mời đã được chấp nhận, <b>ngày sinh của hai bạn đã được điền tự động</b> — có thể xem hợp tuổi ngay.",
+  invite_hint: "💌 Bạn không biết ngày sinh của đối phương? Gửi <b>liên kết mời</b> để đối phương tự nhập, cả hai đều nhận hạng hợp tuổi.",
+  copied: "✓ Đã sao chép",
+  copy_link: "Sao chép liên kết",
+  invite_making: "Đang tạo…",
+  invite_make: "Tạo liên kết mời",
+  // 해설/추가질문 진행 상태
+  explain_delay: "Việc tạo luận giải đang bị chậm. Có thể do mạng hoặc máy chủ.",
+  retry_free: "🔄 Thử lại (không tính phí)",
+  gen_live: "🔮 <b>Đang tạo phần giải thích</b>",
+  preview_note_charge: "Đây là bản xem trước. Nạp điểm để xem luận giải đầy đủ và hỏi thêm.",
+  answer_live: "<b>Đang tạo câu trả lời</b>",
+  qa_q_prefix: "[Câu hỏi] ",
+  // 즉석 영수증(입장료)
+  entry_charged: "✓ Đã trừ phí vào {{n}} điểm",
 };

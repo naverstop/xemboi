@@ -195,11 +195,11 @@ export default function ProgressDock() {
       .catch((e: any) => {
         if (!alive) return;
         if (e?.status === 410 || e?.status === 404) {
-          alert("보관 기간이 지나 영상이 삭제되었어요.");
+          alert(tr("libx.vid_expired"));
           localStorage.removeItem(LS_KEY);
           setHidden(true);
         } else {
-          setPrepErr(e?.message || "영상 파일을 불러오지 못했어요.");
+          setPrepErr(e?.message || tr("libx.vid_load_fail"));
         }
       })
       .finally(() => { if (alive) setPreparing(false); });

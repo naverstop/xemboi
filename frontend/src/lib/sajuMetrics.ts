@@ -28,7 +28,8 @@ const sc = (n: number) => Math.max(0, Math.min(100, Math.round(25 + n * 18)));
 
 export type Trait = { key: string; label: string; value: number };
 
-/** 십성 분포로 본 6가지 기질 축(0~100). */
+/** 십성 분포로 본 6가지 기질 축(0~100).
+ *  label 은 ko 내부값(참고용) — 화면 표기는 SajuChart(TraitRadar)가 key 로 chart.trait_{key} 로케일 매핑. */
 export function traits(chart: Chart): Trait[] {
   const c = tenGodGroups(chart);
   return [
@@ -54,7 +55,8 @@ function wuxingBalance(chart: Chart): number {
 export type Domain = { label: string; value: number };
 
 /** 영역별 운세 비중(0~100, 높은 순). 백엔드가 보낸 '올해 세운 반영' 값이 있으면 그걸 쓰고,
- *  없으면(옛 세션 등) natal 분포로 폴백 계산. */
+ *  없으면(옛 세션 등) natal 분포로 폴백 계산.
+ *  label 은 한국어 데이터 키(백엔드 계약) — 화면 표기는 SajuChart 가 chart.domain 으로 로케일 매핑. */
 export function domains(chart: Chart): Domain[] {
   if (chart.domain_scores && chart.domain_scores.length) return chart.domain_scores;
   const c = tenGodGroups(chart);
@@ -68,11 +70,7 @@ export function domains(chart: Chart): Domain[] {
   ].sort((a, b) => b.value - a.value);
 }
 
-/** 영역별 운세 소제목용 세운 표기 — 예: " (2026 세운 병오)". 없으면 "". */
-export function seunLabel(chart: Chart): string {
-  const s = chart.seun;
-  return s ? ` (${s.year} 세운 ${s.stem_ko}${s.branch_ko})` : "";
-}
+// (구) seunLabel 은 ko 하드코딩이라 제거 — 세운 소제목은 SajuChart 가 chart.seun_label 로케일 키로 직접 구성.
 
 /** 현재 대운 인덱스(entries 중) — 생일(solar_date)로 만 나이 산출. 없으면 -1. */
 export function currentDaewoonIndex(chart: Chart): number {
