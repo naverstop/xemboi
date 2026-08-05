@@ -248,3 +248,26 @@ def test_sinnyeon_month_narr_map_extracts_after_relations():
     ans = _fake_month(5, "임오월", "월간 정재(正財)", "오월의 서술 본문입니다.")
     m = T._sinnyeon_month_narr_map(ans)
     assert m[5] == "오월의 서술 본문입니다."
+
+
+def test_sinnyeon_regen_gate_rejects_drift_and_runaway():
+    """재생성 게이트: 그 달을 벗어난 '연간(세운/총운) 표류'·문장부족은 폐기(원본 유지), 폭주는 4문장 절단.
+
+    [운영자 실측 2026-08-06] 재생성이 6월 자리에 '2026년 세운 병오…' 총운을 5문단으로 써버린 회귀 방지."""
+    yr = ("2026년 세운 간지는 병오이며 내 일간 경이 강한 상태입니다. 따라서 올해 전반엔 추진력이 필요합니다. "
+          "직장에서 큰 도움이 됩니다. 재물 지출이 늘 수 있습니다.")
+    assert T._sinnyeon_regen_gate(yr) == ""                 # 연간(세운·올해 전반) 표류 → 폐기
+    good = "이 달에는 재물 흐름에 신경 쓰며 지출 계획을 세우기 좋습니다. 가까운 사람과의 약속은 미리 조율하면 마찰이 줄어듭니다."
+    g = T._sinnyeon_regen_gate(good)
+    assert g.startswith("이 달에는") and "조율" in g          # 정상 2문장 → 유지
+    assert T._sinnyeon_regen_gate("한 문장뿐이라 서술로는 너무 짧고 부족합니다") == ""  # 1문장 → 폐기
+    five = ("첫 번째로 이러한 내용을 담고 있습니다. 두 번째로 다른 내용을 이어 갑니다. "
+            "세 번째로 또 다른 이야기를 합니다. 네 번째로 마지막 내용을 적습니다. 다섯 번째 문장은 잘려야 합니다.")
+    out = T._sinnyeon_regen_gate(five)
+    assert "네 번째" in out and "다섯 번째" not in out         # 5→앞 4문장 절단(폭주 방지)
+
+
+def test_fix_sinnyeon_vocab_corrects_pencchi():
+    """약모델이 '편(便)'을 '펜치'로 뭉갠 오타를 결정적 교정('낮은 펜치이며'→'낮은 편이며')."""
+    out = T._fix_sinnyeon_vocab("재물운은 상대적으로 낮은 펜치이며 조심할 일이 많습니다.")
+    assert "낮은 편이며" in out and "펜치" not in out

@@ -1374,6 +1374,7 @@ _SINNYEON_VOCAB_FIXES = [
     (_re.compile(r"싱크로율"), "궁합"),                # '싱크로율이 맞아'→'궁합이 맞아'(받침ㅂ→조사 정상·명리 용어)
     (_re.compile(r"싱크(?=\s|를|가|는|이|$)"), "기운"),   # '편재 싱크' 등 정체불명어
     (_re.compile(r"동僚"), "동료"), (_re.compile(r"或者是"), "또는"),   # 한자혼입 흔한 케이스
+    (_re.compile(r"펜치(?=이)"), "편"),                # '낮은 펜치이며'→'낮은 편이며'(약모델이 '편'을 '펜치'로 뭉갬)
 ]
 # 중국어 구두점 → 한국어/표준(약모델이 열거에 、, 문장부호에 ，。 등을 씀).
 _ZH_PUNCT = str.maketrans({"、": "·", "，": ", ", "。": ". ", "？": "?", "！": "!", "：": ": ", "；": "; "})
@@ -1978,42 +1979,78 @@ def _sinnyeon_dup_months(answer: str) -> list[int]:
     return dup
 
 
+# 재생성 표류 감지 — 그 달이 아니라 '올해/세운/총운'을 다시 쓰거나 일생 운운하면 폐기(원본 유지).
+_REGEN_DRIFT = _re.compile(r"세운|올 한 해|올해\s*전반|올해는|2026\s*년|총운|일생|한 해를")
+
+
+def _sinnyeon_regen_gate(body: str) -> str:
+    """재생성 서술 품질 게이트 — 앞 4문장으로 절단 후 (연간 표류·과다길이·문장부족)이면 빈 문자열(원본 유지).
+
+    [운영자 실측 2026-08-06] 재생성이 그 달을 벗어나 '올해 세운·총운'을 5문단으로 다시 쓰는 실패(17%)를
+    이 게이트가 걸러 원본(짧은 1차)만 유지 — '길고 틀린 재생성'이 화면에 나가는 것을 원천 차단."""
+    if not body:
+        return ""
+    sents = [x for x in _SENT_SPLIT.split(body) if x.strip()]
+    trimmed = " ".join(sents[:4]).strip()               # 4문장 초과 절단(폭주 방지)
+    ok_sents = [x for x in _SENT_SPLIT.split(trimmed) if len(_sinnyeon_norm_sent(x)) >= 8]
+    if len(ok_sents) < 2 or len(trimmed) > 400 or _REGEN_DRIFT.search(trimmed):
+        return ""                                        # 표류·과다·부족 → 폐기
+    return trimmed
+
+
 def _sinnyeon_regen_months(brief: str, sys_content: str, s, targets: list[int],
                            row: ToolSession, avoid: dict[int, str]) -> dict[int, str]:
     """지정한 달들의 서술을 '그 달 십성 뜻으로, 앞달과 다르게' 재생성 → {월: 서술}. 항목별 스레드 병렬.
     코드가 마커 없이 '순수 서술'만 받아 호출부가 splice(헤더 불변)한다. 실패 항목은 원본 유지(빈 결과)."""
     r = row.result_json or {}
+    day_stem = r.get("day_stem") or ""
+    try:
+        year_branch = (((row.chart_json or {}).get("pillars") or {}).get("year") or {}).get("branch")
+    except Exception:  # noqa: BLE001
+        year_branch = None
+    by_n: dict[int, dict] = {}
     star: dict[int, str] = {}
     for mth in r.get("months") or []:
         try:
             n = int(mth.get("month"))
         except Exception:  # noqa: BLE001
             continue
+        by_n[n] = mth
         tg = mth.get("ten_god", ""); btg = mth.get("branch_ten_god", "")
         star[n] = ("월간 " + (_STAR_KO.get(tg, tg) if tg else "")
                    + (f", 월지 {_STAR_KO.get(btg, btg)}" if btg else "")).strip(", ")
     results: dict[int, str] = {}
 
     def _one(n: int) -> None:
+        mth = by_n.get(n)
+        if not mth:
+            return
         sg = star.get(n, "")
-        _av = "\n".join(f"- ({k}월) {v}" for k, v in sorted(avoid.items()) if k != n)[:700]
+        _av = "\n".join(f"- ({k}월) {v[:100]}" for k, v in sorted(avoid.items()) if k != n)[:400]
+        # [운영자 실측 2026-08-06] 재생성이 full brief를 받아 '올해 세운·총운'을 다시 쓰거나(그 달 십성 무시)
+        #   5문단으로 폭주하는 실패(17%). 근본수정: full brief 대신 '그 달 미니 컨텍스트'(월 헤더+일간)만 줘
+        #   연간 데이터 자체를 안 보여준다(표류원 제거) + 이 달 국한 강화 + num_predict 축소 + 게이트 + 재시도.
+        mini = (f"[내 사주 일간(나 자신)] {day_stem}\n[{n}월 이 달 정보]\n"
+                + _sinnyeon_month_header(mth, day_stem, year_branch))
         instr = (
-            f"{n}월 한 달만 다시 씁니다. 이 달의 십성은 '{sg}'입니다 — 이 십성의 '뜻'을 근거로 그 달에 "
-            "'생길 수 있는 일·조심할 점·활용 조언'을 2~4문장 순수 서술로만 쓰세요(십성·운성·신살·간지·점수·"
-            "소제목·마커·번호 금지, 한국어 문장만). ★다른 달과 '완전히 다른' 내용·표현으로 — 학문·문서·후원 "
-            "같은 특정 테마를 반복하지 말고 이 달 십성에 맞는 다른 소재(재물·이동·관계·건강·기회 등)로. "
-            "아래 '이미 다른 달에 쓴 문장'과 소재·표현이 겹치지 않게 하세요:\n" + _av
+            f"위 [{n}월 이 달 정보]만 보고, 이 한 달의 운을 짧게 씁니다. 이 달의 십성은 '{sg}'입니다. 이 십성의 "
+            "'뜻'만 근거로 그 달에 '생길 수 있는 일·조심할 점·활용 조언'을 2~3문장(200자 내외)으로 간결하게 "
+            "쓰세요. ★올해 전체·세운·총운·다른 달 이야기는 절대 쓰지 말고 오직 이 달에만 국한하세요. "
+            "십성·운성·신살·간지·점수·소제목·마커·번호·연도·인용부호 금지, 한국어 서술 문장만. "
+            "다른 달과 겹치지 않게 이 달 십성에 맞는 소재로. 이미 다른 달에 쓴 문장(겹치면 안 됨):\n" + _av
         )
-        try:
-            out = chat_service._call_ollama(
-                [{"role": "system", "content": sys_content},
-                 {"role": "user", "content": f"{brief}\n\n[이번에 다시 쓸 부분만] {instr}"}],
-                num_predict=768)
-        except Exception:  # noqa: BLE001 — 한 항목 실패 → 그 항목만 원본 유지
-            out = None
-        body = _clean_month_narrative(out or "")
-        if body:
-            results[n] = body
+        for _try in range(3):                      # 게이트 폐기 시 최대 3회 재시도(폐기율↓·불량은 0 유지)
+            try:
+                out = chat_service._call_ollama(
+                    [{"role": "system", "content": sys_content},
+                     {"role": "user", "content": f"{mini}\n\n[이번에 쓸 부분만] {instr}"}],
+                    num_predict=320)
+            except Exception:  # noqa: BLE001 — 한 항목 실패 → 재시도, 끝내 실패면 원본 유지
+                out = None
+            body = _sinnyeon_regen_gate(_clean_month_narrative(out or ""))
+            if body:
+                results[n] = body
+                return
 
     ths = [threading.Thread(target=_one, args=(n,), daemon=True) for n in targets]
     for t in ths:
