@@ -1645,9 +1645,12 @@ _SINNYEON_SINGLE_INSTR = (
     "[[직업]] [[재물]] [[대인]] [[연애]] [[건강]] — 다섯 영역을 하나도 빠짐없이 각각 2~3문장 '서술만'(연애·"
     "대인을 합치거나 빠뜨리지 말 것). 각 영역의 점수(위 '영역 점수')를 참고하되 점수가 낮은 영역은 낙관으로 "
     "포장하지 말고 조심스럽게.\n"
-    "[[1월]] [[2월]] … [[12월]] — 열두 달을 하나도 빠짐없이 번호순으로, 각 달 2~4문장 '서술만': 그 달에 생길 "
-    "수 있는 일·조심할 점·활용 조언을 쉬운 생활어로. 십성·12운성·12신살·간지 같은 표의 값은 쓰지 말고(시스템이 "
-    "붙임), 이미 다른 달에 쓴 문장·조언을 복붙하지 말고 달마다 다른 내용으로.\n"
+    "[[1월]] [[2월]] … [[12월]] — 열두 달을 하나도 빠짐없이 번호순으로, 각 달 2~4문장 '서술만'. ★각 달의 "
+    "'월간 십성'은 달마다 다릅니다(브리핑의 월별 표 참고 — 예: 1월 겁재, 2월 식신, 3월 상관…). 그 달 십성의 "
+    "'뜻'을 근거로 달마다 '완전히 다른' 생길 일·조심할 점·활용 조언을 쓰세요 — 십성·운성·신살·간지의 값 자체는 "
+    "문장에 옮기지 말고(시스템이 헤더로 붙임) 그 '의미'만 쉬운 생활어로 풀어. ★★이미 앞선 달에 쓴 문장·표현·"
+    "조언을 절대 복붙·재탕하지 마세요 — 예컨대 '학문·문서·후원' 같은 테마를 여러 달에 반복하지 말고, 열두 달이 "
+    "서로 겹치지 않게 각 달 십성에 맞춰 다르게 쓰세요.\n"
     "[[마무리]] 마무리 조언 한 문단(손님을 주어로, '제가 ~하겠습니다' 같은 1인칭 다짐 금지).\n"
     "★반드시 한국어 문장만(중국어·간체자 문장 절대 금지), 한자는 꼭 필요할 때만 괄호 병기. 가능성 화법으로.\n"
     "★★마커는 총 19개([[총운]] 1 + 영역 5 + 달 12 + [[마무리]] 1)입니다 — 19개를 하나도 빠짐없이 모두 쓴 "
@@ -1921,6 +1924,112 @@ def _sinnyeon_backfill(brief: str, sys_content: str, s, missing_m: list[int], mi
     for t in ths:
         t.join(timeout=s.ollama_timeout_sec + 30)
     return "\n\n".join(results[it] for it in items if it in results)   # 원 순서 유지
+
+
+# ── 신년운세 월별 '교차 중복' 표적 재생성(운영자 승인 2026-08-06) ─────────────────────────────
+#   [배경·실측] 印(편인·정인) 압도 명식은 약모델(qwen3)이 총운 테마(학문·문서·후원)에 고착해 여러 달에 같은
+#   서술을 복붙한다(단독 1회 11/12달 반복 실측). 프롬프트 강화(A)만으론 심각 회차가 계속 났고, '문장단위 삭제'는
+#   심한 달을 통째로 비워(9월 3→0문장) 탈락 확인. → '앞달과 겹쳐 삭제하면 붕괴(≤1문장)하는 달'만 골라, 그 달
+#   십성 뜻으로 '앞달과 다르게' 서술만 재생성하고 splice. 코드 헤더(십성·기운·관계)는 불변, 겹칠 때만 추가 LLM
+#   (평소 지연 0), 1라운드 한정. [GUARD 신년운세 1.0 준수] _sinnyeon_missing·canon 스왑게이트 불변 — canon 뒤
+#   '별도 dedup 패스'로 서술만 교체(전면 재생성/판정기준 변경 아님).
+_SENT_SPLIT = _re.compile(r"(?<=[.。!?])\s+")
+_MONTH_HEAD_RE = _re.compile(r"####\s*(\d{1,2})\s*월")
+
+
+def _sinnyeon_norm_sent(sent: str) -> str:
+    """문장 비교용 정규화 — 한글만 남겨 앞 40자(구두점·공백·한자 차이 무시)."""
+    return _re.sub(r"[^가-힣]", "", sent)[:40]
+
+
+def _sinnyeon_month_narr_map(answer: str) -> dict[int, str]:
+    """완성 답에서 {월번호: 서술본문} 추출 — '· 관계 —' 팩트라인 이후가 서술(코드 헤더 제외)."""
+    out: dict[int, str] = {}
+    for m in _re.finditer(r"####\s*(\d{1,2})\s*월.*?(?=####\s*\d{1,2}\s*월|\n###\s|\Z)", answer, _re.S):
+        n = int(m.group(1))
+        if not (1 <= n <= 12):
+            continue
+        parts = _re.split(r"·\s*관계\s*[—–\-][^\n]*\n", m.group(0), maxsplit=1)
+        out[n] = (parts[1] if len(parts) > 1 else "").strip()
+    return out
+
+
+def _sinnyeon_dup_months(answer: str) -> list[int]:
+    """앞선 달과 문장이 겹쳐, 겹친 문장을 빼면 서술이 붕괴(고유 ≤1문장)하는 달만 반환 — 표적 재생성 대상.
+    (문장 일부만 공유하고 고유 문장이 2개 이상 남는 달은 '유효한 다른 내용'으로 보고 건드리지 않는다.)"""
+    narrs = _sinnyeon_month_narr_map(answer)
+    seen: set[str] = set()
+    dup: list[int] = []
+    for n in sorted(narrs):
+        sents = [x.strip() for x in _SENT_SPLIT.split(narrs[n]) if len(_sinnyeon_norm_sent(x)) >= 12]
+        if not sents:
+            continue
+        uniq = 0
+        dup_here = False
+        for sent in sents:
+            k = _sinnyeon_norm_sent(sent)
+            if k in seen:
+                dup_here = True
+            else:
+                uniq += 1
+                seen.add(k)
+        if dup_here and uniq <= 1:
+            dup.append(n)
+    return dup
+
+
+def _sinnyeon_regen_months(brief: str, sys_content: str, s, targets: list[int],
+                           row: ToolSession, avoid: dict[int, str]) -> dict[int, str]:
+    """지정한 달들의 서술을 '그 달 십성 뜻으로, 앞달과 다르게' 재생성 → {월: 서술}. 항목별 스레드 병렬.
+    코드가 마커 없이 '순수 서술'만 받아 호출부가 splice(헤더 불변)한다. 실패 항목은 원본 유지(빈 결과)."""
+    r = row.result_json or {}
+    star: dict[int, str] = {}
+    for mth in r.get("months") or []:
+        try:
+            n = int(mth.get("month"))
+        except Exception:  # noqa: BLE001
+            continue
+        tg = mth.get("ten_god", ""); btg = mth.get("branch_ten_god", "")
+        star[n] = ("월간 " + (_STAR_KO.get(tg, tg) if tg else "")
+                   + (f", 월지 {_STAR_KO.get(btg, btg)}" if btg else "")).strip(", ")
+    results: dict[int, str] = {}
+
+    def _one(n: int) -> None:
+        sg = star.get(n, "")
+        _av = "\n".join(f"- ({k}월) {v}" for k, v in sorted(avoid.items()) if k != n)[:700]
+        instr = (
+            f"{n}월 한 달만 다시 씁니다. 이 달의 십성은 '{sg}'입니다 — 이 십성의 '뜻'을 근거로 그 달에 "
+            "'생길 수 있는 일·조심할 점·활용 조언'을 2~4문장 순수 서술로만 쓰세요(십성·운성·신살·간지·점수·"
+            "소제목·마커·번호 금지, 한국어 문장만). ★다른 달과 '완전히 다른' 내용·표현으로 — 학문·문서·후원 "
+            "같은 특정 테마를 반복하지 말고 이 달 십성에 맞는 다른 소재(재물·이동·관계·건강·기회 등)로. "
+            "아래 '이미 다른 달에 쓴 문장'과 소재·표현이 겹치지 않게 하세요:\n" + _av
+        )
+        try:
+            out = chat_service._call_ollama(
+                [{"role": "system", "content": sys_content},
+                 {"role": "user", "content": f"{brief}\n\n[이번에 다시 쓸 부분만] {instr}"}],
+                num_predict=768)
+        except Exception:  # noqa: BLE001 — 한 항목 실패 → 그 항목만 원본 유지
+            out = None
+        body = _clean_month_narrative(out or "")
+        if body:
+            results[n] = body
+
+    ths = [threading.Thread(target=_one, args=(n,), daemon=True) for n in targets]
+    for t in ths:
+        t.start()
+    for t in ths:
+        t.join(timeout=s.ollama_timeout_sec + 30)
+    return results
+
+
+def _sinnyeon_splice_month(answer: str, n: int, new_narr: str) -> str:
+    """월 N 블록에서 '· 관계 —' 팩트라인 '이후 서술'만 new_narr 로 교체(헤더·팩트라인 불변). 못 찾으면 원본."""
+    pat = _re.compile(
+        r"(####\s*" + str(n) + r"\s*월.*?·\s*관계\s*[—–\-][^\n]*\n)(.*?)(?=####\s*\d{1,2}\s*월|\n###\s|\Z)",
+        _re.S)
+    new_answer, cnt = pat.subn(lambda m: m.group(1) + "\n" + new_narr.strip() + "\n\n", answer, count=1)
+    return new_answer if cnt else answer
 
 
 def _stream_message_inner(
@@ -2246,6 +2355,33 @@ def _stream_message_inner(
                 answer = _canon
                 refined = True
                 yield ("refine", {"text": answer, "reason": "섹션 완결 정리(누락 보강·순서 정렬)"})
+        # 표적 dedup 재생성 — 앞달과 겹쳐 붕괴(고유 ≤1문장)하는 달만 '앞달과 다르게' 서술 재생성 후 splice.
+        #   [운영자 승인 2026-08-06] 印 고착 명식(무토+병오 등)의 월별 복붙 해소. 겹칠 때만 추가 LLM(평소
+        #   지연 0), 1라운드. 코드 헤더·팩트라인 불변, canon/판정기준 불변(별도 패스에서 '서술만' 교체).
+        _dups = _sinnyeon_dup_months(answer)
+        if _dups:
+            _avoid = {k: v[:120] for k, v in _sinnyeon_month_narr_map(answer).items() if k not in _dups}
+            _regen = None
+            for ev in chat_service._bg_with_heartbeat(
+                    s, lambda tg=list(_dups): _sinnyeon_regen_months(brief, sys_content, s, tg, row, _avoid),
+                    progress_phase="generating"):
+                if ev[0] == "result":
+                    _regen = ev[1]
+                else:
+                    yield ev
+            if _regen:
+                _changed = False
+                for _n, _nb in _regen.items():
+                    # 재생성본이 최소 2문장 이상일 때만 채택(1줄로 더 얇아지는 것 방지)
+                    _cnt = sum(1 for x in _SENT_SPLIT.split(_nb) if len(_sinnyeon_norm_sent(x)) >= 12)
+                    if _cnt < 2:
+                        continue
+                    _spliced = _sinnyeon_splice_month(answer, _n, _nb)
+                    if _spliced != answer:
+                        answer = _spliced; _changed = True
+                if _changed:
+                    refined = True
+                    yield ("refine", {"text": answer, "reason": "월별 중복 해소(표적 재서술)"})
     # ---- ① 내부 qwen 보강 (기본·심화 공통, 로컬 1차 정상) ----
     if do_qwen and local_ok and answer.strip():
         yield ("stage", {"phase": "draft_done"}); yield ("stage", {"phase": "refining"})
