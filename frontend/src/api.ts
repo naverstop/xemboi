@@ -1970,7 +1970,7 @@ export const api = {
       period_days?: number; period_start?: string | null;
     }>("/share/quota"),
   submitShare: (body: {
-    channel: "kakao" | "email" | "link";
+    channel: "kakao" | "zalo" | "email" | "link";
     message_id?: number;
     session_id?: string;
     target?: string;

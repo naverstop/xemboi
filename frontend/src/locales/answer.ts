@@ -35,6 +35,10 @@ export const answerKo = {
   // 공유(상담서 PDF 저장 → 첨부 전달)
   share_title: "상담서 PDF를 저장해 카카오톡·메시지 등에 첨부해 전달하세요",
   share_btn: "↗ 공유",
+  share_kakao: "카카오톡으로 보내기", share_zalo: "Zalo로 보내기",
+  zalo_copied: "링크를 복사했어요. Zalo 대화방에 붙여넣어 전달해 주세요.",
+  share_copy_fail: "링크 복사에 실패했어요. 주소를 직접 전달해 주세요.",
+  share_busy: "공유 중…",
   share_done: "✓ 저장됨 — 첨부해 전달",
   share_hint: "상담서 PDF가 저장되었어요. 카카오톡·메시지 등에 첨부해 전달하세요.",
   share_fail: "공유용 PDF 준비 중 오류가 발생했어요. 잠시 후 다시 시도해 주세요.",
@@ -86,6 +90,10 @@ export const answerVi: typeof answerKo = {
   // 공유
   share_title: "Lưu PDF tư vấn rồi đính kèm gửi qua Zalo·tin nhắn v.v.",
   share_btn: "↗ Chia sẻ",
+  share_kakao: "Gửi qua KakaoTalk", share_zalo: "Gửi qua Zalo",
+  zalo_copied: "Đã sao chép liên kết. Dán vào cuộc trò chuyện Zalo để gửi nhé.",
+  share_copy_fail: "Sao chép liên kết thất bại. Vui lòng gửi trực tiếp địa chỉ.",
+  share_busy: "Đang chia sẻ…",
   share_done: "✓ Đã lưu — đính kèm để gửi",
   share_hint: "Đã lưu PDF tư vấn. Hãy đính kèm gửi qua Zalo·tin nhắn v.v.",
   share_fail: "Đã xảy ra lỗi khi chuẩn bị PDF để chia sẻ. Vui lòng thử lại sau.",

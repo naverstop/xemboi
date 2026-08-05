@@ -1364,6 +1364,7 @@ button.ghost:hover { background: rgba(0,0,0,.04); }
 .share-menu-item:hover { background: var(--brand-50, rgba(13,148,136,.08)); }
 .share-menu-item .smi-ic { width: 20px; text-align: center; font-size: 15px; flex-shrink: 0; }
 .share-menu-item .smi-kakao { color: #3c1e1e; }
+.share-menu-item .smi-zalo { color: #0068ff; }  /* Zalo 브랜드 블루 */
 .share-menu-note { font-size: 11px; line-height: 1.5; color: var(--ink-500, #64748b); padding: 6px 10px 2px; border-top: 1px solid var(--line, #e5e7eb); margin-top: 4px; white-space: normal; }
 /* 인앱 웹뷰(카톡 등) — 파일 첨부 불가 안내(저장 후 채팅 첨부 유도). 링크카드로 새는 '안내 이미지' 오해 해소 */
 .share-inapp-guide {

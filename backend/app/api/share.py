@@ -34,7 +34,7 @@ def share_quota(
 
 
 class ShareReq(BaseModel):
-    channel: str  # kakao | email | link
+    channel: str  # kakao | zalo | email | link (vi=Zalo, ko=Kakao)
     message_id: Optional[int] = None
     session_id: Optional[str] = None
     target: Optional[str] = None  # 메일주소 등

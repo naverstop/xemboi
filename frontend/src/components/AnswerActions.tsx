@@ -105,7 +105,8 @@ async function copyText(s: string): Promise<boolean> {
 export default function AnswerActions({
   text, pdfContent, tarotCards, pdf, messageId, sessionId, compatId, source = "chat", showFeedback, initialFeedback, isLast,
 }: Props) {
-  const { t: tr } = useTranslation();
+  const { t: tr, i18n } = useTranslation();
+  const isVi = i18n.language.startsWith("vi");
   const [rating, setRating] = useState<1 | -1 | undefined>(initialFeedback);
   const [copied, setCopied] = useState(false);
   const [shared, setShared] = useState(false);  // 링크복사 등 완료 안내 토스트
@@ -233,7 +234,7 @@ export default function AnswerActions({
 
   // 공유가 확정된 뒤 집계. 이 시점엔 이미 나간 공유라 실패해도 되돌릴 수 없으므로 흐름을 막지 않는다
   // (한도는 canShareNow 가 앞에서 이미 막았다).
-  async function countShare(channel: "kakao" | "email" | "link"): Promise<void> {
+  async function countShare(channel: "kakao" | "zalo" | "email" | "link"): Promise<void> {
     try {
       await api.submitShare({ channel, message_id: messageId, session_id: sessionId });
       window.dispatchEvent(new Event("saju:share-counted"));   // 잔여 배지 즉시 갱신
@@ -291,7 +292,7 @@ export default function AnswerActions({
   // 데스크톱 공유 메뉴 선택 — 채널별로 PDF '링크'를 전달(파일 첨부는 웹 제약상 불가).
   //  ① 사전 한도 확인 → ② 공유 실행 → ③ **성공한 경우에만** 집계.
   //  예전엔 ②보다 집계가 먼저라, 클립보드 실패·카카오 미전송이어도 횟수만 사라졌다(환원 불가).
-  async function shareVia(channel: "kakao" | "email" | "link") {
+  async function shareVia(channel: "kakao" | "zalo" | "email" | "link") {
     // 동기 잠금 — React state 는 같은 틱 연타를 못 막는다(DownloadGuard 와 동일 규약).
     // 없을 땐 더블클릭 한 번에 1회 공유로 2회가 차감됐다(무료 5회 중 40%).
     if (shareLock.current) return;
@@ -300,7 +301,22 @@ export default function AnswerActions({
       if (!(await canShareNow())) { setMenuOpen(false); return; }
       const url = pdfShareUrl || (pdfCache.current ? window.location.origin + pdfCache.current.url : "");
       if (!url) { setMenuOpen(false); return; }
-      if (channel === "kakao") {
+      if (channel === "zalo") {
+        // VN 표준: 모바일 Web Share 시트에서 Zalo 선택(설치 시 항상 노출). 데스크톱/미지원은
+        // 링크 복사 후 Zalo에 붙여넣기 안내(공식 무SDK 공유 URL 부재 — OA 개설 시 SDK 위젯 업그레이드 여지).
+        let sent = false;
+        if (navigator.share) {
+          try { await navigator.share({ title: pdf.docTitle, url }); sent = true; } catch { /* 사용자가 취소 */ }
+        }
+        if (sent) {
+          await countShare("zalo");
+        } else if (await copyText(url)) {
+          await countShare("zalo");
+          alert(tr("answer.zalo_copied"));
+        } else {
+          alert(tr("answer.share_copy_fail"));
+        }
+      } else if (channel === "kakao") {
         // 카드 대표이미지 = PDF 첫 장 썸네일(앱 아이콘 아님). 카카오 스크래퍼가 공개 URL을 가져가
         //   '실제 상담서'처럼 보이게 한다(운영자 지적 #9 '안내 이미지만 온다'). 렌더 실패해도 링크는 동작.
         //   ⚠️ 데스크톱 카카오 웹은 파일 첨부가 원천 불가 → 링크 카드가 상한(PDF 파일 자체는 휴대폰 공유).
@@ -622,9 +638,14 @@ export default function AnswerActions({
                   </div>
                 )}
 
-                {kakaoAvailable() && (
+                {isVi && (
+                  <button className="share-menu-item" role="menuitem" onClick={() => shareVia("zalo")}>
+                    <span className="smi-ic smi-zalo" aria-hidden>💙</span> {tr("answer.share_zalo")}
+                  </button>
+                )}
+                {!isVi && kakaoAvailable() && (
                   <button className="share-menu-item" role="menuitem" onClick={() => shareVia("kakao")}>
-                    <span className="smi-ic smi-kakao" aria-hidden>💬</span> 카카오톡으로 보내기
+                    <span className="smi-ic smi-kakao" aria-hidden>💬</span> {tr("answer.share_kakao")}
                   </button>
                 )}
                 <button className="share-menu-item" role="menuitem" onClick={() => setEmailMode((v) => !v)}>
