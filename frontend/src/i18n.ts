@@ -43,6 +43,9 @@ const DEFAULT_LOCALE =
 // 언어 스위치 노출에 사용. 한국(ko) 빌드에선 false → 사주1 UI/기능 완전 불변.
 export const IS_VN_BUILD = DEFAULT_LOCALE === "vi";
 
+// VN 빌드 표식(<html class="vn-build">) — 타로 플로팅 vs 언어스위치 겹침 회피 등 VN 전용 CSS 보정용. ko 불변.
+if (IS_VN_BUILD && typeof document !== "undefined") document.documentElement.classList.add("vn-build");
+
 // 문자열 카탈로그(common 네임스페이스). 점진 확장 — 지금은 브랜드/셸 핵심부터.
 // vi 번역은 1차안 — 도메인/자연스러움은 베트남 원어민 검수 권장(특히 사주 용어).
 const resources = {
