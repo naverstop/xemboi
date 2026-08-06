@@ -72,6 +72,11 @@ def _mount_spa(app: FastAPI, frontend_dist: str) -> None:
         # 경로순회 차단: dist 안의 파일일 때만 직접 서빙, 그 외(.env·소스 등)는 SPA index 폴백.
         served = _spa_file_within_dist(dist_root, full_path)
         if served is not None:
+            # 서비스워커·매니페스트는 절대 캐시 금지 — CDN(Cloudflare)이 sw.js 를 캐싱하면
+            # SW 갱신이 몇 시간 지연돼 새 아이콘/번들이 기기에 안 내려가고 옛 캐시가 고착된다.
+            base = os.path.basename(served).lower()
+            if base in ("sw.js", "manifest.webmanifest"):
+                return FileResponse(served, headers=_NO_CACHE)
             return FileResponse(served)
         return _index()
 
