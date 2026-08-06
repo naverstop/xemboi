@@ -509,6 +509,12 @@ def usage_summary(db: Session = Depends(get_db)) -> dict:
     for plat, c in pwa_rows:
         pwa[plat] = int(c)
 
+    # 설치율(전환 지표) = 앱 설치 기기 / 전체 방문 기기(전 기간 누적). '방문 중 몇 %가 앱으로 설치했나'.
+    #  ⚠️ iOS Safari 는 appinstalled 자동신호가 없어 is_pwa 는 standalone 실행 시에만 래칫된다 —
+    #     '설치했지만 아직 홈아이콘으로 실행 안 한' iOS 는 미집계라 실제 설치율은 이 값 이상일 수 있다(하한).
+    total_devices = db.query(func.count(UsageDevice.device_id)).scalar() or 0
+    install_rate = round(pwa["total"] / total_devices * 100, 1) if total_devices else 0.0
+
     def _agg(kind: str) -> list[dict]:
         rows = (db.query(
                     UsageDaily.key,
@@ -612,6 +618,8 @@ def usage_summary(db: Session = Depends(get_db)) -> dict:
         "online_now": int(online_now),
         "today_visitors": int(today_visitors),
         "pwa": pwa,
+        "total_devices": int(total_devices),
+        "install_rate": install_rate,
         "menus": _agg("page"),
         "clicks": _agg("click"),
         "features": features,

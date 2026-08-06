@@ -14,7 +14,13 @@
 import i18n from "../i18n";
 
 export function isIOS(): boolean {
-  return /iphone|ipad|ipod/i.test(window.navigator.userAgent);
+  const ua = window.navigator.userAgent;
+  // iPadOS 13+ Safari 는 UA 가 "Macintosh"(데스크톱급)로 보고돼 iphone|ipad|ipod 로 안 잡힌다.
+  //  → 터치포인트로 iPad 판별(webShare.ts 와 동일 규약). 이 누락 시 iPad Safari 가 iOS 설치 안내를 못 받았다.
+  return (
+    /iphone|ipad|ipod/i.test(ua) ||
+    (ua.includes("Macintosh") && (window.navigator.maxTouchPoints || 0) > 1)
+  );
 }
 
 export function isAndroid(): boolean {
@@ -81,10 +87,12 @@ export function escapeToExternalBrowser(withInstallFlag = true): "opened" | "cop
     return "opened";
   }
   if (isAndroid()) {
-    // Android 인앱 공통 — Chrome intent(미설치 시 https 폴백)
+    // Android 인앱 공통 — 기기 '기본 브라우저'로 탈출. [운영자 실측] package=com.android.chrome 하드코딩 시
+    //  Chrome 없는 폰(삼성인터넷 기본 등)은 패키지 해석 실패 → fallback_url 이 '같은 인앱 웹뷰'로 되돌아와
+    //  탈출 실패. package 미지정이면 Android 가 기본 https 핸들러(실제 브라우저 앱)로 외부 실행한다.
     const noScheme = target.replace(/^https?:\/\//, "");
     window.location.href =
-      `intent://${noScheme}#Intent;scheme=https;package=com.android.chrome;` +
+      `intent://${noScheme}#Intent;scheme=https;action=android.intent.action.VIEW;` +
       `S.browser_fallback_url=${encodeURIComponent(target)};end`;
     return "opened";
   }

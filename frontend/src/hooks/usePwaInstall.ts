@@ -6,6 +6,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { api, getToken } from "../api";
 import { track } from "../lib/usage";
+import { isIOS, isStandalonePwa } from "../lib/inapp";   // iPad(iPadOS13+ = Macintosh UA) 포함 감지 공용
 
 type BIPEvent = Event & {
   prompt: () => Promise<void>;
@@ -16,21 +17,15 @@ const SNOOZE_KEY = "saju_pwa_snooze_until";
 const SNOOZE_DAYS = 7;
 const VAPID_PUBLIC = import.meta.env.VITE_VAPID_PUBLIC_KEY as string | undefined;
 
-function isStandalone(): boolean {
-  return (
-    window.matchMedia?.("(display-mode: standalone)").matches ||
-    // iOS Safari
-    (window.navigator as unknown as { standalone?: boolean }).standalone === true
-  );
-}
-
-function isIOS(): boolean {
-  return /iphone|ipad|ipod/i.test(window.navigator.userAgent);
-}
-
 function snoozed(): boolean {
   const until = Number(localStorage.getItem(SNOOZE_KEY) || 0);
   return Date.now() < until;
+}
+
+// 이 기기에서 '설치됨'으로 마킹됐는가 — appinstalled(Android/데스크톱) 또는 사용자의 '이미 설치함' 선택 시 기록.
+//  iOS Safari 는 appinstalled 이벤트가 없어 자동 신호가 없으므로, 이 마커가 유일한 '그만 조르기' 근거다.
+function installMarked(): boolean {
+  return localStorage.getItem("saju_pwa_installed") === "1";
 }
 
 function urlBase64ToUint8Array(base64: string): Uint8Array {
@@ -114,7 +109,16 @@ export function usePwaInstall() {
   const [showIosGuide, setShowIosGuide] = useState(false);
 
   useEffect(() => {
-    if (isStandalone()) return;
+    // standalone(홈아이콘 실행) 관측 = 이 기기 '설치 확정' → 마커 래칫. iOS 는 appinstalled 이벤트가 없어
+    //  이 'standalone 1회 실행'이 유일한 자동 설치신호다(백엔드 usage is_pwa 래칫과 동일 개념). 래칫해 두면
+    //  이후 Safari '탭'(비-standalone)으로 들어와도 재프롬프트가 안 뜬다.
+    //  [운영자 실측 + 적대검증] 종전엔 standalone 이면 '래칫 없이' 그냥 반환해, 정상 설치자가 탭으로 들어오면
+    //  마커가 없어 4초 뒤 iOS 가이드가 또 떴다(수동 '이미 설치함'을 누른 사람만 침묵됐음).
+    if (isStandalonePwa()) {
+      localStorage.setItem("saju_pwa_installed", "1");
+      return;
+    }
+    if (installMarked()) return;
 
     const onBIP = (e: Event) => {
       e.preventDefault();
@@ -165,7 +169,17 @@ export function usePwaInstall() {
     setShowIosGuide(false);
   }, []);
 
+  // '이미 설치했어요 · 그만 보기' — iOS 는 appinstalled 자동신호가 없어 이 수동 마킹이 재프롬프트를 멈추는 유일한 길.
+  //  마커 기록 + FAB 숨김 이벤트 + 소프트 신호 집계(확정 설치 pwa:installed 와 구분되는 별도 키).
+  const markInstalled = useCallback(() => {
+    localStorage.setItem("saju_pwa_installed", "1");
+    track("click", "pwa:mark-installed");
+    window.dispatchEvent(new CustomEvent("saju:pwa-installed"));
+    setShowPopup(false);
+    setShowIosGuide(false);
+  }, []);
+
   // canInstall = 브라우저가 넘겨준 설치 이벤트를 붙잡아 둔 상태(주로 Android/데스크톱 Chrome).
   //   가이드에서 '한 번에 설치하기' 버튼을 이 값으로 노출한다(스누즈해도 버튼은 유지).
-  return { showPopup, showIosGuide, accept, snooze, canInstall: !!deferred };
+  return { showPopup, showIosGuide, accept, snooze, markInstalled, canInstall: !!deferred };
 }

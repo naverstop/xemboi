@@ -28,7 +28,7 @@ function aosSteps(): { ic: string; text: ReactNode }[] {
 
 export default function InstallPrompt() {
   const { t: tr } = useTranslation();
-  const { showPopup, showIosGuide, accept, snooze, canInstall } = usePwaInstall();
+  const { showPopup, showIosGuide, accept, snooze, markInstalled, canInstall } = usePwaInstall();
   const [manualOpen, setManualOpen] = useState(false);            // 상시 진입점(스누즈 무관)
   const [tab, setTab] = useState<"ios" | "aos">(isIOS() ? "ios" : "aos");
   const [copied, setCopied] = useState(false);
@@ -74,6 +74,14 @@ export default function InstallPrompt() {
     setInAppWarn(false);
     setCopyGuide(false);
     snooze();                     // 자동 팝업 경로였다면 7일 스누즈(기존 규약 유지)
+  }
+
+  // '이미 설치했어요 · 그만 보기' — iOS 는 설치 자동감지가 없어 재프롬프트를 막는 유일한 수단(영구 마킹).
+  function dontShowAgain() {
+    markInstalled();
+    setManualOpen(false);
+    setInAppWarn(false);
+    setCopyGuide(false);
   }
 
   // 원탭 설치 — 붙잡아 둔 이벤트로 네이티브 설치를 띄우고, 성공하면 모달을 닫는다.
@@ -228,6 +236,7 @@ export default function InstallPrompt() {
         )}
 
         <div className="pwa-actions">
+          <button className="secondary" onClick={dontShowAgain}>{tr("misc.pwa_installed_dismiss")}</button>
           <button onClick={close}>{tr("misc.pwa_confirm")}</button>
         </div>
       </div>

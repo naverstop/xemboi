@@ -712,6 +712,10 @@ export type AdminUsageSummary = {
   online_now: number;
   today_visitors: number;
   pwa: { total: number; ios?: number; android?: number; desktop?: number; other?: number };
+  /** 전체 방문 기기 수(전 기간 누적) — 설치율 분모 */
+  total_devices: number;
+  /** 설치율(%) = pwa.total / total_devices (iOS 미실행분 미집계라 하한치) */
+  install_rate: number;
   menus: { key: string; today: number; week: number }[];
   clicks: { key: string; today: number; week: number }[];
   /** 메뉴별 세부 기능 '실사용' — 백엔드 DB 실측(클릭이 아니라 실제 실행 완료 수) */

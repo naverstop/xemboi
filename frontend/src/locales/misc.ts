@@ -71,6 +71,7 @@ export const miscKo = {
   pwa_ios_body:
     "Safari 하단의 <b>공유</b> 버튼을 누른 뒤, <b>“홈 화면에 추가”</b>를 선택하면 앱처럼 사용할 수 있어요.",
   pwa_confirm: "확인",
+  pwa_installed_dismiss: "이미 설치했어요 · 그만 보기",
 
   // ── PaymentResultPage ──
   pay_confirming: "결제 승인 처리 중...",
@@ -172,6 +173,7 @@ export const miscVi: typeof miscKo = {
   pwa_ios_body:
     "Nhấn nút <b>Chia sẻ</b> ở dưới cùng Safari, rồi chọn <b>“Thêm vào màn hình chính”</b> để dùng như một ứng dụng.",
   pwa_confirm: "Đã hiểu",
+  pwa_installed_dismiss: "Đã cài đặt rồi · Đừng hiện nữa",
 
   pay_confirming: "Đang xử lý phê duyệt thanh toán...",
   pay_missing_params: "Thiếu tham số bắt buộc",

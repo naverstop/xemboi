@@ -140,6 +140,7 @@ function LiveStatsTab() {
     "install-fab": tr("admin.live.click.install_fab"), "inapp-escape": tr("admin.live.click.inapp_escape"),
     "consult-fab": tr("admin.live.click.consult_fab"), charge: tr("admin.live.click.charge"),
     "pwa:install-accept": tr("admin.live.click.pwa_install_accept"), "pwa:installed": tr("admin.live.click.pwa_installed"),
+    "pwa:mark-installed": tr("admin.live.click.pwa_mark_installed"),
   };
   const menuName = (k: string) => MENU_KO[k] || k;
   // 서버 집계 + 전체 메뉴 병합(없으면 0) — 사이드바 순서 유지, 목록 밖 키는 뒤에
@@ -165,6 +166,7 @@ function LiveStatsTab() {
   const pwa: [string, number][] = [
     [tr("admin.live.tile_pwa_total"), s.pwa.total], [tr("admin.live.tile_ios"), s.pwa.ios || 0],
     [tr("admin.live.tile_android"), s.pwa.android || 0], [tr("admin.live.tile_desktop"), s.pwa.desktop || 0],
+    [tr("admin.live.tile_other"), s.pwa.other || 0],   // 합계 정합(플랫폼 미상='other')
   ];
 
   return (
@@ -176,6 +178,13 @@ function LiveStatsTab() {
             <div style={{ fontSize: 26, fontWeight: 800, marginTop: 4, color: "var(--brand-700)" }}>{v.toLocaleString()}</div>
           </div>
         ))}
+        <div style={{ border: "1px solid var(--brand-100)", background: "var(--brand-50)", borderRadius: 8, padding: 12 }}>
+          <div style={{ color: "var(--brand-700)", fontSize: 12, fontWeight: 700 }}>📲 설치율</div>
+          <div style={{ fontSize: 26, fontWeight: 800, marginTop: 4, color: "var(--brand-700)" }}>{s.install_rate}%</div>
+          <div style={{ fontSize: 11, color: "var(--ink-400)", marginTop: 2 }}>
+            {s.pwa.total.toLocaleString()} / {s.total_devices.toLocaleString()} 기기
+          </div>
+        </div>
         {pwa.map(([k, v]) => (
           <div key={k} style={{ border: "1px solid var(--line)", borderRadius: 8, padding: 12 }}>
             <div style={{ color: "var(--ink-400)", fontSize: 12 }}>{k}</div>
