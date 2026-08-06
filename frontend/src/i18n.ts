@@ -377,10 +377,11 @@ i18n
     returnNull: false,
     interpolation: { escapeValue: false }, // React가 XSS 이스케이프 담당
     detection: {
-      // 디바이스(브라우저) 언어 기준 로딩. 우선순위:
-      //   ① saju_lang(사용자가 스위치로 명시 전환) → ② navigator(기기 언어) → ③ fallbackLng(배포 기본).
-      //   기기 언어가 ko → 한국어, vi → 베트남어, 그 외(en 등) → 배포 기본(VN 빌드=vi).
-      order: ["localStorage", "navigator"],
+      // 언어 우선순위. ★ VN 상용(xemboi)은 기본 vi여야 하므로 기기언어(navigator) 자동추종을 끈다
+      //   — VN 빌드: ① saju_lang(스위치 명시 전환) → ② 기본 vi. (ko 기기여도 자동 ko 금지; ko는 스위치로만)
+      //     재설치로 saju_lang 초기화돼도 vi로 뜬다(과거엔 navigator=ko 추종해 소·토끼 원복되던 버그).
+      //   — KO 빌드: ① saju_lang → ② navigator(기기 언어) → ③ 기본 ko. (현행 불변)
+      order: IS_VN_BUILD ? ["localStorage"] : ["localStorage", "navigator"],
       lookupLocalStorage: "saju_lang",
       caches: ["localStorage"],
     },
