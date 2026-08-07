@@ -25,4 +25,4 @@ echo   [완료] xemboi 종료 ^(격리^). 공용 PG/Qdrant/Ollama/타 시스템 
 echo   ※ 전용 터널까지 내리려면^(선택^): sc stop %CF_SERVICE%   ^(관리자 권한^)
 echo ============================================================
 endlocal
-pause > nul
+timeout /t 5 >nul

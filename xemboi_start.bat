@@ -1,6 +1,8 @@
 @echo off
 chcp 65001 > nul
 title XEMBOI :8009 (vi)
+REM [grid] self-snap: park this console into its 3x3 cell (own hwnd - no title clash; harmless if missing).
+powershell -NoProfile -ExecutionPolicy Bypass -File "C:\Users\orion\OneDrive\바탕 화면\start batch\arrange_grid.ps1" -SelfKey xemboi >nul 2>&1
 REM ########################### DO NOT MODIFY (guard) ###########################
 REM  For any agent/human. NO CHANGES WITHOUT OPERATOR orion0321 APPROVAL.
 REM   1) This is xemboi(VN) - SAJU_HOME=D:\xemboi, port 8009, DEFAULT_LOCALE=vi.
@@ -9,7 +11,7 @@ REM   3) Shared Qdrant:6333 / Ollama:11434 are LISTEN-checked ONLY (started by s
 REM   4) Isolated stop: stop_port.ps1 -Port 8009 -Proj D:\xemboi (never /IM global kill).
 REM   5) Save as UTF-8 no-BOM + CRLF. RUN ONCE.
 REM ###############################################################################
-REM  DB=PostgreSQL :5432 (xemboi_db) / Qdrant xemboi_corpus / Redis 6379/1
+REM  DB=PostgreSQL :5444 전용(xemboi_db, 2026-08-06 공유 5432에서 분리) / Qdrant xemboi_corpus / Redis 6379/1
 REM  API :8009 (+consultation 8011) / Domain: https://xemboi.io (cloudflared-xemboi)
 setlocal enabledelayedexpansion
 set "CUDA_DEVICE_ORDER=PCI_BUS_ID"
@@ -18,7 +20,8 @@ set "SAJU_PORT=8009"
 set "SAJU_CONSULTATION_PORT=8011"
 set "SAJU_DOMAIN=xemboi.io"
 set "CF_SERVICE=cloudflared-xemboi"
-set "DB_SERVICE=postgresql-x64-17"
+set "DB_SERVICE=xemboi_pg"
+set "PGDATA_XEM=D:\xemboi\pgdata_xemboi"
 set "PYTHONIOENCODING=utf-8"
 set "PYTHONUTF8=1"
 set "PYTHONUNBUFFERED=1"
@@ -47,8 +50,16 @@ powershell -NoProfile -ExecutionPolicy Bypass -File "D:\_ops\stop_port.ps1" -Por
 REM [2/3] DB (idempotent start-only) / shared Qdrant+Ollama (LISTEN-check ONLY) / own tunnel
 echo.
 echo [2/3] DB / 공용 인프라^(Qdrant·Ollama^) 확인 / 터널...
-sc query %DB_SERVICE% | findstr /i RUNNING > nul
-if errorlevel 1 ( echo   [!] %DB_SERVICE% 미실행 - net start 시도 & net start %DB_SERVICE% >nul 2>nul ) else ( echo   [v] %DB_SERVICE% 실행 중 )
+powershell -NoProfile -Command "if(Get-NetTCPConnection -LocalPort 5444 -State Listen -EA SilentlyContinue){exit 0}else{exit 1}" >nul 2>&1
+if not errorlevel 1 ( echo   [v] xemboi PG 실행 중 ^(:5444^) & goto :xdb_ok )
+net start %DB_SERVICE% >nul 2>nul
+powershell -NoProfile -Command "foreach($i in 1..5){ if(Get-NetTCPConnection -LocalPort 5444 -State Listen -EA SilentlyContinue){exit 0}; Start-Sleep 1 }; exit 1" >nul 2>&1
+if not errorlevel 1 ( echo   [v] %DB_SERVICE% 서비스로 기동 & goto :xdb_ok )
+echo   - 서비스 미등록/미기동 - pg_ctl 직접 기동 ^(로그=logs\xemboi_pg.log^)
+"D:\pgsql\17\bin\pg_ctl.exe" start -D "%PGDATA_XEM%" -l "D:\xemboi\logs\xemboi_pg.log" -w >nul 2>nul
+powershell -NoProfile -Command "foreach($i in 1..10){ if(Get-NetTCPConnection -LocalPort 5444 -State Listen -EA SilentlyContinue){exit 0}; Start-Sleep 1 }; exit 1" >nul 2>&1
+if errorlevel 1 ( echo   [X] xemboi PG 기동 실패 - logs\xemboi_pg.log 확인 & pause & exit /b 1 ) else ( echo   [v] xemboi PG pg_ctl 기동 ^(:5444^) )
+:xdb_ok
 powershell -NoProfile -Command "if(Get-NetTCPConnection -LocalPort 6333 -State Listen -EA SilentlyContinue){exit 0}else{exit 1}" >nul 2>&1
 if errorlevel 1 ( echo   [!] 공용 Qdrant:6333 미기동 - saju 등 공용 인프라를 먼저 기동하세요 ) else ( echo   [v] 공용 Qdrant:6333 확인 )
 powershell -NoProfile -Command "if(Get-NetTCPConnection -LocalPort 11434 -State Listen -EA SilentlyContinue){exit 0}else{exit 1}" >nul 2>&1
@@ -66,6 +77,6 @@ echo ------------------------------------------------------------
 "%SAJU_HOME%\.venv\Scripts\python.exe" -m uvicorn backend.app.main:app --host 127.0.0.1 --port %SAJU_PORT% %RELOAD_ARGS% --log-level info
 
 echo ------------------------------------------------------------
-echo [xemboi] 서버가 종료되었습니다. 아무 키나 누르면 창을 닫습니다.
+echo [xemboi] 서버가 종료되었습니다. 15초 후 창이 자동으로 닫힙니다^(아무 키=즉시^).
 endlocal
-pause > nul
+exit

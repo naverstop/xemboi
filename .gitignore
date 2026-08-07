@@ -123,3 +123,7 @@ data/amulet/
 data/sharecard/
 data/snackcard/
 data/pdf/
+
+# dedicated PG cluster (2026-08-06 :5444 separation) - never commit
+pgdata_xemboi/
+logs/
